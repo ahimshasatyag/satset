@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "satset" "\0"
+            VALUE "FileDescription", "Sat Set" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "satset" "\0"
+            VALUE "InternalName", "Sat Set" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "satset.exe" "\0"
-            VALUE "ProductName", "satset" "\0"
+            VALUE "OriginalFilename", "Sat Set.exe" "\0"
+            VALUE "ProductName", "Sat Set" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
