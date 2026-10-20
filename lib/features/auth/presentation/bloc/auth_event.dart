@@ -35,16 +35,30 @@ class AuthRegisterSubmitted extends AuthEvent {
   final String email;
   final String phone;
   final String password;
+  final String? alamatLengkap;
+  final double? latitude;
+  final double? longitude;
 
   const AuthRegisterSubmitted({
     required this.name,
     required this.email,
     required this.phone,
     required this.password,
+    this.alamatLengkap,
+    this.latitude,
+    this.longitude,
   });
 
   @override
-  List<Object?> get props => [name, email, phone, password];
+  List<Object?> get props => [
+        name,
+        email,
+        phone,
+        password,
+        alamatLengkap,
+        latitude,
+        longitude,
+      ];
 }
 
 /// Event saat pengguna menekan tombol login Google
@@ -57,6 +71,46 @@ class AuthForgotPasswordSubmitted extends AuthEvent {
   final String email;
 
   const AuthForgotPasswordSubmitted(this.email);
+
+  @override
+  List<Object?> get props => [email];
+}
+
+/// Event saat pengguna memverifikasi kode unik OTP
+class AuthVerifyCodeSubmitted extends AuthEvent {
+  final String email;
+  final String code;
+
+  const AuthVerifyCodeSubmitted({
+    required this.email,
+    required this.code,
+  });
+
+  @override
+  List<Object?> get props => [email, code];
+}
+
+/// Event saat pengguna mengirim kata sandi baru
+class AuthResetPasswordSubmitted extends AuthEvent {
+  final String email;
+  final String code;
+  final String newPassword;
+
+  const AuthResetPasswordSubmitted({
+    required this.email,
+    required this.code,
+    required this.newPassword,
+  });
+
+  @override
+  List<Object?> get props => [email, code, newPassword];
+}
+
+/// Event saat pengguna meminta kirim ulang kode verifikasi
+class AuthResendCodeSubmitted extends AuthEvent {
+  final String email;
+
+  const AuthResendCodeSubmitted(this.email);
 
   @override
   List<Object?> get props => [email];

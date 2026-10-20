@@ -9,6 +9,12 @@ class User extends Equatable {
   final String? photoUrl;
   final String? token;
   final String role;
+  final String? alamatLengkap;
+  final double? latitude;
+  final double? longitude;
+  final String? googleId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const User({
     required this.id,
@@ -18,6 +24,12 @@ class User extends Equatable {
     this.photoUrl,
     this.token,
     this.role = 'customer',
+    this.alamatLengkap,
+    this.latitude,
+    this.longitude,
+    this.googleId,
+    this.createdAt,
+    this.updatedAt,
   });
 
   /// User kosong / guest
@@ -39,6 +51,12 @@ class User extends Equatable {
     String? photoUrl,
     String? token,
     String? role,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+    String? googleId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return User(
       id: id ?? this.id,
@@ -48,6 +66,12 @@ class User extends Equatable {
       photoUrl: photoUrl ?? this.photoUrl,
       token: token ?? this.token,
       role: role ?? this.role,
+      alamatLengkap: alamatLengkap ?? this.alamatLengkap,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      googleId: googleId ?? this.googleId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -60,5 +84,11 @@ class User extends Equatable {
         photoUrl,
         token,
         role,
+        alamatLengkap,
+        latitude,
+        longitude,
+        googleId,
+        createdAt,
+        updatedAt,
       ];
 }

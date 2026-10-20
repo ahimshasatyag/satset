@@ -43,12 +43,18 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String phone,
     required String password,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
   }) async {
     final userModel = await remoteDataSource.register(
       name: name,
       email: email,
       phone: phone,
       password: password,
+      alamatLengkap: alamatLengkap,
+      latitude: latitude,
+      longitude: longitude,
     );
 
     await localDataSource.saveUser(userModel);
@@ -77,6 +83,35 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> forgotPassword(String email) async {
     await remoteDataSource.forgotPassword(email);
+  }
+
+  @override
+  Future<void> verifyResetCode({
+    required String email,
+    required String code,
+  }) async {
+    await remoteDataSource.verifyResetCode(
+      email: email,
+      code: code,
+    );
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await remoteDataSource.resetPassword(
+      email: email,
+      code: code,
+      newPassword: newPassword,
+    );
+  }
+
+  @override
+  Future<void> resendVerificationCode(String email) async {
+    await remoteDataSource.resendVerificationCode(email);
   }
 
   @override

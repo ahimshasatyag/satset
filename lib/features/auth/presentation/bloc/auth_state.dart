@@ -71,3 +71,43 @@ class AuthForgotPasswordSuccess extends AuthState {
   @override
   List<Object?> get props => [email];
 }
+
+/// State ketika kode unik OTP email berhasil diverifikasi
+class AuthCodeVerifiedSuccess extends AuthState {
+  final String email;
+  final String code;
+
+  const AuthCodeVerifiedSuccess({
+    required this.email,
+    required this.code,
+  });
+
+  @override
+  List<Object?> get props => [email, code];
+}
+
+/// State ketika kata sandi baru berhasil disimpan
+class AuthResetPasswordSuccess extends AuthState {
+  final String message;
+
+  const AuthResetPasswordSuccess({
+    this.message = 'Kata sandi berhasil diperbarui! Silakan masuk kembali.',
+  });
+
+  @override
+  List<Object?> get props => [message];
+}
+
+/// State ketika kode verifikasi baru berhasil dikirim ulang
+class AuthResendCodeSuccess extends AuthState {
+  final String email;
+  final String message;
+
+  const AuthResendCodeSuccess({
+    required this.email,
+    this.message = 'Kode verifikasi baru telah dikirimkan ke email Anda.',
+  });
+
+  @override
+  List<Object?> get props => [email, message];
+}

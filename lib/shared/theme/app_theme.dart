@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../navigation/smooth_page_route.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
@@ -43,6 +44,16 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.backgroundLight,
       primaryColor: AppColors.primary,
       textTheme: AppTextStyles.lightTextTheme,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: SmoothPageTransitionsBuilder(),
+          TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
+          TargetPlatform.windows: SmoothPageTransitionsBuilder(),
+          TargetPlatform.macOS: SmoothPageTransitionsBuilder(),
+          TargetPlatform.linux: SmoothPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: SmoothPageTransitionsBuilder(),
+        },
+      ),
 
       // App Bar Theme
       appBarTheme: const AppBarTheme(
@@ -349,6 +360,16 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.backgroundDark,
       primaryColor: AppColors.primary400,
       textTheme: AppTextStyles.darkTextTheme,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: SmoothPageTransitionsBuilder(),
+          TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
+          TargetPlatform.windows: SmoothPageTransitionsBuilder(),
+          TargetPlatform.macOS: SmoothPageTransitionsBuilder(),
+          TargetPlatform.linux: SmoothPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: SmoothPageTransitionsBuilder(),
+        },
+      ),
 
       // App Bar Theme
       appBarTheme: const AppBarTheme(

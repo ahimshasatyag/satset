@@ -49,41 +49,81 @@ class SocialLoginButtons extends StatelessWidget {
         const SizedBox(height: 18),
 
         // Tombol Google
-        Container(
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           width: double.infinity,
-          height: 48,
+          height: 50,
           decoration: BoxDecoration(
             color: isDark ? AppColors.surfaceVariantDark : AppColors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isDark ? AppColors.borderDark : AppColors.borderLight,
               width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: isLoading ? null : onGooglePressed,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
+              splashColor: AppColors.primary.withValues(alpha: 0.08),
+              highlightColor: AppColors.primary.withValues(alpha: 0.04),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Icon Google Logo Kustom (Multi-color G)
-                    _buildGoogleLogo(),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Masuk dengan Google',
-                      style: AppTextStyles.labelLarge.copyWith(
-                        color: isDark
-                            ? AppColors.textPrimaryDark
-                            : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w600,
+                child: isLoading
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                isDark
+                                    ? AppColors.primary400
+                                    : AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Menghubungkan ke Google...',
+                            style: AppTextStyles.labelLarge.copyWith(
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Icon Google Logo Kustom (Multi-color G)
+                          _buildGoogleLogo(),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Masuk dengan Google',
+                            style: AppTextStyles.labelLarge.copyWith(
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),

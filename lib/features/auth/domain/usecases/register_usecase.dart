@@ -7,12 +7,18 @@ class RegisterParams {
   final String email;
   final String phone;
   final String password;
+  final String? alamatLengkap;
+  final double? latitude;
+  final double? longitude;
 
   const RegisterParams({
     required this.name,
     required this.email,
     required this.phone,
     required this.password,
+    this.alamatLengkap,
+    this.latitude,
+    this.longitude,
   });
 }
 
@@ -28,6 +34,9 @@ class RegisterUseCase {
       email: params.email,
       phone: params.phone,
       password: params.password,
+      alamatLengkap: params.alamatLengkap,
+      latitude: params.latitude,
+      longitude: params.longitude,
     );
   }
 }

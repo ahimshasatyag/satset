@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:satset/shared/widgets/widgets.dart';
+import '../../data/utils/validators.dart';
 import 'remember_me_checkbox.dart';
 
 /// Form input interaktif untuk email dan kata sandi dengan validasi lengkap
@@ -71,15 +72,7 @@ class _LoginFormState extends State<LoginForm> {
             isRequired: true,
             enabled: !widget.isLoading,
             prefixIcon: const Icon(Icons.mail_outline_rounded),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Email tidak boleh kosong';
-              }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                return 'Masukkan format email yang valid';
-              }
-              return null;
-            },
+            validator: Validators.validateEmail,
           ),
           const SizedBox(height: 16),
 
@@ -94,15 +87,7 @@ class _LoginFormState extends State<LoginForm> {
             enabled: !widget.isLoading,
             prefixIcon: const Icon(Icons.lock_outline_rounded),
             onSubmitted: (_) => _handleSubmit(),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Kata sandi tidak boleh kosong';
-              }
-              if (value.length < 6) {
-                return 'Kata sandi minimal 6 karakter';
-              }
-              return null;
-            },
+            validator: Validators.validatePassword,
           ),
           const SizedBox(height: 14),
 

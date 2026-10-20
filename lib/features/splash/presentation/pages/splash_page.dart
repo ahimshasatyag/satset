@@ -4,6 +4,9 @@ import 'package:satset/features/splash/data/datasources/splash_local_datasource.
 import 'package:satset/features/splash/data/repositories/splash_repository_impl.dart';
 import 'package:satset/features/splash/domain/usecases/check_auth_status_usecase.dart';
 import 'package:satset/features/splash/domain/usecases/get_app_settings_usecase.dart';
+import 'package:satset/shared/theme/theme.dart';
+import 'package:satset/shared/widgets/widgets.dart';
+
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
@@ -23,17 +26,13 @@ class OnboardingItem {
   });
 }
 
-/// Halaman Splash Screen & Onboarding dengan desain selaras screenshot referensi,
-/// arsitektur BLoC, animasi dot indikator, dan transisi mulus.
+/// Halaman Splash Screen & Onboarding dengan desain selaras tema SatSet,
+/// arsitektur BLoC, animasi dot indikator, dan komponen tombol dari shared widgets.
 class SplashPage extends StatelessWidget {
   final VoidCallback? onNavigateToHome;
   final VoidCallback? onNavigateToLogin;
 
-  const SplashPage({
-    super.key,
-    this.onNavigateToHome,
-    this.onNavigateToLogin,
-  });
+  const SplashPage({super.key, this.onNavigateToHome, this.onNavigateToLogin});
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +49,7 @@ class SplashPage extends StatelessWidget {
         repository: repository,
       )..add(const SplashInitEvent()),
       child: SplashView(
+        key: UniqueKey(),
         onNavigateToHome: onNavigateToHome,
         onNavigateToLogin: onNavigateToLogin,
       ),
@@ -61,11 +61,7 @@ class SplashView extends StatefulWidget {
   final VoidCallback? onNavigateToHome;
   final VoidCallback? onNavigateToLogin;
 
-  const SplashView({
-    super.key,
-    this.onNavigateToHome,
-    this.onNavigateToLogin,
-  });
+  const SplashView({super.key, this.onNavigateToHome, this.onNavigateToLogin});
 
   @override
   State<SplashView> createState() => _SplashViewState();
@@ -98,7 +94,19 @@ class _SplashViewState extends State<SplashView> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageController = PageController(initialPage: 0);
+  }
+
+  bool _hasPrecachedBackground = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasPrecachedBackground) {
+      _hasPrecachedBackground = true;
+      // Precache background Login saat pengguna berada di splash/onboarding agar background login tidak sempat hilang/berkedip
+      precacheImage(const AssetImage('assets/images/Background.png'), context);
+    }
   }
 
   @override
@@ -126,66 +134,109 @@ class _SplashViewState extends State<SplashView> {
     context.read<SplashBloc>().add(const SplashFinishOnboardingEvent());
   }
 
+  Color _getBlobColor(int index, bool isDark) {
+    if (isDark) {
+      switch (index) {
+        case 0:
+          return AppColors.primary900.withValues(alpha: 0.35);
+        case 1:
+          return AppColors.secondary900.withValues(alpha: 0.35);
+        case 2:
+        default:
+          return AppColors.tertiary800.withValues(alpha: 0.35);
+      }
+    } else {
+      switch (index) {
+        case 0:
+          return AppColors.primary50;
+        case 1:
+          return AppColors.secondary50;
+        case 2:
+        default:
+          return AppColors.tertiary50;
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: BlocConsumer<SplashBloc, SplashState>(
-        listener: (context, state) {
-          if (state is SplashAuthenticated) {
-            if (widget.onNavigateToHome != null) {
-              widget.onNavigateToHome!();
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Navigasi ke Beranda (Sudah Login)')),
-              );
-            }
-          } else if (state is SplashUnauthenticated) {
-            if (widget.onNavigateToLogin != null) {
-              widget.onNavigateToLogin!();
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Navigasi ke Login / Registrasi')),
-              );
-            }
-          }
-        },
-        builder: (context, state) {
-          if (state is SplashInitial || state is SplashLoading) {
-            return _buildSplashLoadingScreen();
-          }
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          // Background motif dari BackgroundSplash.jpg untuk seluruh splash screen & onboarding
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/BackgroundSplash.jpg',
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+            ),
+          ),
 
-          if (state is SplashOnboardingState) {
-            return _buildOnboardingScreen(state.currentPage);
-          }
+          // Lapisan overlay halus untuk mode gelap agar teks & ilustrasi tetap kontras optimal
+          if (isDark)
+            Positioned.fill(
+              child: Container(
+                color: AppColors.backgroundDark.withValues(alpha: 0.85),
+              ),
+            ),
 
-          // State selesai
-          return _buildSplashLoadingScreen();
-        },
+          // Konten Splash Screen (Logo & Loading maupun Slider Onboarding)
+          BlocConsumer<SplashBloc, SplashState>(
+            listener: (context, state) {
+              if (state is SplashAuthenticated) {
+                if (widget.onNavigateToHome != null) {
+                  widget.onNavigateToHome!();
+                } else {
+                  Navigator.of(context).pushReplacementNamed('/home');
+                }
+              } else if (state is SplashUnauthenticated) {
+                if (widget.onNavigateToLogin != null) {
+                  widget.onNavigateToLogin!();
+                } else {
+                  Navigator.of(context).pushReplacementNamed('/login');
+                }
+              }
+            },
+            builder: (context, state) {
+              if (state is SplashInitial || state is SplashLoading) {
+                return _buildSplashLoadingScreen(context, isDark);
+              }
+
+              if (state is SplashOnboardingState) {
+                return _buildOnboardingScreen(
+                    context, state.currentPage, isDark);
+              }
+
+              // State selesai
+              return _buildSplashLoadingScreen(context, isDark);
+            },
+          ),
+        ],
       ),
     );
   }
 
   /// Tampilan Splash Logo awal saat aplikasi pertama kali memuat konfigurasi
-  Widget _buildSplashLoadingScreen() {
+  Widget _buildSplashLoadingScreen(BuildContext context, bool isDark) {
     return Stack(
       children: [
-        // Background motif lembut
-        Positioned.fill(
-          child: Opacity(
-            opacity: 0.25,
-            child: Image.asset(
-              'assets/images/BackgroundSplash.jpg',
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-
         // Logo di tengah
-        const Center(
-          child: SplashLogo(
-            size: 210,
-            showTagline: true,
+        const Center(child: SplashLogo(size: 210, showTagline: true)),
+
+        // Indikator loading kustom dari shared widgets
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 96,
+          child: Center(
+            child: CustomLoading(
+              size: 28,
+              color: AppColors.primary,
+            ),
           ),
         ),
 
@@ -194,16 +245,18 @@ class _SplashViewState extends State<SplashView> {
           left: 0,
           right: 0,
           bottom: 32,
-          child: Center(
-            child: SplashVersion(version: '1.0.0'),
-          ),
+          child: Center(child: SplashVersion(version: '1.0.0')),
         ),
       ],
     );
   }
 
-  /// Tampilan Onboarding Slider persis seperti referensi desain (3 slide)
-  Widget _buildOnboardingScreen(int currentPage) {
+  /// Tampilan Onboarding Slider selaras tema brand SatSet
+  Widget _buildOnboardingScreen(
+    BuildContext context,
+    int currentPage,
+    bool isDark,
+  ) {
     final isLastPage = currentPage == _onboardingItems.length - 1;
 
     return SafeArea(
@@ -211,16 +264,41 @@ class _SplashViewState extends State<SplashView> {
         children: [
           const SizedBox(height: 16),
 
-          // Header: Judul Brand ("Food Express" di referensi -> "SatSet Express")
-          const Center(
-            child: Text(
-              'Food Express',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E3A3A),
-                letterSpacing: 0.2,
-              ),
+          // Header: Judul Brand SatSet Express
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'SATSET',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Express',
+                  style: AppTextStyles.titleLarge.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -239,19 +317,19 @@ class _SplashViewState extends State<SplashView> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Organic Blob Backdrop + Ilustrasi 3D
+                      // Organic Blob Backdrop + Ilustrasi
                       Expanded(
                         flex: 6,
                         child: Center(
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Organic blob shape (soft pastel mint)
+                              // Organic blob shape dengan warna tema SatSet
                               Container(
                                 width: 280,
                                 height: 280,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFD6EDE6),
+                                  color: _getBlobColor(index, isDark),
                                   borderRadius: BorderRadius.only(
                                     topLeft: const Radius.circular(150),
                                     topRight: const Radius.circular(130),
@@ -275,16 +353,17 @@ class _SplashViewState extends State<SplashView> {
                         ),
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
 
                       // Title
                       Text(
                         item.title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 24,
+                        style: AppTextStyles.headlineSmall.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E3A3A),
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                           letterSpacing: 0.1,
                         ),
                       ),
@@ -297,10 +376,11 @@ class _SplashViewState extends State<SplashView> {
                         child: Text(
                           item.description,
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.45,
-                            color: const Color(0xFF1E3A3A).withValues(alpha: 0.7),
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            height: 1.5,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
                         ),
                       ),
@@ -313,72 +393,42 @@ class _SplashViewState extends State<SplashView> {
             ),
           ),
 
-          // Dot Indicators (Pill memanjang untuk active, titik untuk inactive)
-          _buildPageIndicators(currentPage),
+          // Dot Indicators
+          _buildPageIndicators(currentPage, isDark),
 
           const SizedBox(height: 32),
 
-          // Bottom Navigation Buttons (Skip di kiri, Next / Let's Go di kanan)
+          // Bottom Navigation Buttons menggunakan CustomButton dari shared widgets
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Tombol Skip (Pill mint lembut)
+                // Tombol Skip (CustomButton ghost)
                 if (!isLastPage)
-                  InkWell(
-                    onTap: _onSkipPressed,
+                  CustomButton.ghost(
+                    text: 'Skip',
+                    onPressed: _onSkipPressed,
+                    isFullWidth: false,
                     borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD6EDE6),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: const Text(
-                        'Skip',
-                        style: TextStyle(
-                          color: Color(0xFF1E3A3A),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
+                    size: ButtonSize.medium,
                   )
                 else
                   const SizedBox(width: 80),
 
-                // Tombol Next / Let's Go (Pill gelap elegan)
-                InkWell(
-                  onTap: () => _onNextPressed(currentPage),
+                // Tombol Next / Let's Go (CustomButton gradient brand)
+                CustomButton.gradient(
+                  text: isLastPage ? "Let's Go" : 'Next',
+                  onPressed: () => _onNextPressed(currentPage),
+                  isFullWidth: false,
                   borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isLastPage ? 36 : 28,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E3A3A),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1E3A3A).withValues(alpha: 0.25),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      isLastPage ? "Let's Go" : 'Next',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
+                  size: ButtonSize.medium,
+                  suffixIcon: Icon(
+                    isLastPage
+                        ? Icons.rocket_launch_rounded
+                        : Icons.arrow_forward_rounded,
+                    color: AppColors.white,
+                    size: 18,
                   ),
                 ),
               ],
@@ -391,28 +441,28 @@ class _SplashViewState extends State<SplashView> {
     );
   }
 
-  /// Indikator halaman: Titik aktif berbentuk pill oval memanjang
-  Widget _buildPageIndicators(int activeIndex) {
+  /// Indikator halaman: Titik aktif berbentuk pill gradient SatSet
+  Widget _buildPageIndicators(int activeIndex, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        _onboardingItems.length,
-        (index) {
-          final isActive = index == activeIndex;
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: isActive ? 22 : 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: isActive
-                  ? const Color(0xFF1E3A3A)
-                  : const Color(0xFF1E3A3A).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          );
-        },
-      ),
+      children: List.generate(_onboardingItems.length, (index) {
+        final isActive = index == activeIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: isActive ? 24 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            gradient: isActive ? AppColors.primaryGradient : null,
+            color: isActive
+                ? null
+                : (isDark
+                    ? AppColors.borderDark
+                    : AppColors.primary100.withValues(alpha: 0.6)),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+      }),
     );
   }
 }

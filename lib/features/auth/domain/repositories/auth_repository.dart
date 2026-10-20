@@ -15,6 +15,9 @@ abstract class AuthRepository {
     required String email,
     required String phone,
     required String password,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
   });
 
   /// Proses login cepat menggunakan akun Google
@@ -28,6 +31,22 @@ abstract class AuthRepository {
 
   /// Mengirim permintaan reset kata sandi ke email
   Future<void> forgotPassword(String email);
+
+  /// Memverifikasi kode unik (OTP) yang dikirim ke email
+  Future<void> verifyResetCode({
+    required String email,
+    required String code,
+  });
+
+  /// Menyimpan kata sandi baru pengguna
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
+
+  /// Mengirim ulang kode verifikasi unik ke email
+  Future<void> resendVerificationCode(String email);
 
   /// Memeriksa status opsi "Ingat Saya" (Remember Me)
   Future<bool> isRememberMe();

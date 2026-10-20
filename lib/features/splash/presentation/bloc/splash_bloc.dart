@@ -28,7 +28,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   ) async {
     emit(const SplashLoading());
 
-    // Beri jeda tampilan logo splash screen (1.5 detik)
+    // Beri jeda tampilan logo splash screen (1.5 detik agar terlihat jelas)
     await Future.delayed(const Duration(milliseconds: 1500));
 
     final settings = await getAppSettingsUseCase();
@@ -36,18 +36,12 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
 
     final updatedSettings = settings.copyWith(isAuthenticated: isAuthenticated);
 
-    // Jika pengguna baru pertama kali membuka app, tampilkan onboarding slider
-    if (updatedSettings.isFirstTime) {
-      emit(SplashOnboardingState(
-        currentPage: 0,
-        totalPages: 3,
-        settings: updatedSettings,
-      ));
-    } else if (isAuthenticated) {
-      emit(SplashAuthenticated(updatedSettings));
-    } else {
-      emit(SplashUnauthenticated(updatedSettings));
-    }
+    // Awalan aplikasi SELALU dimulai dari Splash Onboarding halaman pertama (index 0)
+    emit(SplashOnboardingState(
+      currentPage: 0,
+      totalPages: 3,
+      settings: updatedSettings,
+    ));
   }
 
   void _onPageChanged(

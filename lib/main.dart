@@ -1,391 +1,156 @@
 import 'package:flutter/material.dart';
-import 'shared/theme/theme.dart';
-import 'shared/widgets/widgets.dart';
-import 'features/splash/presentation/pages/splash_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'app/config/supabase_config.dart';
+import 'app/observers/app_bloc_observer.dart';
+import 'features/auth/data/datasources/auth_local_datasource.dart';
+import 'features/auth/data/datasources/auth_remote_datasource.dart';
+import 'features/auth/data/repositories/auth_repository_impl.dart';
+import 'features/auth/domain/repositories/auth_repository.dart';
+import 'features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'features/auth/domain/usecases/login_usecase.dart';
+import 'features/auth/domain/usecases/logout_usecase.dart';
+import 'features/auth/domain/usecases/register_usecase.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/dashboard/presentation/pages/home_page.dart';
+import 'features/splash/presentation/pages/splash_page.dart';
+import 'shared/theme/theme.dart';
 
-void main() {
-  runApp(const SatSetApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Daftarkan Bloc Observer untuk pemantauan state & error
+  Bloc.observer = AppBlocObserver();
+
+  // Inisialisasi Supabase
+  await SupabaseConfig.initialize();
+
+  // Inisialisasi dependensi
+  final localDataSource = AuthLocalDataSourceImpl();
+  final remoteDataSource = AuthRemoteDataSourceImpl();
+  final authRepository = AuthRepositoryImpl(
+    remoteDataSource: remoteDataSource,
+    localDataSource: localDataSource,
+  );
+
+  final loginUseCase = LoginUseCase(authRepository);
+  final registerUseCase = RegisterUseCase(authRepository);
+  final logoutUseCase = LogoutUseCase(authRepository);
+  final getCurrentUserUseCase = GetCurrentUserUseCase(authRepository);
+
+  runApp(
+    SatSetApp(
+      loginUseCase: loginUseCase,
+      registerUseCase: registerUseCase,
+      logoutUseCase: logoutUseCase,
+      getCurrentUserUseCase: getCurrentUserUseCase,
+      authRepository: authRepository,
+    ),
+  );
 }
 
 class SatSetApp extends StatefulWidget {
-  const SatSetApp({super.key});
+  final LoginUseCase loginUseCase;
+  final RegisterUseCase registerUseCase;
+  final LogoutUseCase logoutUseCase;
+  final GetCurrentUserUseCase getCurrentUserUseCase;
+  final AuthRepository authRepository;
 
-  @override
-  State<SatSetApp> createState() => _SatSetAppState();
-}
-
-class _SatSetAppState extends State<SatSetApp> {
-  ThemeMode _themeMode = ThemeMode.light;
-
-  void _toggleTheme() {
-    setState(() {
-      _themeMode =
-          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SatSet.id',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: _themeMode,
-      home: ThemePreviewPage(
-        isDarkMode: _themeMode == ThemeMode.dark,
-        onToggleTheme: _toggleTheme,
-      ),
-    );
-  }
-}
-
-class ThemePreviewPage extends StatefulWidget {
-  final bool isDarkMode;
-  final VoidCallback onToggleTheme;
-
-  const ThemePreviewPage({
+  const SatSetApp({
     super.key,
-    required this.isDarkMode,
-    required this.onToggleTheme,
+    required this.loginUseCase,
+    required this.registerUseCase,
+    required this.logoutUseCase,
+    required this.getCurrentUserUseCase,
+    required this.authRepository,
   });
 
   @override
-  State<ThemePreviewPage> createState() => _ThemePreviewPageState();
+  State<SatSetApp> createState() => SatSetAppState();
 }
 
-class _ThemePreviewPageState extends State<ThemePreviewPage> {
-  bool _isLoadingButton = false;
+class SatSetAppState extends State<SatSetApp> {
+  Key _appKey = UniqueKey();
+  String _currentRoute = '/';
 
-  void _triggerLoading() {
-    setState(() => _isLoadingButton = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isLoadingButton = false);
-      }
-    });
+  /// Me-reset rute aplikasi kembali ke Splash Screen (SplashPage)
+  void resetToSplash() {
+    if (mounted) {
+      setState(() {
+        _currentRoute = '/';
+        _appKey = UniqueKey();
+      });
+    }
+  }
+
+
+  void _navigateTo(String route) {
+    if (mounted) {
+      setState(() {
+        _currentRoute = route;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        showBackButton: false,
-        titleWidget: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'SATSET',
-                style: TextStyle(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('Widget Showcase'),
-          ],
+    return MultiBlocProvider(
+      key: _appKey,
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (_) => AuthBloc(
+            loginUseCase: widget.loginUseCase,
+            registerUseCase: widget.registerUseCase,
+            logoutUseCase: widget.logoutUseCase,
+            getCurrentUserUseCase: widget.getCurrentUserUseCase,
+            repository: widget.authRepository,
+          ),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Halaman Login',
-            icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LoginPage(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: 'Lihat Splash & Onboarding',
-            icon: const Icon(Icons.rocket_launch_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SplashPage(
-                    onNavigateToHome: () => Navigator.pop(context),
-                    onNavigateToLogin: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const LoginPage(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: widget.isDarkMode ? 'Mode Terang' : 'Mode Gelap',
-            icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: widget.onToggleTheme,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Logo Brand Container
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: widget.isDarkMode
-                      ? AppColors.surfaceDark
-                      : AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: widget.isDarkMode
-                        ? AppColors.borderDark
-                        : AppColors.borderLight,
-                  ),
-                ),
-                child: Image.asset(
-                  'assets/images/LogoTextSatset.png',
-                  height: 65,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // 1. Status Badges
-            Text('1. Status Badges', style: AppTextStyles.titleMedium),
-            const SizedBox(height: 10),
-            const Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                StatusBadge.satset(label: 'Sat-Set Instant'),
-                StatusBadge.success(label: 'Terkirim'),
-                StatusBadge.warning(label: 'Sedang Diantar'),
-                StatusBadge.error(label: 'Gagal'),
-                StatusBadge(label: 'Menunggu Kurir', status: BadgeStatus.info),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // 2. Custom Card Hero Banner
-            Text('2. Custom Card (Banner & Outlined)',
-                style: AppTextStyles.titleMedium),
-            const SizedBox(height: 10),
-            CustomCard.banner(
-              onTap: () {},
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Promo Sat-Set Kilat ⚡',
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Kirim barang instan dengan diskon ongkir hingga 50%.',
-                          style: TextStyle(
-                            color: AppColors.white.withValues(alpha: 0.9),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    color: AppColors.white,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // 3. Custom Text Fields
-            Text('3. Custom Text Field', style: AppTextStyles.titleMedium),
-            const SizedBox(height: 10),
-            const CustomTextField(
-              label: 'Nomor Resi / Pelacakan',
-              hintText: 'Contoh: SATSET-882910',
-              isRequired: true,
-              prefixIcon: Icon(Icons.search),
-            ),
-            const SizedBox(height: 14),
-            const CustomTextField(
-              label: 'PIN / Kata Sandi Pengguna',
-              hintText: 'Masukkan 6 digit PIN',
-              isPassword: true,
-              isRequired: true,
-              prefixIcon: Icon(Icons.lock_outline),
-            ),
-            const SizedBox(height: 24),
-
-            // 4. Custom Buttons
-            Text('4. Custom Button (Varian Brand)',
-                style: AppTextStyles.titleMedium),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                CustomButton(
-                  text: 'Primary Red',
-                  onPressed: () {},
-                  isFullWidth: false,
-                  prefixIcon: const Icon(Icons.flash_on,
-                      color: AppColors.white, size: 18),
-                ),
-                CustomButton.secondary(
-                  text: 'Speed Orange',
-                  onPressed: () {},
-                  isFullWidth: false,
-                  prefixIcon: const Icon(Icons.local_shipping,
-                      color: AppColors.white, size: 18),
-                ),
-                CustomButton.gradient(
-                  text: _isLoadingButton ? 'Memproses...' : 'Gradient Animasi',
-                  isLoading: _isLoadingButton,
-                  isFullWidth: false,
-                  onPressed: _triggerLoading,
-                ),
-                CustomButton.outlined(
-                  text: 'Outlined Button',
-                  onPressed: () {},
-                  isFullWidth: false,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // 5. Dialogs & Bottom Sheet Triggers (Dengan Animasi Lottie)
-            Text('5. Modal & Dialog Animasi Lottie',
-                style: AppTextStyles.titleMedium),
-            const SizedBox(height: 6),
-            Text(
-              'Menggunakan file animasi Lottie di assets/icon (Check Mark, Sign for error, & Warning Status)',
-              style: AppTextStyles.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                CustomButton(
-                  text: 'Dialog Sukses',
-                  isFullWidth: false,
-                  prefixIcon: const Icon(Icons.check_circle, color: AppColors.white, size: 16),
-                  onPressed: () {
-                    CustomDialog.showSuccess(
-                      context: context,
-                      title: 'Pesanan Berhasil!',
-                      message: 'Paket Sat-Set Anda telah terdaftar dan kurir siap meluncur.',
-                      confirmText: 'Mantap',
-                    );
-                  },
-                ),
-                CustomButton.secondary(
-                  text: 'Dialog Warning',
-                  isFullWidth: false,
-                  prefixIcon: const Icon(Icons.warning_amber, color: AppColors.white, size: 16),
-                  onPressed: () {
-                    CustomDialog.showWarning(
-                      context: context,
-                      title: 'Periksa Alamat Tujuan',
-                      message: 'Alamat belum dilengkapi nomor rumah/patokan. Tetap lanjutkan?',
-                      confirmText: 'Lanjutkan',
-                      cancelText: 'Ubah Alamat',
-                    );
-                  },
-                ),
-                CustomButton.outlined(
-                  text: 'Dialog Error',
-                  isFullWidth: false,
-                  prefixIcon: const Icon(Icons.cancel, color: AppColors.primary, size: 16),
-                  onPressed: () {
-                    CustomDialog.showError(
-                      context: context,
-                      title: 'Gagal Memproses',
-                      message: 'Koneksi jaringan terputus atau server sedang sibuk.',
-                      confirmText: 'Coba Lagi',
-                      cancelText: 'Tutup',
-                    );
-                  },
-                ),
-                CustomButton.outlined(
-                  text: 'Bottom Sheet Status',
-                  isFullWidth: false,
-                  prefixIcon: const Icon(Icons.vertical_align_top, color: AppColors.primary, size: 16),
-                  onPressed: () {
-                    CustomBottomSheet.showSuccess(
-                      context: context,
-                      title: 'Pengiriman Tuntas!',
-                      message: 'Penerima telah menerima paket dengan selamat.',
-                      confirmText: 'Tutup',
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // 6. Loading & Skeleton Shimmer
-            Text('6. Shimmer & Loading State', style: AppTextStyles.titleMedium),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const CustomShimmer.circle(size: 48),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CustomShimmer(
-                        width: double.infinity,
-                        height: 16,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      const SizedBox(height: 8),
-                      CustomShimmer(
-                        width: 180,
-                        height: 12,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-          ],
+        BlocProvider<ThemeCubit>(
+          create: (_) => ThemeCubit(),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
-        icon: const Icon(Icons.add),
-        label: const Text('Kirim Baru'),
+      ],
+      child: BlocBuilder<ThemeCubit, ThemeMode>(
+        builder: (context, themeMode) {
+          Widget homeWidget;
+          switch (_currentRoute) {
+            case '/login':
+              homeWidget = LoginPage(
+                onLoginSuccess: (_) => _navigateTo('/home'),
+              );
+              break;
+            case '/home':
+              homeWidget = ThemePreviewPage(
+                onResetToSplash: () => resetToSplash(),
+              );
+              break;
+            case '/':
+            default:
+              homeWidget = SplashPage(
+                onNavigateToLogin: () => _navigateTo('/login'),
+                onNavigateToHome: () => _navigateTo('/home'),
+              );
+              break;
+          }
+
+          return MaterialApp(
+            key: _appKey,
+            title: 'SatSet.id',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeMode,
+            home: homeWidget,
+            routes: {
+              '/login': (context) => LoginPage(
+                    onLoginSuccess: (_) => _navigateTo('/home'),
+                  ),
+              '/home': (context) => ThemePreviewPage(
+                    onResetToSplash: () => resetToSplash(),
+                  ),
+            },
+          );
+        },
       ),
     );
   }

@@ -27,6 +27,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegisterSubmitted>(_onRegisterSubmitted);
     on<AuthGoogleLoginSubmitted>(_onGoogleLoginSubmitted);
     on<AuthForgotPasswordSubmitted>(_onForgotPasswordSubmitted);
+    on<AuthVerifyCodeSubmitted>(_onVerifyCodeSubmitted);
+    on<AuthResetPasswordSubmitted>(_onResetPasswordSubmitted);
+    on<AuthResendCodeSubmitted>(_onResendCodeSubmitted);
     on<AuthLogoutSubmitted>(_onLogoutSubmitted);
     on<AuthResetState>(_onResetState);
   }
@@ -85,6 +88,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           email: event.email.trim(),
           phone: event.phone.trim(),
           password: event.password,
+          alamatLengkap: event.alamatLengkap?.trim(),
+          latitude: event.latitude,
+          longitude: event.longitude,
         ),
       );
       emit(AuthSuccess(
@@ -122,6 +128,58 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await repository.forgotPassword(event.email.trim());
       emit(AuthForgotPasswordSuccess(event.email.trim()));
+    } catch (e) {
+      final cleanMessage = e.toString().replaceAll('Exception: ', '');
+      emit(AuthFailure(cleanMessage));
+    }
+  }
+
+  Future<void> _onVerifyCodeSubmitted(
+    AuthVerifyCodeSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading(message: 'Memverifikasi kode unik...'));
+    try {
+      await repository.verifyResetCode(
+        email: event.email.trim(),
+        code: event.code.trim(),
+      );
+      emit(AuthCodeVerifiedSuccess(
+        email: event.email.trim(),
+        code: event.code.trim(),
+      ));
+    } catch (e) {
+      final cleanMessage = e.toString().replaceAll('Exception: ', '');
+      emit(AuthFailure(cleanMessage));
+    }
+  }
+
+  Future<void> _onResetPasswordSubmitted(
+    AuthResetPasswordSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading(message: 'Menyimpan kata sandi baru...'));
+    try {
+      await repository.resetPassword(
+        email: event.email.trim(),
+        code: event.code.trim(),
+        newPassword: event.newPassword,
+      );
+      emit(const AuthResetPasswordSuccess());
+    } catch (e) {
+      final cleanMessage = e.toString().replaceAll('Exception: ', '');
+      emit(AuthFailure(cleanMessage));
+    }
+  }
+
+  Future<void> _onResendCodeSubmitted(
+    AuthResendCodeSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading(message: 'Mengirim ulang kode unik...'));
+    try {
+      await repository.resendVerificationCode(event.email.trim());
+      emit(AuthResendCodeSuccess(email: event.email.trim()));
     } catch (e) {
       final cleanMessage = e.toString().replaceAll('Exception: ', '');
       emit(AuthFailure(cleanMessage));

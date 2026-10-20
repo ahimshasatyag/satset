@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../..//theme/theme.dart';
+import '../../theme/theme.dart';
 
 /// App Bar kustom aplikasi SatSet dengan opsi latar belakang bersih atau gradient brand,
-/// tombol kembali berdesain rounded, dan integrasi tipografi konsisten.
+/// mode minimalist (tanpa background, hanya arrow), tombol kembali berdesain rounded, dan integrasi tipografi konsisten.
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
   final Widget? titleWidget;
@@ -15,6 +15,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double elevation;
   final Color? backgroundColor;
   final bool useGradient;
+  final bool isMinimalist;
   final Widget? leading;
 
   const CustomAppBar({
@@ -29,6 +30,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.elevation = 0,
     this.backgroundColor,
     this.useGradient = false,
+    this.isMinimalist = false,
     this.leading,
   });
 
@@ -45,7 +47,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.elevation = 0,
     this.leading,
   })  : useGradient = true,
+        isMinimalist = false,
         backgroundColor = null;
+
+  /// Pintasan App Bar Minimalist (latar belakang transparan, tanpa kotak background pada arrow, hanya icon arrow saja)
+  const CustomAppBar.minimal({
+    super.key,
+    this.title,
+    this.titleWidget,
+    this.centerTitle = false,
+    this.showBackButton = true,
+    this.onBackTap,
+    this.actions,
+    this.bottom,
+    this.elevation = 0,
+    this.leading,
+  })  : useGradient = false,
+        isMinimalist = true,
+        backgroundColor = Colors.transparent;
 
   @override
   Size get preferredSize => Size.fromHeight(
@@ -59,33 +78,43 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final canPop = Navigator.canPop(context);
 
     Widget? effectiveLeading = leading;
-    if (effectiveLeading == null && showBackButton && canPop) {
-      effectiveLeading = Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: useGradient
-                ? Colors.white.withValues(alpha: 0.15)
-                : (isDark
-                    ? AppColors.surfaceVariantDark
-                    : AppColors.surfaceVariantLight),
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new,
-              size: 16,
-              color: useGradient
-                  ? AppColors.white
-                  : (isDark
-                      ? AppColors.textPrimaryDark
-                      : AppColors.textPrimaryLight),
-            ),
-            onPressed: onBackTap ?? () => Navigator.maybePop(context),
-            tooltip: 'Kembali',
-          ),
-        ),
+    if (effectiveLeading == null && showBackButton && (canPop || isMinimalist)) {
+      final arrowIcon = Icon(
+        Icons.arrow_back_ios_new,
+        size: isMinimalist ? 20 : 16,
+        color: useGradient
+            ? AppColors.white
+            : (isDark
+                ? AppColors.textPrimaryDark
+                : AppColors.textPrimaryLight),
       );
+
+      if (isMinimalist) {
+        effectiveLeading = IconButton(
+          icon: arrowIcon,
+          onPressed: onBackTap ?? () => Navigator.maybePop(context),
+          tooltip: 'Kembali',
+        );
+      } else {
+        effectiveLeading = Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: useGradient
+                  ? Colors.white.withValues(alpha: 0.15)
+                  : (isDark
+                      ? AppColors.surfaceVariantDark
+                      : AppColors.surfaceVariantLight),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: arrowIcon,
+              onPressed: onBackTap ?? () => Navigator.maybePop(context),
+              tooltip: 'Kembali',
+            ),
+          ),
+        );
+      }
     }
 
     Widget? effectiveTitle = titleWidget;
@@ -113,7 +142,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
       bottom: bottom,
       elevation: elevation,
-      scrolledUnderElevation: 0.5,
+      scrolledUnderElevation: isMinimalist ? 0 : 0.5,
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness:
