@@ -18,6 +18,8 @@ import '../widgets/login_form.dart';
 import '../widgets/social_login_buttons.dart';
 import 'forgot_password_page.dart';
 import 'register_page.dart';
+import 'package:satset/app/config/supabase_config.dart';
+import 'package:satset/features/dashboard/presentation/pages/dashboard_page.dart';
 
 /// Halaman Login Utama SatSet
 class LoginPage extends StatelessWidget {
@@ -67,12 +69,19 @@ class _LoginViewState extends State<LoginView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         final authBloc = context.read<AuthBloc>();
         if (authBloc.state is AuthSuccess) {
           authBloc.add(const AuthResetState());
         }
+        // Bersihkan sesi Supabase yang kadaluarsa di penyimpanan lokal
+        try {
+          final session = SupabaseConfig.client.auth.currentSession;
+          if (session != null && session.isExpired) {
+            await SupabaseConfig.client.auth.signOut();
+          }
+        } catch (_) {}
       }
     });
   }
@@ -119,19 +128,21 @@ class _LoginViewState extends State<LoginView> {
         listener: (context, state) {
           if (state is AuthSuccess && _userInitiatedLogin) {
             _userInitiatedLogin = false;
+            bool hasNavigated = false;
+            void go() {
+              if (!hasNavigated && mounted) {
+                hasNavigated = true;
+                _navigateToDashboard(context, state.user);
+              }
+            }
+
             CustomDialog.showSuccess(
               context: context,
               title: 'Login Berhasil! 🎉',
               message: state.message,
               confirmText: 'Lanjutkan ke Dashboard',
-              onConfirm: () {
-                if (widget.onLoginSuccess != null) {
-                  widget.onLoginSuccess!(state.user);
-                } else {
-                  Navigator.of(context).pushReplacementNamed('/home');
-                }
-              },
-            );
+              onConfirm: go,
+            ).then((_) => go());
           } else if (state is AuthFailure && _userInitiatedLogin) {
             _userInitiatedLogin = false;
             CustomDialog.showError(
@@ -241,12 +252,7 @@ class _LoginViewState extends State<LoginView> {
                             // Alternatif Login via Google
                             SocialLoginButtons(
                               isLoading: isLoading,
-                              onGooglePressed: () {
-                                _userInitiatedLogin = true;
-                                context.read<AuthBloc>().add(
-                                  const AuthGoogleLoginSubmitted(),
-                                );
-                              },
+                              onGooglePressed: () => _showGoogleAccountPicker(context),
                             ),
                           ],
                         ),
@@ -302,5 +308,288 @@ class _LoginViewState extends State<LoginView> {
     ],
   ),
 );
+  }
+
+  void _navigateToDashboard(BuildContext context, User user) {
+    if (widget.onLoginSuccess != null) {
+      widget.onLoginSuccess!(user);
+    }
+    // Jika tidak ditangani oleh callback root, navigasikan langsung menggunakan MaterialPageRoute dengan token
+    if (Navigator.of(context).canPop() || widget.onLoginSuccess == null) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => DashboardPage(
+            token: user.token,
+            user: user,
+          ),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
+  void _proceedWithGoogleLogin(BuildContext authContext) {
+    setState(() {
+      _userInitiatedLogin = true;
+    });
+    authContext.read<AuthBloc>().add(
+      const AuthGoogleLoginSubmitted(),
+    );
+  }
+
+  /// Menampilkan Bottom Sheet pemilihan akun Google ("Pilih akun untuk melanjutkan ke SatSet")
+  void _showGoogleAccountPicker(BuildContext parentContext) {
+    final isDark = Theme.of(parentContext).brightness == Brightness.dark;
+
+    showModalBottomSheet<void>(
+      context: parentContext,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Drag Handle
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Header
+                Row(
+                  children: [
+                    const GoogleLogo(size: 26),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Masuk dengan Google',
+                            style: AppTextStyles.titleMedium.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Pilih akun untuk melanjutkan ke SatSet',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      tooltip: 'Tutup',
+                      onPressed: () => Navigator.pop(bottomSheetContext),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Divider(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  thickness: 1,
+                  height: 1,
+                ),
+                const SizedBox(height: 10),
+
+                // Daftar Akun Google
+                _buildGoogleAccountTile(
+                  name: 'Ahimsha Satyag',
+                  email: 'ahimsha.satset@gmail.com',
+                  initial: 'A',
+                  color: AppColors.primary,
+                  isDark: isDark,
+                  onTap: () {
+                    Navigator.pop(bottomSheetContext);
+                    _proceedWithGoogleLogin(parentContext);
+                  },
+                ),
+                const SizedBox(height: 6),
+                _buildGoogleAccountTile(
+                  name: 'Budi Pratama',
+                  email: 'budi.pratama@gmail.com',
+                  initial: 'B',
+                  color: const Color(0xFFEA4335),
+                  isDark: isDark,
+                  onTap: () {
+                    Navigator.pop(bottomSheetContext);
+                    _proceedWithGoogleLogin(parentContext);
+                  },
+                ),
+                const SizedBox(height: 6),
+
+                // Opsi Gunakan Akun Lain
+                Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      Navigator.pop(bottomSheetContext);
+                      _proceedWithGoogleLogin(parentContext);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark
+                                  ? AppColors.surfaceVariantDark
+                                  : AppColors.surfaceLight,
+                              border: Border.all(
+                                color: isDark
+                                    ? AppColors.borderDark
+                                    : AppColors.borderLight,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.person_add_alt_1_outlined,
+                              size: 20,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Text(
+                            'Gunakan akun lain',
+                            style: AppTextStyles.labelMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                Divider(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  thickness: 1,
+                  height: 1,
+                ),
+                const SizedBox(height: 14),
+
+                // Disclaimer / Kebijakan Privasi
+                Text(
+                  'Untuk melanjutkan, Google akan membagikan nama, alamat email, dan foto profil Anda ke SatSet. Lihat Kebijakan Privasi dan Persyaratan Layanan SatSet.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11,
+                    color: isDark
+                        ? AppColors.textMutedDark
+                        : AppColors.textMutedLight,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGoogleAccountTile({
+    required String name,
+    required String email,
+    required String initial,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: color.withValues(alpha: 0.15),
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: AppTextStyles.labelMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      email,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: isDark
+                    ? AppColors.textMutedDark
+                    : AppColors.textMutedLight,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

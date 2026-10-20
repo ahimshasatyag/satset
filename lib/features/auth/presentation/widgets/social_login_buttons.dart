@@ -107,21 +107,13 @@ class SocialLoginButtons extends StatelessWidget {
                           ),
                         ],
                       )
-                    : Row(
+                    : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           // Icon Google Logo Kustom (Multi-color G)
-                          _buildGoogleLogo(),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Masuk dengan Google',
-                            style: AppTextStyles.labelLarge.copyWith(
-                              color: isDark
-                                  ? AppColors.textPrimaryDark
-                                  : AppColors.textPrimaryLight,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          GoogleLogo(size: 22),
+                          SizedBox(width: 12),
+                          _GoogleButtonText(),
                         ],
                       ),
               ),
@@ -131,20 +123,45 @@ class SocialLoginButtons extends StatelessWidget {
       ],
     );
   }
+}
 
-  /// Logo Google resmi yang digambar dengan Canvas/CustomPaint agar jernih dan bebas dependensi SVG
-  Widget _buildGoogleLogo() {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: CustomPaint(
-        painter: _GoogleLogoPainter(),
+class _GoogleButtonText extends StatelessWidget {
+  const _GoogleButtonText();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      'Masuk dengan Google',
+      style: AppTextStyles.labelLarge.copyWith(
+        color: isDark
+            ? AppColors.textPrimaryDark
+            : AppColors.textPrimaryLight,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
 }
 
-class _GoogleLogoPainter extends CustomPainter {
+/// Logo Google resmi yang digambar dengan Canvas/CustomPaint agar jernih dan bebas dependensi SVG
+class GoogleLogo extends StatelessWidget {
+  final double size;
+
+  const GoogleLogo({super.key, this.size = 22});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: GoogleLogoPainter(),
+      ),
+    );
+  }
+}
+
+class GoogleLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double w = size.width;

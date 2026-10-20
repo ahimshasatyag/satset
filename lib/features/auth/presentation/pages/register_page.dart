@@ -28,6 +28,11 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  bool _hasMinLength = false;
+  bool _hasMixedCase = false;
+  bool _hasDigits = false;
+  bool _hasSpecialChars = false;
+
   final MapController _mapController = MapController();
   double _latitude = -6.2088; // Default awal: Jakarta
   double _longitude = 106.8456;
@@ -56,6 +61,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
+    _passwordController.addListener(_validatePasswordRules);
     // Ambil posisi terakhir secara instan dari cache jika izin sudah ada, tanpa memblokir UI
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
@@ -80,6 +86,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
+    _passwordController.removeListener(_validatePasswordRules);
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -88,6 +95,56 @@ class _RegisterPageState extends State<RegisterPage> {
     _confirmPasswordController.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  void _validatePasswordRules() {
+    final password = _passwordController.text;
+    setState(() {
+      _hasMinLength = password.length >= 8;
+      _hasMixedCase =
+          password.contains(RegExp(r'[a-z]')) && password.contains(RegExp(r'[A-Z]'));
+      _hasDigits = password.contains(RegExp(r'[0-9]'));
+      _hasSpecialChars = password.contains(RegExp(r'[!@#\$&*~_.,\-]'));
+    });
+  }
+
+  int get _strengthScore {
+    int score = 0;
+    if (_hasMinLength) score++;
+    if (_hasMixedCase) score++;
+    if (_hasDigits) score++;
+    if (_hasSpecialChars) score++;
+    return score;
+  }
+
+  Color _getStrengthColor() {
+    switch (_strengthScore) {
+      case 0:
+      case 1:
+        return AppColors.error;
+      case 2:
+      case 3:
+        return AppColors.warning;
+      case 4:
+      default:
+        return AppColors.success;
+    }
+  }
+
+  String _getStrengthLabel() {
+    if (_passwordController.text.isEmpty) return '';
+    switch (_strengthScore) {
+      case 0:
+      case 1:
+        return 'Sangat Lemah';
+      case 2:
+        return 'Cukup';
+      case 3:
+        return 'Kuat';
+      case 4:
+      default:
+        return 'Sangat Kuat 🔥';
+    }
   }
 
   /// Mengambil lokasi pengguna saat ini (GPS) secara efisien tanpa freeze
@@ -200,6 +257,15 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _handleSubmit() {
     if (_formKey.currentState?.validate() ?? false) {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        CustomDialog.showWarning(
+          context: context,
+          title: 'Kata Sandi Tidak Cocok',
+          message: 'Konfirmasi kata sandi harus persis sama dengan kata sandi.',
+        );
+        return;
+      }
+
       context.read<AuthBloc>().add(
         AuthRegisterSubmitted(
           name: _nameController.text.trim(),
@@ -988,7 +1054,74 @@ class _RegisterPageState extends State<RegisterPage> {
                                       ),
                                       validator: Validators.validatePassword,
                                     ),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 12),
+
+                                    // Indikator Meter Kekuatan Kata Sandi
+                                    if (_passwordController.text.isNotEmpty) ...[
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: LinearProgressIndicator(
+                                                value: _strengthScore / 4,
+                                                backgroundColor: isDark
+                                                    ? AppColors.borderDark
+                                                    : AppColors.borderLight,
+                                                valueColor: AlwaysStoppedAnimation<Color>(
+                                                  _getStrengthColor(),
+                                                ),
+                                                minHeight: 6,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            _getStrengthLabel(),
+                                            style: AppTextStyles.labelSmall.copyWith(
+                                              color: _getStrengthColor(),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                    ],
+
+                                    // Checklist Ketentuan Kata Sandi
+                                    Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? AppColors.surfaceDark
+                                            : AppColors.backgroundLight,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Kriteria Keamanan Sandi:',
+                                            style: AppTextStyles.labelSmall.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _buildRuleItem('Minimal 8 karakter', _hasMinLength, isDark),
+                                          const SizedBox(height: 4),
+                                          _buildRuleItem('Kombinasi huruf besar & kecil (A-z)', _hasMixedCase, isDark),
+                                          const SizedBox(height: 4),
+                                          _buildRuleItem('Mengandung angka (0-9)', _hasDigits, isDark),
+                                          const SizedBox(height: 4),
+                                          _buildRuleItem('Mengandung simbol/karakter khusus (!@#\$)', _hasSpecialChars, isDark),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
 
                                     // Konfirmasi Kata Sandi
                                     CustomTextField(
@@ -1004,6 +1137,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                       ),
                                       onSubmitted: (_) => _handleSubmit(),
                                       validator: (val) {
+                                        if (val == null || val.isEmpty) {
+                                          return 'Konfirmasi kata sandi wajib diisi';
+                                        }
                                         if (val != _passwordController.text) {
                                           return 'Konfirmasi kata sandi tidak cocok';
                                         }
@@ -1071,6 +1207,44 @@ class _RegisterPageState extends State<RegisterPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Item checklist aturan kata sandi dengan indikator centang dinamis
+  Widget _buildRuleItem(String text, bool isSatisfied, bool isDark) {
+    return Row(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isSatisfied
+                ? AppColors.success
+                : (isDark ? AppColors.borderDark : AppColors.borderLight),
+          ),
+          child: Icon(
+            isSatisfied ? Icons.check : Icons.circle,
+            size: isSatisfied ? 12 : 6,
+            color: isSatisfied
+                ? AppColors.white
+                : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: isSatisfied
+                  ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+              fontWeight: isSatisfied ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

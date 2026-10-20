@@ -57,6 +57,47 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   SupabaseClient get _client => _customClient ?? SupabaseConfig.client;
 
+  bool _isJwtExpired(dynamic e) {
+    if (e is PostgrestException) {
+      final msg = e.message.toLowerCase();
+      return e.code == 'PGRST303' ||
+          msg.contains('jwt expired') ||
+          msg.contains('pgrst303');
+    }
+    return false;
+  }
+
+  /// Memastikan sesi Supabase Auth yang sudah kadaluarsa dibersihkan agar query publik berhasil
+  Future<void> _sanitizeSession() async {
+    if (!_isSupabaseAvailable) return;
+    try {
+      final session = _client.auth.currentSession;
+      if (session != null && session.isExpired) {
+        try {
+          await _client.auth.refreshSession();
+        } catch (_) {
+          await _client.auth.signOut();
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Menjalankan operasi Supabase dengan pemulihan otomatis jika token JWT kadaluarsa (PGRST303)
+  Future<T> _executeWithSessionRecovery<T>(Future<T> Function() action) async {
+    await _sanitizeSession();
+    try {
+      return await action();
+    } catch (e) {
+      if (_isJwtExpired(e)) {
+        try {
+          await _client.auth.signOut();
+        } catch (_) {}
+        return await action();
+      }
+      rethrow;
+    }
+  }
+
   @override
   Future<UserModel> login({
     required String email,
@@ -73,11 +114,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
     if (_isSupabaseAvailable) {
       try {
-        final response = await _client
-            .from(DatabaseConstants.tableUsers)
-            .select()
-            .eq(UserTableColumns.email, cleanEmail)
-            .maybeSingle();
+        final response = await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select()
+              .eq(UserTableColumns.email, cleanEmail)
+              .maybeSingle();
+        });
 
         if (response == null) {
           throw Exception('Email belum terdaftar pada sistem SatSet.');
@@ -148,11 +191,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (_isSupabaseAvailable) {
       try {
         // 1. Cek apakah email sudah terdaftar
-        final existingUser = await _client
-            .from(DatabaseConstants.tableUsers)
-            .select(UserTableColumns.id)
-            .eq(UserTableColumns.email, cleanEmail)
-            .maybeSingle();
+        final existingUser = await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select(UserTableColumns.id)
+              .eq(UserTableColumns.email, cleanEmail)
+              .maybeSingle();
+        });
 
         if (existingUser != null) {
           throw Exception(
@@ -176,11 +221,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           UserTableColumns.updatedAt: DateTime.now().toUtc().toIso8601String(),
         };
 
-        final inserted = await _client
-            .from(DatabaseConstants.tableUsers)
-            .insert(newUserData)
-            .select()
-            .single();
+        final inserted = await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .insert(newUserData)
+              .select()
+              .single();
+        });
 
         // Daftarkan juga akun ke Supabase Auth agar email terdaftar untuk menerima email pemulihan via Supabase
         try {
@@ -411,11 +458,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (_isSupabaseAvailable) {
       try {
         // 1. Cek apakah email terdaftar di tabel m_users
-        final user = await _client
-            .from(DatabaseConstants.tableUsers)
-            .select(UserTableColumns.id)
-            .eq(UserTableColumns.email, cleanEmail)
-            .maybeSingle();
+        final user = await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select(UserTableColumns.id)
+              .eq(UserTableColumns.email, cleanEmail)
+              .maybeSingle();
+        });
 
         if (user == null) {
           throw Exception('Email tidak terdaftar pada akun SatSet.');
@@ -426,16 +475,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         final expiration = OtpGenerator.getExpirationTime(minutes: 3);
 
         // 3. Simpan reset_token & token_expired_at ke tabel m_users
-        await _client
-            .from(DatabaseConstants.tableUsers)
-            .update({
-              UserTableColumns.resetToken: otpCode,
-              UserTableColumns.tokenExpiredAt: expiration.toIso8601String(),
-              UserTableColumns.updatedAt: DateTime.now()
-                  .toUtc()
-                  .toIso8601String(),
-            })
-            .eq(UserTableColumns.email, cleanEmail);
+        await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .update({
+                UserTableColumns.resetToken: otpCode,
+                UserTableColumns.tokenExpiredAt: expiration.toIso8601String(),
+                UserTableColumns.updatedAt: DateTime.now()
+                    .toUtc()
+                    .toIso8601String(),
+              })
+              .eq(UserTableColumns.email, cleanEmail);
+        });
 
         // 4. Kirim email pemulihan via Supabase Auth
         try {
@@ -508,11 +559,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
         // 3. Verifikasi dengan kode reset_token yang tersimpan di tabel m_users
         if (!isVerified) {
-          final user = await _client
-              .from(DatabaseConstants.tableUsers)
-              .select()
-              .eq(UserTableColumns.email, cleanEmail)
-              .maybeSingle();
+          final user = await _executeWithSessionRecovery(() async {
+            return await _client
+                .from(DatabaseConstants.tableUsers)
+                .select()
+                .eq(UserTableColumns.email, cleanEmail)
+                .maybeSingle();
+          });
 
           if (user == null) {
             throw Exception('Akun dengan email ini tidak ditemukan.');
@@ -584,17 +637,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         final hashedPassword = PasswordHasher.hash(newPassword);
 
         // 3. Update kata sandi baru dan bersihkan reset_token di tabel m_users
-        await _client
-            .from(DatabaseConstants.tableUsers)
-            .update({
-              UserTableColumns.password: hashedPassword,
-              UserTableColumns.resetToken: null,
-              UserTableColumns.tokenExpiredAt: null,
-              UserTableColumns.updatedAt: DateTime.now()
-                  .toUtc()
-                  .toIso8601String(),
-            })
-            .eq(UserTableColumns.email, cleanEmail);
+        await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .update({
+                UserTableColumns.password: hashedPassword,
+                UserTableColumns.resetToken: null,
+                UserTableColumns.tokenExpiredAt: null,
+                UserTableColumns.updatedAt: DateTime.now()
+                    .toUtc()
+                    .toIso8601String(),
+              })
+              .eq(UserTableColumns.email, cleanEmail);
+        });
 
         return;
       } catch (e) {

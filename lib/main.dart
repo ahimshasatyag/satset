@@ -10,9 +10,10 @@ import 'features/auth/domain/usecases/get_current_user_usecase.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
 import 'features/auth/domain/usecases/register_usecase.dart';
+import 'features/auth/domain/entities/user.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
-import 'features/dashboard/presentation/pages/home_page.dart';
+import 'features/dashboard/presentation/pages/dashboard_page.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'shared/theme/theme.dart';
 
@@ -24,6 +25,14 @@ Future<void> main() async {
 
   // Inisialisasi Supabase
   await SupabaseConfig.initialize();
+
+  // Bersihkan sesi Supabase yang kadaluarsa jika ada
+  try {
+    final session = SupabaseConfig.client.auth.currentSession;
+    if (session != null && session.isExpired) {
+      await SupabaseConfig.client.auth.signOut();
+    }
+  } catch (_) {}
 
   // Inisialisasi dependensi
   final localDataSource = AuthLocalDataSourceImpl();
@@ -72,6 +81,8 @@ class SatSetApp extends StatefulWidget {
 class SatSetAppState extends State<SatSetApp> {
   Key _appKey = UniqueKey();
   String _currentRoute = '/';
+  String? _userToken;
+  User? _currentUser;
 
   /// Me-reset rute aplikasi kembali ke Splash Screen (SplashPage)
   void resetToSplash() {
@@ -82,7 +93,6 @@ class SatSetAppState extends State<SatSetApp> {
       });
     }
   }
-
 
   void _navigateTo(String route) {
     if (mounted) {
@@ -116,19 +126,29 @@ class SatSetAppState extends State<SatSetApp> {
           switch (_currentRoute) {
             case '/login':
               homeWidget = LoginPage(
-                onLoginSuccess: (_) => _navigateTo('/home'),
+                onLoginSuccess: (user) {
+                  if (mounted) {
+                    setState(() {
+                      _userToken = user.token;
+                      _currentUser = user;
+                      _currentRoute = '/dashboard';
+                    });
+                  }
+                },
               );
               break;
+            case '/dashboard':
             case '/home':
-              homeWidget = ThemePreviewPage(
-                onResetToSplash: () => resetToSplash(),
+              homeWidget = DashboardPage(
+                token: _userToken,
+                user: _currentUser,
               );
               break;
             case '/':
             default:
               homeWidget = SplashPage(
                 onNavigateToLogin: () => _navigateTo('/login'),
-                onNavigateToHome: () => _navigateTo('/home'),
+                onNavigateToHome: () => _navigateTo('/dashboard'),
               );
               break;
           }
@@ -143,10 +163,23 @@ class SatSetAppState extends State<SatSetApp> {
             home: homeWidget,
             routes: {
               '/login': (context) => LoginPage(
-                    onLoginSuccess: (_) => _navigateTo('/home'),
+                    onLoginSuccess: (user) {
+                      if (mounted) {
+                        setState(() {
+                          _userToken = user.token;
+                          _currentUser = user;
+                          _currentRoute = '/dashboard';
+                        });
+                      }
+                    },
                   ),
-              '/home': (context) => ThemePreviewPage(
-                    onResetToSplash: () => resetToSplash(),
+              '/dashboard': (context) => DashboardPage(
+                    token: _userToken,
+                    user: _currentUser,
+                  ),
+              '/home': (context) => DashboardPage(
+                    token: _userToken,
+                    user: _currentUser,
                   ),
             },
           );
