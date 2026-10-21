@@ -4,7 +4,7 @@ class AccountMenuItem extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -13,7 +13,7 @@ class AccountMenuItem extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     this.trailing,
     this.onTap,
   });
@@ -36,10 +36,12 @@ class AccountMenuItem extends StatelessWidget {
         title,
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
       ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 11, color: Colors.grey),
-      ),
+      subtitle: subtitle != null && subtitle!.isNotEmpty
+          ? Text(
+              subtitle!,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            )
+          : null,
       trailing: trailing ??
           const Icon(
             Icons.arrow_forward_ios_rounded,

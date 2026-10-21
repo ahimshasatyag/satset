@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/user_account.dart';
 
 abstract class AccountEvent extends Equatable {
   const AccountEvent();
@@ -20,6 +21,62 @@ class AccountNotificationsToggled extends AccountEvent {
 
   @override
   List<Object?> get props => [isEnabled];
+}
+
+/// Pengguna memperbarui profil (nama & nomor telepon)
+class AccountProfileUpdated extends AccountEvent {
+  final String name;
+  final String phone;
+
+  const AccountProfileUpdated({required this.name, required this.phone});
+
+  @override
+  List<Object?> get props => [name, phone];
+}
+
+/// Pengguna mengubah kata sandi akun via Supabase Auth
+class AccountPasswordChanged extends AccountEvent {
+  final String newPassword;
+
+  const AccountPasswordChanged(this.newPassword);
+
+  @override
+  List<Object?> get props => [newPassword];
+}
+
+/// Pengguna meminta kirim ulang verifikasi email
+class AccountEmailVerificationResent extends AccountEvent {
+  const AccountEmailVerificationResent();
+}
+
+/// Menyimpan atau memperbarui alamat pelanggan
+class AccountAddressSaved extends AccountEvent {
+  final UserAddress address;
+
+  const AccountAddressSaved(this.address);
+
+  @override
+  List<Object?> get props => [address];
+}
+
+/// Menghapus alamat pelanggan berdasarkan ID
+class AccountAddressDeleted extends AccountEvent {
+  final String addressId;
+
+  const AccountAddressDeleted(this.addressId);
+
+  @override
+  List<Object?> get props => [addressId];
+}
+
+/// Menetapkan alamat utama pelanggan
+class AccountPrimaryAddressSet extends AccountEvent {
+  final String addressId;
+
+  const AccountPrimaryAddressSet(this.addressId);
+
+  @override
+  List<Object?> get props => [addressId];
 }
 
 /// Pengguna mengonfirmasi keluar dari sesi akun

@@ -6,15 +6,21 @@ import '../../data/datasources/account_local_datasource.dart';
 import '../../data/datasources/account_remote_datasource.dart';
 import '../../data/repositories/account_repository_impl.dart';
 import '../../domain/entities/user_account.dart';
+import '../../domain/repositories/account_repository.dart';
 import '../../domain/usecases/get_user_account_usecase.dart';
 import '../../domain/usecases/logout_account_usecase.dart';
 import '../bloc/account_bloc.dart';
 import '../bloc/account_event.dart';
 import '../bloc/account_state.dart';
+import '../widgets/account_address_sheet.dart';
+import '../widgets/account_edit_profile_dialog.dart';
+import '../widgets/account_legal_dialog.dart';
 import '../widgets/account_logout_dialog.dart';
 import '../widgets/account_menu_card.dart';
 import '../widgets/account_menu_item.dart';
 import '../widgets/account_profile_header.dart';
+import '../widgets/account_security_dialog.dart';
+import '../widgets/account_theme_dialog.dart';
 
 class AccountPage extends StatefulWidget {
   final VoidCallback? onToggleTheme;
@@ -34,6 +40,7 @@ class AccountPage extends StatefulWidget {
 
 class _AccountPageState extends State<AccountPage> {
   AccountBloc? _internalBloc;
+  AccountRepository? _repository;
 
   @override
   void dispose() {
@@ -41,17 +48,24 @@ class _AccountPageState extends State<AccountPage> {
     super.dispose();
   }
 
+  AccountRepository _getOrCreateRepository() {
+    if (_repository == null) {
+      final remote = AccountRemoteDataSourceImpl();
+      final local = AccountLocalDataSourceImpl();
+      _repository = AccountRepositoryImpl(
+        remoteDataSource: remote,
+        localDataSource: local,
+      );
+    }
+    return _repository!;
+  }
+
   AccountBloc _getOrCreateBloc(BuildContext context) {
     try {
       return BlocProvider.of<AccountBloc>(context);
     } catch (_) {
       if (_internalBloc == null) {
-        final remote = AccountRemoteDataSourceImpl();
-        final local = AccountLocalDataSourceImpl();
-        final repo = AccountRepositoryImpl(
-          remoteDataSource: remote,
-          localDataSource: local,
-        );
+        final repo = _getOrCreateRepository();
         _internalBloc = AccountBloc(
           getUserAccountUseCase: GetUserAccountUseCase(repo),
           logoutAccountUseCase: LogoutAccountUseCase(repo),
@@ -62,28 +76,70 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
-  void _showFeatureDialog(BuildContext context, String title, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Mengerti'),
-          ),
-        ],
-      ),
+  void _showEditProfile(BuildContext context, UserAccount account, AccountBloc bloc) async {
+    final result = await AccountEditProfileDialog.show(
+      context,
+      currentName: account.name,
+      currentPhone: account.phone,
+      currentEmail: account.email,
     );
+    if (result != null) {
+      bloc.add(AccountProfileUpdated(
+        name: result['name']!,
+        phone: result['phone']!,
+      ));
+    }
+  }
+
+  void _showAddressManagement(BuildContext context, UserAccount account, AccountBloc bloc) {
+    final repo = _getOrCreateRepository();
+    AccountAddressSheet.show(
+      context,
+      addresses: account.addresses,
+      repository: repo,
+      defaultReceiverName: account.name,
+      defaultPhone: account.phone,
+      onSaveAddress: (address) {
+        bloc.add(AccountAddressSaved(address));
+      },
+      onDeleteAddress: (addressId) {
+        bloc.add(AccountAddressDeleted(addressId));
+      },
+      onSetPrimaryAddress: (addressId) {
+        bloc.add(AccountPrimaryAddressSet(addressId));
+      },
+    );
+  }
+
+  void _showSecurityManagement(BuildContext context, UserAccount account, AccountBloc bloc) {
+    AccountSecurityDialog.show(
+      context,
+      email: account.email,
+      isEmailVerified: account.isEmailVerified,
+      onResendVerification: () {
+        bloc.add(const AccountEmailVerificationResent());
+      },
+      onChangePassword: (newPassword) {
+        bloc.add(AccountPasswordChanged(newPassword));
+      },
+    );
+  }
+
+  void _toggleTheme(BuildContext context) {
+    if (widget.onToggleTheme != null) {
+      widget.onToggleTheme!();
+    } else {
+      try {
+        context.read<ThemeCubit>().toggleTheme();
+      } catch (_) {}
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final bloc = _getOrCreateBloc(context);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = widget.isDarkMode ?? (theme.brightness == Brightness.dark);
 
     return BlocProvider<AccountBloc>.value(
       value: bloc,
@@ -92,7 +148,30 @@ class _AccountPageState extends State<AccountPage> {
           if (state.isLoggedOut) {
             if (widget.onLogout != null) {
               widget.onLogout!();
+            } else {
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/login',
+                (route) => false,
+              );
             }
+          }
+          if (state.actionSuccessMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.actionSuccessMessage!),
+                backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          if (state.errorMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.errorMessage!),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           }
           if (state.notificationMessage != null) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -117,168 +196,253 @@ class _AccountPageState extends State<AccountPage> {
             backgroundColor:
                 isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
             body: SafeArea(
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Kartu Profil Pengguna
-                    AccountProfileHeader(account: account),
-                    const SizedBox(height: 24),
-
-                    // Bagian 1: Pengiriman & Transaksi
-                    Text(
-                      'Pengiriman & Transaksi',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white70 : AppColors.tertiary,
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () async {
+                  bloc.add(const AccountProfileLoaded());
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Profil Pengguna
+                      AccountProfileHeader(
+                        account: account,
+                        onEditProfile: () => _showEditProfile(context, account, bloc),
+                        onResendVerification: () {
+                          bloc.add(const AccountEmailVerificationResent());
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 24),
 
-                    AccountMenuCard(
-                      children: [
-                        AccountMenuItem(
-                          icon: Icons.bookmark_added_rounded,
-                          color: AppColors.primary,
-                          title: 'Daftar Alamat Tersimpan',
-                          subtitle:
-                              'Rumah, Kantor SCBD, Gudang SatSet (${account.savedAddressesCount})',
-                          onTap: () => _showFeatureDialog(
-                            context,
-                            'Alamat Tersimpan',
-                            'Kelola titik jemput dan antar favorit Anda untuk proses pemesanan lebih cepat.',
-                          ),
+                      // Bagian 1: Pengiriman & Alamat
+                      Text(
+                        'Pengiriman & Alamat',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white70 : AppColors.tertiary,
                         ),
-                        const Divider(height: 1),
-                        AccountMenuItem(
-                          icon: Icons.account_balance_wallet_rounded,
-                          color: AppColors.secondary,
-                          title: 'Metode Pembayaran',
-                          subtitle:
-                              'SatSet Pay (Rp ${account.satsetPayBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}), QRIS, Kartu Debit',
-                          onTap: () => _showFeatureDialog(
-                            context,
-                            'Metode Pembayaran',
-                            'Saldo SatSet Pay Anda saat ini Rp ${account.satsetPayBalance}. Siap digunakan untuk pengiriman instan.',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Bagian 2: Layanan & Perlindungan
-                    Text(
-                      'Layanan & Perlindungan',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white70 : AppColors.tertiary,
                       ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
-                    AccountMenuCard(
-                      children: [
-                        AccountMenuItem(
-                          icon: Icons.security_rounded,
-                          color: const Color(0xFF009688),
-                          title: 'Riwayat Klaim Asuransi',
-                          subtitle: 'Garansi SatSet Protect 100% Ganti Rugi',
-                          onTap: () => _showFeatureDialog(
-                            context,
-                            'Klaim Asuransi SatSet Protect',
-                            'Seluruh pengiriman dilindungi hingga Rp 25.000.000 dengan jaminan penyelesaian klaim dalam 24 jam.',
+                      AccountMenuCard(
+                        children: [
+                          AccountMenuItem(
+                            icon: Icons.bookmark_added_rounded,
+                            color: AppColors.primary,
+                            title: 'Alamat Pengiriman Saya',
+                            subtitle: account.addresses.isNotEmpty
+                                ? '${account.addresses.length} Alamat Tersimpan • Utama: ${account.primaryAddress?.label ?? "Aktif"}'
+                                : 'Kelola alamat utama & titik jemput/antar',
+                            onTap: () =>
+                                _showAddressManagement(context, account, bloc),
                           ),
-                        ),
-                        const Divider(height: 1),
-                        AccountMenuItem(
-                          icon: Icons.support_agent_rounded,
-                          color: AppColors.tertiary,
-                          title: 'Pusat Bantuan & CS 24 Jam',
-                          subtitle: 'Hubungi Live Chat Operator SatSet',
-                          onTap: () => _showFeatureDialog(
-                            context,
-                            'Pusat Bantuan SatSet',
-                            'Customer Service SatSet siap melayani Anda 24/7 melalui hotline 1500-SATSET.',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Bagian 3: Pengaturan Sistem
-                    Text(
-                      'Pengaturan Sistem',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white70 : AppColors.tertiary,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    AccountMenuCard(
-                      children: [
-                        AccountMenuItem(
-                          icon: Icons.notifications_active_rounded,
-                          color: AppColors.primary,
-                          title: 'Pengaturan Notifikasi',
-                          subtitle: 'Peringatan status kurir real-time & promo',
-                          trailing: Switch(
-                            value: account.isNotificationsEnabled,
-                            activeThumbColor: AppColors.primary,
-                            onChanged: (val) {
-                              bloc.add(AccountNotificationsToggled(val));
+                          const Divider(height: 1),
+                          AccountMenuItem(
+                            icon: Icons.local_shipping_rounded,
+                            color: AppColors.tertiary,
+                            title: 'Ringkasan Aktivitas Pengiriman',
+                            subtitle:
+                                '${account.shipmentCount} Pengiriman Terdaftar pada Sistem SatSet',
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Anda memiliki ${account.shipmentCount} riwayat pengiriman di SatSet Delivery.',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
                             },
                           ),
-                          onTap: () {
-                            bloc.add(AccountNotificationsToggled(
-                              !account.isNotificationsEnabled,
-                            ));
-                          },
-                        ),
-                        const Divider(height: 1),
-                        if (widget.onToggleTheme != null)
+                          const Divider(height: 1),
                           AccountMenuItem(
-                            icon: widget.isDarkMode == true
-                                ? Icons.light_mode_rounded
-                                : Icons.dark_mode_rounded,
+                            icon: Icons.account_balance_wallet_rounded,
+                            color: AppColors.secondary,
+                            title: 'Metode Pembayaran',
+                            subtitle:
+                                'SatSet Pay (Rp ${account.satsetPayBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}), QRIS, & Virtual Account',
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Saldo SatSet Pay Anda saat ini Rp ${account.satsetPayBalance}. Siap digunakan untuk pengiriman instan.',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Bagian 2: Keamanan Akun
+                      Text(
+                        'Keamanan Akun',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white70 : AppColors.tertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      AccountMenuCard(
+                        children: [
+                          AccountMenuItem(
+                            icon: Icons.shield_rounded,
+                            color: AppColors.primary,
+                            title: 'Kredensial & Kata Sandi',
+                            subtitle: account.isEmailVerified
+                                ? 'Kata Sandi • Email Terverifikasi Supabase Auth'
+                                : 'Kata Sandi • Belum Terverifikasi (Kirim Ulang)',
+                            onTap: () =>
+                                _showSecurityManagement(context, account, bloc),
+                          ),
+                          const Divider(height: 1),
+                          AccountMenuItem(
+                            icon: Icons.health_and_safety_rounded,
+                            color: const Color(0xFF009688),
+                            title: 'Proteksi Paket SatSet Protect',
+                            subtitle:
+                                'Garansi 100% Ganti Rugi Kerusakan & Kehilangan',
+                            onTap: () {
+                              AccountLegalDialog.showTermsOfService(context);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Bagian 3: Pengaturan dan Bantuan
+                      Text(
+                        'Pengaturan dan Bantuan',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white70 : AppColors.tertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      AccountMenuCard(
+                        children: [
+                          AccountMenuItem(
+                            icon: Icons.notifications_active_rounded,
+                            color: AppColors.primary,
+                            title: 'Pengaturan Notifikasi',
+                            subtitle:
+                                'Peringatan status kurir real-time & promosi',
+                            trailing: Switch(
+                              value: account.isNotificationsEnabled,
+                              activeColor: AppColors.primary,
+                              onChanged: (val) {
+                                bloc.add(AccountNotificationsToggled(val));
+                              },
+                            ),
+                            onTap: () {
+                              bloc.add(AccountNotificationsToggled(
+                                !account.isNotificationsEnabled,
+                              ));
+                            },
+                          ),
+                          const Divider(height: 1),
+                          AccountMenuItem(
+                            icon: isDark
+                                ? Icons.dark_mode_rounded
+                                : Icons.light_mode_rounded,
                             color: AppColors.secondary,
                             title: 'Tema Tampilan',
-                            subtitle: widget.isDarkMode == true
-                                ? 'Mode Gelap (Aktif)'
-                                : 'Mode Terang (Aktif)',
-                            trailing: Switch(
-                              value: widget.isDarkMode == true,
-                              activeThumbColor: AppColors.primary,
-                              onChanged: (_) => widget.onToggleTheme!(),
+                            subtitle: isDark
+                                ? 'AppTheme.darkTheme (Mode Gelap Aktif)'
+                                : 'AppTheme.lightTheme (Mode Terang Aktif)',
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Switch(
+                                  value: isDark,
+                                  activeColor: AppColors.primary,
+                                  onChanged: (_) => _toggleTheme(context),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
+                              ],
                             ),
-                            onTap: widget.onToggleTheme,
+                            onTap: () {
+                              AccountThemeDialog.show(
+                                context,
+                                onToggleTheme: widget.onToggleTheme,
+                                isDark: isDark,
+                              );
+                            },
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Tombol Logout
-                    CustomButton(
-                      text: 'Keluar dari Akun',
-                      variant: ButtonVariant.outlined,
-                      isFullWidth: true,
-                      prefixIcon: const Icon(
-                        Icons.logout_rounded,
-                        color: AppColors.error,
+                          const Divider(height: 1),
+                          AccountMenuItem(
+                            icon: Icons.support_agent_rounded,
+                            color: AppColors.tertiary,
+                            title: 'Pusat Bantuan & CS 24 Jam',
+                            subtitle: 'Hotline 1500-SATSET & WhatsApp Resmi',
+                            onTap: () =>
+                                AccountLegalDialog.showHelpCenter(context),
+                          ),
+                          const Divider(height: 1),
+                          AccountMenuItem(
+                            icon: Icons.privacy_tip_outlined,
+                            color: AppColors.secondary,
+                            title: 'Kebijakan Privasi',
+                            subtitle:
+                                'Pengelolaan data aman dengan Supabase RLS',
+                            onTap: () =>
+                                AccountLegalDialog.showPrivacyPolicy(context),
+                          ),
+                          const Divider(height: 1),
+                          AccountMenuItem(
+                            icon: Icons.gavel_rounded,
+                            color: AppColors.tertiary,
+                            title: 'Syarat & Ketentuan Penggunaan',
+                            subtitle: 'Ketentuan layanan pengiriman logistik',
+                            onTap: () =>
+                                AccountLegalDialog.showTermsOfService(context),
+                          ),
+                          const Divider(height: 1),
+                          AccountMenuItem(
+                            icon: Icons.info_outline_rounded,
+                            color: AppColors.primary,
+                            title: 'Tentang Aplikasi SatSet Delivery',
+                            subtitle: 'Versi 1.0.0 • SatSet Logistik Indonesia',
+                            onTap: () =>
+                                AccountLegalDialog.showAppInfo(context),
+                          ),
+                        ],
                       ),
-                      onPressed: () {
-                        AccountLogoutDialog.show(
-                          context,
-                          onConfirm: () {
-                            bloc.add(const AccountLogoutSubmitted());
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                      const SizedBox(height: 24),
+
+                      // Tombol Keluar dari Akun
+                      CustomButton(
+                        text: 'Keluar dari Akun',
+                        variant: ButtonVariant.outlined,
+                        isFullWidth: true,
+                        prefixIcon: const Icon(
+                          Icons.logout_rounded,
+                          color: AppColors.error,
+                        ),
+                        onPressed: () {
+                          AccountLogoutDialog.show(
+                            context,
+                            onConfirm: () {
+                              bloc.add(const AccountLogoutSubmitted());
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             ),
