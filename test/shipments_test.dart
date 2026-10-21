@@ -9,6 +9,7 @@ import 'package:satset/features/shipments/presentation/bloc/shipment_bloc.dart';
 import 'package:satset/features/shipments/presentation/bloc/shipment_event.dart';
 import 'package:satset/features/shipments/presentation/pages/create_shipment_page.dart';
 import 'package:satset/features/shipments/presentation/widgets/create_shipment_sheet.dart';
+import 'package:satset/shared/widgets/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -123,6 +124,22 @@ void main() {
 
       expect(find.byType(CreateShipmentSheet), findsOneWidget);
       expect(find.text('Buat Pengiriman Baru'), findsOneWidget);
+    });
+
+    testWidgets('CreateShipmentSkeleton renders shimmer placeholders correctly',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: CreateShipmentSkeleton(
+            showAppBar: true,
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(find.byType(CreateShipmentSkeleton), findsOneWidget);
+      expect(find.byType(CustomShimmer), findsWidgets);
     });
   });
 }

@@ -7,6 +7,8 @@ import '../../data/datasources/shipment_remote_datasource.dart';
 import '../../data/repositories/shipment_repository_impl.dart';
 import '../../domain/entities/shipment.dart';
 import 'package:satset/features/customer/order/presentation/pages/payment_page.dart';
+import '../pages/create_shipment_page.dart';
+import 'create_shipment_skeleton.dart';
 
 class CreateShipmentSheet extends StatefulWidget {
   final Function(Map<String, dynamic> data)? onOrderCreated;
@@ -18,19 +20,18 @@ class CreateShipmentSheet extends StatefulWidget {
     this.repository,
   });
 
-  static void show(
+  /// Navigasi langsung ke halaman penuh pembuatan pengiriman [CreateShipmentPage]
+  static Future<T?> show<T>(
     BuildContext context, {
     Function(Map<String, dynamic> data)? onOrderCreated,
     dynamic repository,
   }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      enableDrag: false,
-      builder: (_) => CreateShipmentSheet(
-        onOrderCreated: onOrderCreated,
-        repository: repository,
+    return Navigator.of(context).push<T>(
+      MaterialPageRoute(
+        builder: (_) => CreateShipmentPage(
+          onOrderCreated: onOrderCreated,
+          repository: repository,
+        ),
       ),
     );
   }
@@ -443,13 +444,11 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       final createdOrder = await _repository.createShipmentOrder(orderPayload);
 
       if (mounted) {
-        Navigator.of(context).pop(); // Tutup modal order
-
         // Callback jika ada listener di luar
         widget.onOrderCreated?.call(orderPayload);
 
-        // Langsung arahkan ke Halaman Pembayaran
-        Navigator.of(context).push(
+        // Langsung arahkan ke Halaman Pembayaran menggantikan halaman formulir
+        Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => PaymentPage(order: createdOrder),
           ),
@@ -471,89 +470,89 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.92,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        top: 16,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: _isLoading
-          ? const Center(
-              child: CustomLoading(message: 'Memuat data wilayah & layanan...'),
-            )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    if (_isLoading) {
+      return const CreateShipmentSkeleton();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Step Indicator Bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceDark : Colors.white,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                width: 1,
+              ),
+            ),
+          ),
+          child: _buildStepIndicator(isDark),
+        ),
+
+        if (_errorMessage != null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.error, width: 1),
+            ),
+            child: Row(
               children: [
-                // Top Handle Bar
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black12,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Header & Close Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Buat Pesanan Pengiriman',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 22),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Step Indicator Bar
-                _buildStepIndicator(isDark),
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.error, width: 1),
-                    ),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(fontSize: 12, color: AppColors.error),
-                    ),
-                  ),
-                ],
-
-                // Form Content Scrollable
+                const Icon(Icons.error_outline_rounded,
+                    color: AppColors.error, size: 20),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: SingleChildScrollView(
-                    child: _buildCurrentStepContent(isDark, theme),
+                  child: Text(
+                    _errorMessage!,
+                    style:
+                        const TextStyle(fontSize: 12, color: AppColors.error),
                   ),
                 ),
-                const SizedBox(height: 14),
-
-                // Bottom Action Buttons
-                _buildBottomNavigationButtons(isDark),
               ],
             ),
+          ),
+        ],
+
+        // Form Content Scrollable
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: _buildCurrentStepContent(isDark, theme),
+          ),
+        ),
+
+        // Bottom Action Buttons
+        Container(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: MediaQuery.of(context).padding.bottom + 12,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceDark : Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                width: 1,
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: _buildBottomNavigationButtons(isDark),
+        ),
+      ],
     );
   }
 
@@ -625,199 +624,244 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // SENDER SECTION
-        _buildSectionHeader('Alamat Pengirim (Asal)', Icons.outbox_rounded),
-        const SizedBox(height: 10),
-        CustomTextField(
-          label: 'Nama Lengkap Pengirim',
-          hintText: 'Nama pengirim paket',
-          controller: _senderNameController,
-          prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-        ),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Nomor Telepon / WhatsApp',
-          hintText: '0812xxxxxxxx',
-          controller: _senderPhoneController,
-          keyboardType: TextInputType.phone,
-          prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-        ),
-        const SizedBox(height: 12),
-        _buildRegionDropdown<Province>(
-          label: 'Provinsi Pengirim',
-          value: _senderProvince,
-          items: _provinces,
-          itemLabel: (p) => p.name,
-          onChanged: (p) {
-            if (p != null) _onSenderProvinceSelected(p);
-          },
+        // SENDER SECTION CARD
+        _buildFormCard(
+          title: 'Alamat Pengirim (Asal)',
+          subtitle: 'Lokasi dan rincian kontak penjemputan paket',
+          icon: Icons.outbox_rounded,
           isDark: isDark,
-        ),
-        const SizedBox(height: 10),
-        _buildRegionDropdown<Regency>(
-          label: 'Kabupaten / Kota',
-          value: _senderRegency,
-          items: _senderRegencies,
-          itemLabel: (r) => r.name,
-          onChanged: (r) {
-            if (r != null) _onSenderRegencySelected(r);
-          },
-          isDark: isDark,
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: _buildRegionDropdown<District>(
-                label: 'Kecamatan',
-                value: _senderDistrict,
-                items: _senderDistricts,
-                itemLabel: (d) => d.name,
-                onChanged: (d) {
-                  if (d != null) _onSenderDistrictSelected(d);
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'Asal',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CustomTextField(
+                label: 'Nama Lengkap Pengirim',
+                hintText: 'Nama pengirim paket',
+                controller: _senderNameController,
+                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: 'Nomor Telepon / WhatsApp',
+                hintText: '0812xxxxxxxx',
+                controller: _senderPhoneController,
+                keyboardType: TextInputType.phone,
+                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+              ),
+              const SizedBox(height: 12),
+              _buildRegionDropdown<Province>(
+                label: 'Provinsi Pengirim',
+                value: _senderProvince,
+                items: _provinces,
+                itemLabel: (p) => p.name,
+                onChanged: (p) {
+                  if (p != null) _onSenderProvinceSelected(p);
                 },
                 isDark: isDark,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 3,
-              child: _buildRegionDropdown<Village>(
-                label: 'Kelurahan',
-                value: _senderVillage,
-                items: _senderVillages,
-                itemLabel: (v) => v.name,
-                onChanged: (v) {
-                  if (v != null) _onSenderVillageSelected(v);
+              const SizedBox(height: 10),
+              _buildRegionDropdown<Regency>(
+                label: 'Kabupaten / Kota',
+                value: _senderRegency,
+                items: _senderRegencies,
+                itemLabel: (r) => r.name,
+                onChanged: (r) {
+                  if (r != null) _onSenderRegencySelected(r);
                 },
                 isDark: isDark,
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: CustomTextField(
-                label: 'Alamat Lengkap Pengirim',
-                hintText: 'Nama jalan, nomor rumah, RT/RW, patokan',
-                controller: _senderAddressController,
-                maxLines: 2,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _buildRegionDropdown<District>(
+                      label: 'Kecamatan',
+                      value: _senderDistrict,
+                      items: _senderDistricts,
+                      itemLabel: (d) => d.name,
+                      onChanged: (d) {
+                        if (d != null) _onSenderDistrictSelected(d);
+                      },
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 3,
+                    child: _buildRegionDropdown<Village>(
+                      label: 'Kelurahan',
+                      value: _senderVillage,
+                      items: _senderVillages,
+                      itemLabel: (v) => v.name,
+                      onChanged: (v) {
+                        if (v != null) _onSenderVillageSelected(v);
+                      },
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 1,
-              child: CustomTextField(
-                label: 'Kode Pos',
-                hintText: '12xxx',
-                controller: _senderPostalController,
-                keyboardType: TextInputType.number,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: CustomTextField(
+                      label: 'Alamat Lengkap Pengirim',
+                      hintText: 'Nama jalan, nomor rumah, RT/RW, patokan',
+                      controller: _senderAddressController,
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: CustomTextField(
+                      label: 'Kode Pos',
+                      hintText: '12xxx',
+                      controller: _senderPostalController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
-        const Divider(height: 1),
-        const SizedBox(height: 20),
 
-        // RECIPIENT SECTION
-        _buildSectionHeader('Alamat Penerima (Tujuan)', Icons.move_to_inbox_rounded),
-        const SizedBox(height: 10),
-        CustomTextField(
-          label: 'Nama Lengkap Penerima',
-          hintText: 'Nama penerima paket',
-          controller: _receiverNameController,
-          prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-        ),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Nomor Telepon / WhatsApp',
-          hintText: '0812xxxxxxxx',
-          controller: _receiverPhoneController,
-          keyboardType: TextInputType.phone,
-          prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-        ),
-        const SizedBox(height: 12),
-        _buildRegionDropdown<Province>(
-          label: 'Provinsi Penerima',
-          value: _receiverProvince,
-          items: _provinces,
-          itemLabel: (p) => p.name,
-          onChanged: (p) {
-            if (p != null) _onReceiverProvinceSelected(p);
-          },
+        // RECIPIENT SECTION CARD
+        _buildFormCard(
+          title: 'Alamat Penerima (Tujuan)',
+          subtitle: 'Lokasi dan rincian kontak tujuan pengantaran',
+          icon: Icons.move_to_inbox_rounded,
           isDark: isDark,
-        ),
-        const SizedBox(height: 10),
-        _buildRegionDropdown<Regency>(
-          label: 'Kabupaten / Kota',
-          value: _receiverRegency,
-          items: _receiverRegencies,
-          itemLabel: (r) => r.name,
-          onChanged: (r) {
-            if (r != null) _onReceiverRegencySelected(r);
-          },
-          isDark: isDark,
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: _buildRegionDropdown<District>(
-                label: 'Kecamatan',
-                value: _receiverDistrict,
-                items: _receiverDistricts,
-                itemLabel: (d) => d.name,
-                onChanged: (d) {
-                  if (d != null) _onReceiverDistrictSelected(d);
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'Tujuan',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CustomTextField(
+                label: 'Nama Lengkap Penerima',
+                hintText: 'Nama penerima paket',
+                controller: _receiverNameController,
+                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: 'Nomor Telepon / WhatsApp',
+                hintText: '0812xxxxxxxx',
+                controller: _receiverPhoneController,
+                keyboardType: TextInputType.phone,
+                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+              ),
+              const SizedBox(height: 12),
+              _buildRegionDropdown<Province>(
+                label: 'Provinsi Penerima',
+                value: _receiverProvince,
+                items: _provinces,
+                itemLabel: (p) => p.name,
+                onChanged: (p) {
+                  if (p != null) _onReceiverProvinceSelected(p);
                 },
                 isDark: isDark,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 3,
-              child: _buildRegionDropdown<Village>(
-                label: 'Kelurahan',
-                value: _receiverVillage,
-                items: _receiverVillages,
-                itemLabel: (v) => v.name,
-                onChanged: (v) {
-                  if (v != null) _onReceiverVillageSelected(v);
+              const SizedBox(height: 10),
+              _buildRegionDropdown<Regency>(
+                label: 'Kabupaten / Kota',
+                value: _receiverRegency,
+                items: _receiverRegencies,
+                itemLabel: (r) => r.name,
+                onChanged: (r) {
+                  if (r != null) _onReceiverRegencySelected(r);
                 },
                 isDark: isDark,
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: CustomTextField(
-                label: 'Alamat Lengkap Penerima',
-                hintText: 'Nama jalan, gedung, nomor rumah, RT/RW',
-                controller: _receiverAddressController,
-                maxLines: 2,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _buildRegionDropdown<District>(
+                      label: 'Kecamatan',
+                      value: _receiverDistrict,
+                      items: _receiverDistricts,
+                      itemLabel: (d) => d.name,
+                      onChanged: (d) {
+                        if (d != null) _onReceiverDistrictSelected(d);
+                      },
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 3,
+                    child: _buildRegionDropdown<Village>(
+                      label: 'Kelurahan',
+                      value: _receiverVillage,
+                      items: _receiverVillages,
+                      itemLabel: (v) => v.name,
+                      onChanged: (v) {
+                        if (v != null) _onReceiverVillageSelected(v);
+                      },
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 1,
-              child: CustomTextField(
-                label: 'Kode Pos',
-                hintText: '14xxx',
-                controller: _receiverPostalController,
-                keyboardType: TextInputType.number,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: CustomTextField(
+                      label: 'Alamat Lengkap Penerima',
+                      hintText: 'Nama jalan, gedung, nomor rumah, RT/RW',
+                      controller: _receiverAddressController,
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: CustomTextField(
+                      label: 'Kode Pos',
+                      hintText: '14xxx',
+                      controller: _receiverPostalController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -829,160 +873,196 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Informasi Barang & Paket', Icons.inventory_2_outlined),
-        const SizedBox(height: 12),
-        CustomTextField(
-          label: 'Deskripsi / Nama Barang',
-          hintText: 'Contoh: Pakaian, Dokumen, Makanan Kering, Aksesoris',
-          controller: _itemDescController,
-          prefixIcon: const Icon(Icons.description_outlined, size: 20),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: CustomTextField(
-                label: 'Berat Total (Gram)',
-                hintText: '1000',
-                controller: _weightController,
-                keyboardType: TextInputType.number,
-                prefixIcon: const Icon(Icons.scale_rounded, size: 20),
-                onChanged: (_) => setState(() {}),
+        // INFORMASI BARANG & PAKET CARD
+        _buildFormCard(
+          title: 'Informasi Barang & Paket',
+          subtitle: 'Rincian deskripsi, berat, dan dimensi fisik paket',
+          icon: Icons.inventory_2_outlined,
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CustomTextField(
+                label: 'Deskripsi / Nama Barang',
+                hintText: 'Contoh: Pakaian, Dokumen, Makanan Kering, Aksesoris',
+                controller: _itemDescController,
+                prefixIcon: const Icon(Icons.description_outlined, size: 20),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: CustomTextField(
-                label: 'Jumlah Paket (Pcs)',
-                hintText: '1',
-                controller: _itemCountController,
-                keyboardType: TextInputType.number,
-                prefixIcon: const Icon(Icons.layers_outlined, size: 20),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Dimensi Paket (Panjang x Lebar x Tinggi)',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: CustomTextField(
-                label: 'P (cm)',
-                hintText: '20',
-                controller: _lengthController,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: CustomTextField(
-                label: 'L (cm)',
-                hintText: '15',
-                controller: _widthController,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: CustomTextField(
-                label: 'T (cm)',
-                hintText: '10',
-                controller: _heightController,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Berat Volumetrik terhitung: ${cost['volumetricKg']!.toStringAsFixed(2)} kg (dibulatkan: ${cost['chargeableKg']!.ceil()} kg)',
-          style: TextStyle(
-            fontSize: 11,
-            color: isDark ? Colors.white60 : Colors.black54,
-          ),
-        ),
-        const SizedBox(height: 14),
-        CustomTextField(
-          label: 'Nilai Barang / Proteksi Asuransi (Rp)',
-          hintText: '0 (Opsional)',
-          controller: _goodsValueController,
-          keyboardType: TextInputType.number,
-          prefixIcon: const Icon(Icons.shield_outlined, size: 20),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 20),
-        _buildSectionHeader('Pilihan Jenis Layanan (m_service_types)', Icons.local_shipping_outlined),
-        const SizedBox(height: 10),
-        Column(
-          children: _serviceTypes.map((service) {
-            final isSelected = _selectedService?.id == service.id;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedService = service),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: 0.12)
-                      : (isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF8FAFC)),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : Colors.transparent,
-                    width: 1.5,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      label: 'Berat Total (Gram)',
+                      hintText: '1000',
+                      controller: _weightController,
+                      keyboardType: TextInputType.number,
+                      prefixIcon: const Icon(Icons.scale_rounded, size: 20),
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: CustomTextField(
+                      label: 'Jumlah Paket (Pcs)',
+                      hintText: '1',
+                      controller: _itemCountController,
+                      keyboardType: TextInputType.number,
+                      prefixIcon: const Icon(Icons.layers_outlined, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Dimensi Paket (Panjang x Lebar x Tinggi)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      label: 'P (cm)',
+                      hintText: '20',
+                      controller: _lengthController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CustomTextField(
+                      label: 'L (cm)',
+                      hintText: '15',
+                      controller: _widthController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CustomTextField(
+                      label: 'T (cm)',
+                      hintText: '10',
+                      controller: _heightController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                      color: isSelected ? AppColors.primary : Colors.grey,
-                      size: 20,
+                      Icons.info_outline_rounded,
+                      size: 16,
+                      color: isDark ? Colors.white60 : Colors.black54,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 6),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            service.name,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? AppColors.primary : null,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Estimasi Tiba: ${service.estimationLabel}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white60 : Colors.black54,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      'Rp ${(service.basePrice).toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}/kg',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                      child: Text(
+                        'Berat Volumetrik: ${cost['volumetricKg']!.toStringAsFixed(2)} kg (dibulatkan: ${cost['chargeableKg']!.ceil()} kg)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            );
-          }).toList(),
+              const SizedBox(height: 14),
+              CustomTextField(
+                label: 'Nilai Barang / Proteksi Asuransi (Rp)',
+                hintText: '0 (Opsional)',
+                controller: _goodsValueController,
+                keyboardType: TextInputType.number,
+                prefixIcon: const Icon(Icons.shield_outlined, size: 20),
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
+          ),
+        ),
+
+        // PILIHAN LAYANAN CARD
+        _buildFormCard(
+          title: 'Pilihan Jenis Layanan',
+          subtitle: 'Pilih layanan pengiriman sesuai durasi dan tarif',
+          icon: Icons.local_shipping_outlined,
+          isDark: isDark,
+          child: Column(
+            children: _serviceTypes.map((service) {
+              final isSelected = _selectedService?.id == service.id;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedService = service),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : (isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                        color: isSelected ? AppColors.primary : Colors.grey,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              service.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? AppColors.primary : null,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Estimasi Tiba: ${service.estimationLabel}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        'Rp ${(service.basePrice).toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}/kg',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ),
       ],
     );
@@ -994,62 +1074,64 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Metode Pembayaran', Icons.payment_rounded),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildPaymentMethodCard(
-                label: 'Transfer Gateway',
-                icon: Icons.account_balance_wallet_outlined,
-                method: 'TRANSFER',
-                isDark: isDark,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildPaymentMethodCard(
-                label: 'Cash on Delivery',
-                icon: Icons.payments_outlined,
-                method: 'COD',
-                isDark: isDark,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        if (_paymentMethod == 'TRANSFER') ...[
-          const Text(
-            'Pilih Saluran Pembayaran Transfer:',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+        // METODE PEMBAYARAN CARD
+        _buildFormCard(
+          title: 'Metode Pembayaran',
+          subtitle: 'Pilih transfer gateway atau bayar di tempat (COD)',
+          icon: Icons.payment_rounded,
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildChannelChip('BCA Virtual Account', 'BCA_VA'),
-              _buildChannelChip('Mandiri VA', 'MANDIRI_VA'),
-              _buildChannelChip('BRI VA', 'BRI_VA'),
-              _buildChannelChip('QRIS Instan', 'QRIS'),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPaymentMethodCard(
+                      label: 'Transfer Gateway',
+                      icon: Icons.account_balance_wallet_outlined,
+                      method: 'TRANSFER',
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildPaymentMethodCard(
+                      label: 'Cash on Delivery',
+                      icon: Icons.payments_outlined,
+                      method: 'COD',
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              ),
+              if (_paymentMethod == 'TRANSFER') ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Pilih Saluran Pembayaran Transfer:',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildChannelChip('BCA Virtual Account', 'BCA_VA'),
+                    _buildChannelChip('Mandiri VA', 'MANDIRI_VA'),
+                    _buildChannelChip('BRI VA', 'BRI_VA'),
+                    _buildChannelChip('QRIS Instan', 'QRIS'),
+                  ],
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 16),
-        ],
+        ),
 
-        // Order Summary Card
-        _buildSectionHeader('Ringkasan Rincian Biaya Pengiriman', Icons.receipt_long_rounded),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-            ),
-          ),
+        // RINGKASAN RINCIAN BIAYA CARD
+        _buildFormCard(
+          title: 'Ringkasan Rincian Biaya Pengiriman',
+          subtitle: 'Rincian ongkos kirim dan total yang harus dibayar',
+          icon: Icons.receipt_long_rounded,
+          isDark: isDark,
           child: Column(
             children: [
               _buildSummaryLine('Asal', _senderRegency?.name ?? 'Jakarta Selatan', isDark),
@@ -1244,6 +1326,85 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFormCard({
+    required String title,
+    String? subtitle,
+    required IconData icon,
+    required Widget child,
+    required bool isDark,
+    Widget? trailing,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 14),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
     );
   }
 
