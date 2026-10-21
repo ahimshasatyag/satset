@@ -685,36 +685,26 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
                 isDark: isDark,
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: _buildRegionDropdown<District>(
-                      label: 'Kecamatan',
-                      value: _senderDistrict,
-                      items: _senderDistricts,
-                      itemLabel: (d) => d.name,
-                      onChanged: (d) {
-                        if (d != null) _onSenderDistrictSelected(d);
-                      },
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 3,
-                    child: _buildRegionDropdown<Village>(
-                      label: 'Kelurahan',
-                      value: _senderVillage,
-                      items: _senderVillages,
-                      itemLabel: (v) => v.name,
-                      onChanged: (v) {
-                        if (v != null) _onSenderVillageSelected(v);
-                      },
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
+              _buildRegionDropdown<District>(
+                label: 'Kecamatan',
+                value: _senderDistrict,
+                items: _senderDistricts,
+                itemLabel: (d) => d.name,
+                onChanged: (d) {
+                  if (d != null) _onSenderDistrictSelected(d);
+                },
+                isDark: isDark,
+              ),
+              const SizedBox(height: 10),
+              _buildRegionDropdown<Village>(
+                label: 'Kelurahan',
+                value: _senderVillage,
+                items: _senderVillages,
+                itemLabel: (v) => v.name,
+                onChanged: (v) {
+                  if (v != null) _onSenderVillageSelected(v);
+                },
+                isDark: isDark,
               ),
               const SizedBox(height: 10),
               Row(
@@ -805,36 +795,26 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
                 isDark: isDark,
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: _buildRegionDropdown<District>(
-                      label: 'Kecamatan',
-                      value: _receiverDistrict,
-                      items: _receiverDistricts,
-                      itemLabel: (d) => d.name,
-                      onChanged: (d) {
-                        if (d != null) _onReceiverDistrictSelected(d);
-                      },
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 3,
-                    child: _buildRegionDropdown<Village>(
-                      label: 'Kelurahan',
-                      value: _receiverVillage,
-                      items: _receiverVillages,
-                      itemLabel: (v) => v.name,
-                      onChanged: (v) {
-                        if (v != null) _onReceiverVillageSelected(v);
-                      },
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
+              _buildRegionDropdown<District>(
+                label: 'Kecamatan',
+                value: _receiverDistrict,
+                items: _receiverDistricts,
+                itemLabel: (d) => d.name,
+                onChanged: (d) {
+                  if (d != null) _onReceiverDistrictSelected(d);
+                },
+                isDark: isDark,
+              ),
+              const SizedBox(height: 10),
+              _buildRegionDropdown<Village>(
+                label: 'Kelurahan',
+                value: _receiverVillage,
+                items: _receiverVillages,
+                itemLabel: (v) => v.name,
+                onChanged: (v) {
+                  if (v != null) _onReceiverVillageSelected(v);
+                },
+                isDark: isDark,
               ),
               const SizedBox(height: 10),
               Row(
@@ -1429,50 +1409,15 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     required ValueChanged<T?> onChanged,
     required bool isDark,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white70 : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
-              isExpanded: true,
-              value: items.contains(value) ? value : null,
-              hint: Text(
-                'Pilih $label',
-                style: const TextStyle(fontSize: 12),
-              ),
-              items: items.map((item) {
-                return DropdownMenuItem<T>(
-                  value: item,
-                  child: Text(
-                    itemLabel(item),
-                    style: const TextStyle(fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
+    return SearchableDropdown<T>(
+      label: label,
+      value: items.contains(value) ? value : null,
+      items: items,
+      itemLabel: itemLabel,
+      onChanged: onChanged,
+      isDark: isDark,
+      hintText: 'Pilih $label',
+      searchHint: 'Search',
     );
   }
 }

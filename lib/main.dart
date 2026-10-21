@@ -14,6 +14,7 @@ import 'features/auth/domain/entities/user.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/customer/dashboard/presentation/pages/dashboard_page.dart';
+import 'features/notifications/presentation/pages/notifications_page.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'shared/theme/theme.dart';
 
@@ -181,6 +182,7 @@ class SatSetAppState extends State<SatSetApp> {
                     token: _userToken,
                     user: _currentUser,
                   ),
+              '/notifications': (context) => const NotificationsPage(),
             },
           );
         },

@@ -10,6 +10,7 @@ import 'package:satset/features/main_navigation/presentation/bloc/navigation_eve
 import 'package:satset/features/main_navigation/presentation/pages/main_navigation_page.dart';
 import 'package:satset/features/main_navigation/presentation/widgets/satset_bottom_navigation_bar.dart';
 import 'package:satset/features/shipments/presentation/widgets/create_shipment_sheet.dart';
+import 'package:satset/features/notifications/presentation/pages/notifications_page.dart';
 import '../../data/datasources/dashboard_local_datasource.dart';
 import '../../data/datasources/dashboard_remote_datasource.dart';
 import '../../data/repositories/dashboard_repository_impl.dart';
@@ -157,11 +158,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _onNotificationTap() {
     _dashboardBloc.add(const DashboardNotificationTapped());
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pemberitahuan status paket telah ditandai dibaca.'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const NotificationsPage(),
       ),
     );
   }

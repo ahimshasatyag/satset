@@ -141,5 +141,68 @@ void main() {
       expect(find.byType(CreateShipmentSkeleton), findsOneWidget);
       expect(find.byType(CustomShimmer), findsWidgets);
     });
+
+    testWidgets('SearchableDropdown renders matching image design and handles search filtering',
+        (WidgetTester tester) async {
+      String? selectedRole;
+      final roles = ['Developer', 'Designer', 'Consultant', 'Student'];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return SearchableDropdown<String>(
+                  label: 'Job Role',
+                  hintText: 'Select job role',
+                  searchHint: 'Search',
+                  value: selectedRole,
+                  items: roles,
+                  itemLabel: (r) => r,
+                  onChanged: (val) {
+                    setState(() {
+                      selectedRole = val;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      // 1. Initial State: shows hint and down chevron
+      expect(find.text('Select job role'), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
+      expect(find.text('Developer'), findsNothing);
+
+      // 2. Tap to expand: shows up chevron and search field
+      await tester.tap(find.text('Select job role'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      expect(find.text('Developer'), findsOneWidget);
+      expect(find.text('Designer'), findsOneWidget);
+      expect(find.text('Consultant'), findsOneWidget);
+      expect(find.text('Student'), findsOneWidget);
+
+      // 3. Search filter: type 'des' -> Designer shows, Developer hidden
+      await tester.enterText(find.byType(TextField), 'des');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Designer'), findsOneWidget);
+      expect(find.text('Developer'), findsNothing);
+
+      // 4. Select Designer: updates value and closes dropdown
+      await tester.tap(find.text('Designer'));
+      await tester.pumpAndSettle();
+
+      expect(selectedRole, 'Designer');
+      expect(find.text('Designer'), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
+    });
   });
 }

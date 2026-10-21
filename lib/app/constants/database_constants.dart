@@ -29,6 +29,9 @@ class DatabaseConstants {
   static const String tableKecamatan = 'm_kecamatan';
   static const String tableKelurahan = 'm_kelurahan';
 
+  /// Nama tabel notifikasi pelanggan
+  static const String tableNotifications = 't_notifications';
+
   /// Kolom umum
   static const String colId = 'id';
   static const String colEmail = 'email';
@@ -205,6 +208,23 @@ class ServiceTypeTableColumns {
   static const String estimasiHariMax = 'estimasi_hari_max';
   static const String deskripsi = 'deskripsi';
   static const String isActive = 'is_active';
+  static const String createdAt = 'created_at';
+}
+
+/// Kolom-kolom tabel t_notifications di Supabase
+class NotificationTableColumns {
+  NotificationTableColumns._();
+
+  static const String id = 'id';
+  static const String userId = 'user_id';
+  static const String title = 'title';
+  static const String message = 'message';
+  static const String type = 'type';
+  static const String isRead = 'is_read';
+  static const String readAt = 'read_at';
+  static const String shipmentId = 'shipment_id';
+  static const String paymentId = 'payment_id';
+  static const String data = 'data';
   static const String createdAt = 'created_at';
 }
 
