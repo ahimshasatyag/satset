@@ -64,6 +64,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           email: event.email.trim(),
           password: event.password,
           rememberMe: event.rememberMe,
+          latitude: event.latitude,
+          longitude: event.longitude,
         ),
       );
       emit(AuthSuccess(

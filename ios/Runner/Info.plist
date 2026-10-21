@@ -59,6 +59,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aplikasi SatSet membutuhkan izin lokasi untuk mengetahui lokasi saat masuk dan memproses pengiriman.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Aplikasi SatSet membutuhkan izin lokasi untuk memverifikasi posisi Anda saat login.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

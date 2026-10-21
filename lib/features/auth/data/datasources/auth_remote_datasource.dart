@@ -10,7 +10,12 @@ import '../utils/validators.dart';
 
 /// Kontrak Remote Data Source untuk autentikasi pengguna
 abstract class AuthRemoteDataSource {
-  Future<UserModel> login({required String email, required String password});
+  Future<UserModel> login({
+    required String email,
+    required String password,
+    double? latitude,
+    double? longitude,
+  });
 
   Future<UserModel> register({
     required String name,
@@ -102,6 +107,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<UserModel> login({
     required String email,
     required String password,
+    double? latitude,
+    double? longitude,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
 
@@ -138,6 +145,21 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           }
         }
 
+        // Perbarui lokasi pengguna terkini di database Supabase jika koordinat tersedia
+        if (latitude != null && longitude != null) {
+          try {
+            await _client.from(DatabaseConstants.tableUsers).update({
+              UserTableColumns.latitude: latitude,
+              UserTableColumns.longitude: longitude,
+              UserTableColumns.updatedAt:
+                  DateTime.now().toUtc().toIso8601String(),
+            }).eq(UserTableColumns.id, response[UserTableColumns.id]);
+
+            response[UserTableColumns.latitude] = latitude;
+            response[UserTableColumns.longitude] = longitude;
+          } catch (_) {}
+        }
+
         return UserModel.fromDatabase(response);
       } catch (e) {
         if (e is PostgrestException) {
@@ -157,6 +179,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       phone: '+6281234567890',
       token: 'jwt_token_${DateTime.now().millisecondsSinceEpoch}',
       role: 'customer',
+      latitude: latitude,
+      longitude: longitude,
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:satset/shared/theme/theme.dart';
 import 'package:satset/shared/widgets/widgets.dart';
 
@@ -19,7 +20,7 @@ import '../widgets/social_login_buttons.dart';
 import 'forgot_password_page.dart';
 import 'register_page.dart';
 import 'package:satset/app/config/supabase_config.dart';
-import 'package:satset/features/dashboard/presentation/pages/dashboard_page.dart';
+import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
 
 /// Halaman Login Utama SatSet
 class LoginPage extends StatelessWidget {
@@ -65,6 +66,8 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   bool _userInitiatedLogin = false;
+  bool _isCheckingLocation = false;
+  String? _loadingStatusText;
 
   @override
   void initState() {
@@ -224,15 +227,13 @@ class _LoginViewState extends State<LoginView> {
                             LoginForm(
                               initialEmail: savedEmail,
                               initialRememberMe: isRememberMe,
-                              isLoading: isLoading,
+                              isLoading: isLoading || _isCheckingLocation,
+                              loadingText: _loadingStatusText,
                               onLogin: (email, password, rememberMe) {
-                                _userInitiatedLogin = true;
-                                context.read<AuthBloc>().add(
-                                  AuthLoginSubmitted(
-                                    email: email,
-                                    password: password,
-                                    rememberMe: rememberMe,
-                                  ),
+                                _handleLoginWithLocation(
+                                  email: email,
+                                  password: password,
+                                  rememberMe: rememberMe,
                                 );
                               },
                               onForgotPasswordTap: () {
@@ -325,6 +326,168 @@ class _LoginViewState extends State<LoginView> {
         ),
         (route) => false,
       );
+    }
+  }
+
+  /// Memeriksa izin akses lokasi & GPS sebelum memproses login SatSet
+  Future<void> _handleLoginWithLocation({
+    required String email,
+    required String password,
+    required bool rememberMe,
+  }) async {
+    if (_isCheckingLocation) return;
+
+    setState(() {
+      _isCheckingLocation = true;
+      _loadingStatusText = 'Memeriksa GPS...';
+    });
+
+    try {
+      // 1. Periksa apakah layanan GPS aktif di perangkat
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          setState(() {
+            _isCheckingLocation = false;
+            _loadingStatusText = null;
+          });
+          CustomDialog.showWarning(
+            context: context,
+            title: 'GPS Tidak Aktif',
+            message:
+                'Layanan lokasi (GPS) belum diaktifkan. Mohon aktifkan GPS perangkat Anda agar dapat masuk ke akun SatSet.',
+            confirmText: 'Buka Pengaturan',
+            cancelText: 'Batal',
+            onConfirm: () async {
+              await Geolocator.openLocationSettings();
+            },
+          );
+        }
+        return;
+      }
+
+      // 2. Periksa status izin akses lokasi
+      setState(() {
+        _loadingStatusText = 'Memeriksa izin lokasi...';
+      });
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            setState(() {
+              _isCheckingLocation = false;
+              _loadingStatusText = null;
+            });
+            CustomDialog.showWarning(
+              context: context,
+              title: 'Izin Lokasi Diperlukan',
+              message:
+                  'Aplikasi SatSet membutuhkan izin akses lokasi Anda saat masuk untuk verifikasi lokasi pengguna.',
+              confirmText: 'Mengerti',
+              cancelText: null,
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          setState(() {
+            _isCheckingLocation = false;
+            _loadingStatusText = null;
+          });
+          CustomDialog.showWarning(
+            context: context,
+            title: 'Izin Lokasi Ditolak Permanen',
+            message:
+                'Izin akses lokasi ditolak permanen di perangkat ini. Silakan aktifkan izin lokasi di menu Pengaturan Aplikasi.',
+            confirmText: 'Buka Pengaturan',
+            cancelText: 'Batal',
+            onConfirm: () async {
+              await Geolocator.openAppSettings();
+            },
+          );
+        }
+        return;
+      }
+
+      // 3. Izin lokasi diberikan, ambil koordinat lokasi terkini (GPS)
+      setState(() {
+        _loadingStatusText = 'Mendeteksi lokasi saat ini...';
+      });
+
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 4),
+          ),
+        );
+      } catch (_) {
+        // Fallback ke posisi cache terakhir jika timeout
+        try {
+          position = await Geolocator.getLastKnownPosition();
+        } catch (_) {}
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isCheckingLocation = false;
+        _loadingStatusText = null;
+        _userInitiatedLogin = true;
+      });
+
+      // Notifikasi ringkas bahwa lokasi login terdeteksi
+      if (position != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.my_location_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Lokasi login: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      // 4. Submit login dengan koordinat lokasi terkini
+      context.read<AuthBloc>().add(
+            AuthLoginSubmitted(
+              email: email,
+              password: password,
+              rememberMe: rememberMe,
+              latitude: position?.latitude,
+              longitude: position?.longitude,
+            ),
+          );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingLocation = false;
+          _loadingStatusText = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memeriksa lokasi: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 

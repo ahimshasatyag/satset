@@ -18,15 +18,19 @@ class AuthLoginSubmitted extends AuthEvent {
   final String email;
   final String password;
   final bool rememberMe;
+  final double? latitude;
+  final double? longitude;
 
   const AuthLoginSubmitted({
     required this.email,
     required this.password,
     this.rememberMe = false,
+    this.latitude,
+    this.longitude,
   });
 
   @override
-  List<Object?> get props => [email, password, rememberMe];
+  List<Object?> get props => [email, password, rememberMe, latitude, longitude];
 }
 
 /// Event saat form registrasi akun baru disubmit

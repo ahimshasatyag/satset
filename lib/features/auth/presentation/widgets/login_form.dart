@@ -8,6 +8,7 @@ class LoginForm extends StatefulWidget {
   final String? initialEmail;
   final bool initialRememberMe;
   final bool isLoading;
+  final String? loadingText;
   final void Function(String email, String password, bool rememberMe) onLogin;
   final VoidCallback onForgotPasswordTap;
 
@@ -16,6 +17,7 @@ class LoginForm extends StatefulWidget {
     this.initialEmail,
     this.initialRememberMe = false,
     this.isLoading = false,
+    this.loadingText,
     required this.onLogin,
     required this.onForgotPasswordTap,
   });
@@ -105,7 +107,9 @@ class _LoginFormState extends State<LoginForm> {
 
           // Tombol Masuk Utama (Primary SatSet Red)
           CustomButton(
-            text: widget.isLoading ? 'Memverifikasi...' : 'Masuk Sat-Set',
+            text: widget.isLoading
+                ? (widget.loadingText ?? 'Memverifikasi...')
+                : 'Masuk Sat-Set',
             isLoading: widget.isLoading,
             onPressed: widget.isLoading ? null : _handleSubmit,
             prefixIcon: const Icon(Icons.login_rounded, color: Colors.white, size: 18),

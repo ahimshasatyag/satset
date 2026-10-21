@@ -6,11 +6,15 @@ class LoginParams {
   final String email;
   final String password;
   final bool rememberMe;
+  final double? latitude;
+  final double? longitude;
 
   const LoginParams({
     required this.email,
     required this.password,
     this.rememberMe = false,
+    this.latitude,
+    this.longitude,
   });
 }
 
@@ -26,6 +30,8 @@ class LoginUseCase {
       email: params.email,
       password: params.password,
       rememberMe: params.rememberMe,
+      latitude: params.latitude,
+      longitude: params.longitude,
     );
   }
 

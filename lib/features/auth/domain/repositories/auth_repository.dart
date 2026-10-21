@@ -7,6 +7,8 @@ abstract class AuthRepository {
     required String email,
     required String password,
     bool rememberMe = false,
+    double? latitude,
+    double? longitude,
   });
 
   /// Proses registrasi akun pengguna baru

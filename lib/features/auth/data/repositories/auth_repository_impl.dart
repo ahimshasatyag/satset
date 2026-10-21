@@ -18,10 +18,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
     bool rememberMe = false,
+    double? latitude,
+    double? longitude,
   }) async {
     final userModel = await remoteDataSource.login(
       email: email,
       password: password,
+      latitude: latitude,
+      longitude: longitude,
     );
 
     // Simpan data sesi & preferensi remember me
