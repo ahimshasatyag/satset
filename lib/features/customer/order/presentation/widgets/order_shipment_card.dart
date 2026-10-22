@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:satset/shared/theme/theme.dart';
+import 'package:satset/shared/utils/utils.dart';
 import 'package:satset/shared/widgets/widgets.dart';
 import '../../domain/entities/order_shipment.dart';
 import '../pages/payment_page.dart';
@@ -15,7 +16,7 @@ class OrderShipmentCard extends StatelessWidget {
   });
 
   String _formatCurrency(num amount) {
-    return 'Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+    return CurrencyFormatter.formatCurrency(amount);
   }
 
   @override
@@ -64,42 +65,49 @@ class OrderShipmentCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF1B2A3D)
-                              : AppColors.tertiary50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          order.trackingNumber,
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isDark
-                                ? AppColors.textPrimaryDark
-                                : AppColors.tertiary,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF1B2A3D)
+                                  : AppColors.tertiary50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              order.trackingNumber,
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.tertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        order.serviceType,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
+                        const SizedBox(width: 8),
+                        Text(
+                          order.serviceType,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   _buildStatusBadge(order),
                 ],
               ),
@@ -299,7 +307,18 @@ class OrderShipmentCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text('Penerima: ${order.receiverName} (${order.destinationCity})'),
             const SizedBox(height: 4),
-            Text('Metode Pembayaran: ${order.paymentMethod}'),
+            Text('Metode Pembayaran: ${order.paymentMethod}${order.payment?.provider != null ? ' (${order.payment!.provider})' : ''}'),
+            if (order.payment?.providerReference != null &&
+                order.payment!.providerReference!.isNotEmpty &&
+                order.paymentMethod != 'COD') ...[
+              const SizedBox(height: 4),
+              Text('No. Rekening / VA: ${order.payment!.providerReference}'),
+            ],
+            if (order.payment?.bankAccount?.namaPemilik != null &&
+                order.payment!.bankAccount!.namaPemilik.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('Atas Nama: ${order.payment!.bankAccount!.namaPemilik}'),
+            ],
             const SizedBox(height: 4),
             Text('Total: ${_formatCurrency(order.totalPrice > 0 ? order.totalPrice : order.price)}',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),

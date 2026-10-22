@@ -78,7 +78,7 @@ class _OrdersPageState extends State<OrdersPage> {
       context,
       repository: _repository,
       onOrderCreated: (orderData) {
-        bloc.add(OrderCreateSubmitted(orderData));
+        bloc.add(const OrderRefreshed());
       },
     );
   }
@@ -97,7 +97,10 @@ class _OrdersPageState extends State<OrdersPage> {
             bloc.add(const OrderCreatedReset());
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => PaymentPage(order: shipment),
+                builder: (_) => PaymentPage(
+                  order: shipment,
+                  repository: _repository,
+                ),
               ),
             );
           }

@@ -63,4 +63,9 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
   Future<Map<String, dynamic>?> getCurrentUserProfile() {
     return remoteDataSource.getCurrentUserProfile();
   }
+
+  @override
+  Future<List<BankAccount>> getBanks() {
+    return remoteDataSource.getBanks();
+  }
 }

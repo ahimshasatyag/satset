@@ -36,4 +36,7 @@ abstract class OrderRepository {
 
   /// Mengambil profil akun pengguna yang sedang login
   Future<Map<String, dynamic>?> getCurrentUserProfile();
+
+  /// Mengambil daftar master rekening bank dari m_bank join m_jenis_bank
+  Future<List<BankAccount>> getBanks();
 }

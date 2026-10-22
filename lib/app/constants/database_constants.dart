@@ -32,6 +32,10 @@ class DatabaseConstants {
   /// Nama tabel notifikasi pelanggan
   static const String tableNotifications = 't_notifications';
 
+  /// Nama tabel master jenis bank & bank rekening
+  static const String tableJenisBank = 'm_jenis_bank';
+  static const String tableBank = 'm_bank';
+
   /// Kolom umum
   static const String colId = 'id';
   static const String colEmail = 'email';
@@ -150,6 +154,7 @@ class ShipmentPaymentTableColumns {
   static const String provider = 'provider';
   static const String providerReference = 'provider_reference';
   static const String buktiPembayaranPath = 'bukti_pembayaran_path';
+  static const String jenisBankId = 'jenis_bank_id';
   static const String paidAt = 'paid_at';
   static const String expiredAt = 'expired_at';
   static const String createdAt = 'created_at';
@@ -225,6 +230,26 @@ class NotificationTableColumns {
   static const String shipmentId = 'shipment_id';
   static const String paymentId = 'payment_id';
   static const String data = 'data';
+  static const String createdAt = 'created_at';
+}
+
+/// Kolom-kolom tabel m_jenis_bank di Supabase
+class JenisBankTableColumns {
+  JenisBankTableColumns._();
+
+  static const String id = 'id';
+  static const String namaJenis = 'nama_jenis';
+  static const String createdAt = 'created_at';
+}
+
+/// Kolom-kolom tabel m_bank di Supabase
+class BankTableColumns {
+  BankTableColumns._();
+
+  static const String id = 'id';
+  static const String nmBank = 'nm_bank';
+  static const String nmrRekening = 'nmr_rekening';
+  static const String jenisBankId = 'jenis_bank_id';
   static const String createdAt = 'created_at';
 }
 

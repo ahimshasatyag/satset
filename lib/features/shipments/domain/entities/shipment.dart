@@ -55,6 +55,59 @@ enum OrderPaymentStatus {
       this == OrderPaymentStatus.paid || this == OrderPaymentStatus.settled;
 }
 
+/// Entity Master Jenis Bank (m_jenis_bank)
+class JenisBank extends Equatable {
+  final String id;
+  final String namaJenis;
+  final DateTime? createdAt;
+
+  const JenisBank({
+    required this.id,
+    required this.namaJenis,
+    this.createdAt,
+  });
+
+  @override
+  List<Object?> get props => [id, namaJenis, createdAt];
+}
+
+/// Entity Master Bank Rekening (m_bank)
+class BankAccount extends Equatable {
+  final String id;
+  final String namaPemilik; // Kolom: nm_bank (nama pemilik rekening)
+  final String nomorRekening; // Kolom: nmr_rekening
+  final String jenisBankId; // Kolom: jenis_bank_id
+  final JenisBank? jenisBank; // Relasi ke m_jenis_bank
+  final DateTime? createdAt;
+
+  const BankAccount({
+    required this.id,
+    required this.namaPemilik,
+    required this.nomorRekening,
+    required this.jenisBankId,
+    this.jenisBank,
+    this.createdAt,
+  });
+
+  /// Nama bank (misal: BCA, BRI, Mandiri, BNI)
+  String get bankName => jenisBank?.namaJenis ?? 'Bank Transfer';
+
+  /// Label ringkas rekening untuk tampilan
+  String get displayLabel => '$bankName - $nomorRekening ($namaPemilik)';
+
+  @override
+  List<Object?> get props => [
+        id,
+        namaPemilik,
+        nomorRekening,
+        jenisBankId,
+        jenisBank,
+        createdAt,
+      ];
+}
+
+typedef Bank = BankAccount;
+
 /// Entity data transaksi pembayaran pengiriman
 class ShipmentPayment extends Equatable {
   final int id;
@@ -66,6 +119,8 @@ class ShipmentPayment extends Equatable {
   final String? provider;
   final String? providerReference;
   final String? receiptPath;
+  final String? jenisBankId;
+  final BankAccount? bankAccount;
   final DateTime? paidAt;
   final DateTime? expiredAt;
   final DateTime createdAt;
@@ -81,6 +136,8 @@ class ShipmentPayment extends Equatable {
     this.provider,
     this.providerReference,
     this.receiptPath,
+    this.jenisBankId,
+    this.bankAccount,
     this.paidAt,
     this.expiredAt,
     required this.createdAt,
@@ -99,6 +156,8 @@ class ShipmentPayment extends Equatable {
         status,
         provider,
         providerReference,
+        jenisBankId,
+        bankAccount,
         paidAt,
         expiredAt,
       ];
@@ -113,6 +172,7 @@ class OrderServiceType extends Equatable {
   final int maxDays;
   final String? description;
   final double basePrice;
+  final double insuranceRate;
 
   const OrderServiceType({
     required this.id,
@@ -122,6 +182,7 @@ class OrderServiceType extends Equatable {
     required this.maxDays,
     this.description,
     this.basePrice = 15000,
+    this.insuranceRate = 0.002,
   });
 
   String get estimationLabel {
@@ -130,8 +191,13 @@ class OrderServiceType extends Equatable {
     return '$minDays - $maxDays Hari';
   }
 
+  String get insuranceRatePercentLabel {
+    final pct = insuranceRate * 100;
+    return '${pct.toStringAsFixed(pct.truncateToDouble() == pct ? 0 : 1)}%';
+  }
+
   @override
-  List<Object?> get props => [id, code, name, minDays, maxDays, basePrice];
+  List<Object?> get props => [id, code, name, minDays, maxDays, basePrice, insuranceRate];
 }
 
 typedef ShipmentServiceType = OrderServiceType;

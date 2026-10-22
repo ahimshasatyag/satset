@@ -32,24 +32,30 @@ class RecentShipmentsList extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.history_rounded,
-                    size: 20,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    activeFilter != null
-                        ? 'Pengiriman (${_filterLabel(activeFilter!)})'
-                        : 'Pengiriman Terbaru',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.2,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.history_rounded,
+                      size: 20,
+                      color: AppColors.primary,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        activeFilter != null
+                            ? 'Pengiriman (${_filterLabel(activeFilter!)})'
+                            : 'Pengiriman Terbaru',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (onSeeAllTap != null)
                 TextButton(
@@ -133,7 +139,9 @@ class RecentShipmentsList extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Baris Utama: Icon Box, Nomor Resi, Layanan, dan Nama Penerima
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             // Icon Box Paket
                             Container(
@@ -170,13 +178,17 @@ class RecentShipmentsList extends StatelessWidget {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
-                                        item.nomorResi,
-                                        style: TextStyle(
-                                          fontFamily: 'monospace',
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
+                                      Flexible(
+                                        child: Text(
+                                          item.nomorResi,
+                                          style: const TextStyle(
+                                            fontFamily: 'monospace',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       const SizedBox(width: 6),
@@ -200,7 +212,7 @@ class RecentShipmentsList extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 4),
                                   Text(
                                     'Penerima: ${item.penerimaNama} (${item.penerimaKota})',
                                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -212,9 +224,6 @@ class RecentShipmentsList extends StatelessWidget {
                                 ],
                               ),
                             ),
-
-                            // Status Badge
-                            _buildStatusBadge(item),
                           ],
                         ),
 
@@ -222,59 +231,61 @@ class RecentShipmentsList extends StatelessWidget {
                         const Divider(height: 1),
                         const SizedBox(height: 8),
 
-                        // Informasi Tanggal Pembuatan & Estimasi Tiba
+                        // Baris Bawah: Informasi Tanggal Pembuatan, Estimasi Tiba, dan Status Badge
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today_rounded,
-                                  size: 12,
-                                  color: isDark
-                                      ? AppColors.textMutedDark
-                                      : AppColors.textMutedLight,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  item.formattedCreatedAt,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 12,
                                     color: isDark
                                         ? AppColors.textMutedDark
                                         : AppColors.textMutedLight,
                                   ),
-                                ),
-                              ],
-                            ),
-                            if (item.estimasiTiba != null)
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.access_time_rounded,
-                                    size: 12,
-                                    color: AppColors.secondary,
-                                  ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    'Est: ${item.etaDisplay}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.secondary,
+                                  Flexible(
+                                    child: Text(
+                                      item.formattedCreatedAt,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? AppColors.textMutedDark
+                                            : AppColors.textMutedLight,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  if (item.estimasiTiba != null) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.access_time_rounded,
+                                      size: 12,
+                                      color: AppColors.secondary,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Flexible(
+                                      child: Text(
+                                        'Est: ${item.etaDisplay}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.secondary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              )
-                            else if (item.isDelivered)
-                              const Text(
-                                'Paket Telah Tiba',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.success,
-                                ),
                               ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildStatusBadge(item),
                           ],
                         ),
                       ],

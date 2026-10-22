@@ -63,10 +63,7 @@ class CreateShipmentPage extends StatelessWidget {
             ? const CreateShipmentSkeleton()
             : CreateShipmentSheet(
                 repository: repository,
-                onOrderCreated: onOrderCreated ??
-                    (data) {
-                      Navigator.of(context).pop(data);
-                    },
+                onOrderCreated: onOrderCreated,
               ),
       ),
     );

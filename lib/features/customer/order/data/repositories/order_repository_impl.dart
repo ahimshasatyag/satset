@@ -85,4 +85,9 @@ class OrderRepositoryImpl implements OrderRepository {
   Future<Map<String, dynamic>?> getCurrentUserProfile() {
     return remoteDataSource.getCurrentUserProfile();
   }
+
+  @override
+  Future<List<BankAccount>> getBanks() {
+    return remoteDataSource.getBanks();
+  }
 }

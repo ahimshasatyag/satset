@@ -1,5 +1,72 @@
 import '../../domain/entities/shipment.dart';
 
+class JenisBankModel extends JenisBank {
+  const JenisBankModel({
+    required super.id,
+    required super.namaJenis,
+    super.createdAt,
+  });
+
+  factory JenisBankModel.fromDatabase(Map<String, dynamic> map) {
+    return JenisBankModel(
+      id: map['id']?.toString() ?? '',
+      namaJenis: map['nama_jenis']?.toString() ?? '',
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString())
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nama_jenis': namaJenis,
+      'created_at': createdAt?.toIso8601String(),
+    };
+  }
+}
+
+class BankAccountModel extends BankAccount {
+  const BankAccountModel({
+    required super.id,
+    required super.namaPemilik,
+    required super.nomorRekening,
+    required super.jenisBankId,
+    super.jenisBank,
+    super.createdAt,
+  });
+
+  factory BankAccountModel.fromDatabase(Map<String, dynamic> map) {
+    JenisBankModel? jenis;
+    if (map['m_jenis_bank'] != null && map['m_jenis_bank'] is Map) {
+      jenis = JenisBankModel.fromDatabase(
+        Map<String, dynamic>.from(map['m_jenis_bank'] as Map),
+      );
+    }
+
+    return BankAccountModel(
+      id: map['id']?.toString() ?? '',
+      namaPemilik: map['nm_bank']?.toString() ?? '',
+      nomorRekening: map['nmr_rekening']?.toString() ?? '',
+      jenisBankId: map['jenis_bank_id']?.toString() ?? '',
+      jenisBank: jenis,
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString())
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nm_bank': namaPemilik,
+      'nmr_rekening': nomorRekening,
+      'jenis_bank_id': jenisBankId,
+      'created_at': createdAt?.toIso8601String(),
+    };
+  }
+}
+
 class ShipmentPaymentModel extends ShipmentPayment {
   const ShipmentPaymentModel({
     required super.id,
@@ -11,6 +78,8 @@ class ShipmentPaymentModel extends ShipmentPayment {
     super.provider,
     super.providerReference,
     super.receiptPath,
+    super.jenisBankId,
+    super.bankAccount,
     super.paidAt,
     super.expiredAt,
     required super.createdAt,
@@ -18,6 +87,13 @@ class ShipmentPaymentModel extends ShipmentPayment {
   });
 
   factory ShipmentPaymentModel.fromDatabase(Map<String, dynamic> map) {
+    BankAccountModel? bankAccount;
+    if (map['m_bank'] != null && map['m_bank'] is Map) {
+      bankAccount = BankAccountModel.fromDatabase(
+        Map<String, dynamic>.from(map['m_bank'] as Map),
+      );
+    }
+
     return ShipmentPaymentModel(
       id: (map['id'] as num?)?.toInt() ?? 0,
       shipmentId: (map['shipment_id'] as num?)?.toInt() ?? 0,
@@ -28,6 +104,8 @@ class ShipmentPaymentModel extends ShipmentPayment {
       provider: map['provider']?.toString(),
       providerReference: map['provider_reference']?.toString(),
       receiptPath: map['bukti_pembayaran_path']?.toString(),
+      jenisBankId: map['jenis_bank_id']?.toString(),
+      bankAccount: bankAccount,
       paidAt: map['paid_at'] != null
           ? DateTime.tryParse(map['paid_at'].toString())
           : null,
@@ -54,6 +132,7 @@ class ShipmentPaymentModel extends ShipmentPayment {
       'provider': provider,
       'provider_reference': providerReference,
       'bukti_pembayaran_path': receiptPath,
+      'jenis_bank_id': jenisBankId,
       'paid_at': paidAt?.toIso8601String(),
       'expired_at': expiredAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
@@ -71,6 +150,7 @@ class ServiceTypeModel extends OrderServiceType {
     required super.maxDays,
     super.description,
     super.basePrice,
+    super.insuranceRate,
   });
 
   factory ServiceTypeModel.fromDatabase(Map<String, dynamic> map) {
@@ -82,9 +162,19 @@ class ServiceTypeModel extends OrderServiceType {
     final desc = map['deskripsi']?.toString();
 
     double base = 15000;
-    if (code == 'EXP') base = 25000;
-    if (code == 'SAMEDAY') base = 20000;
-    if (code == 'INST') base = 30000;
+    double insRate = 0.002;
+    if (code == 'EXP') {
+      base = 25000;
+      insRate = 0.003;
+    }
+    if (code == 'SAMEDAY') {
+      base = 20000;
+      insRate = 0.004;
+    }
+    if (code == 'INST') {
+      base = 30000;
+      insRate = 0.005;
+    }
 
     return ServiceTypeModel(
       id: id,
@@ -93,7 +183,8 @@ class ServiceTypeModel extends OrderServiceType {
       minDays: minDays,
       maxDays: maxDays,
       description: desc,
-      basePrice: base,
+      basePrice: (map['harga_dasar'] as num?)?.toDouble() ?? base,
+      insuranceRate: (map['tarif_asuransi'] as num?)?.toDouble() ?? insRate,
     );
   }
 }

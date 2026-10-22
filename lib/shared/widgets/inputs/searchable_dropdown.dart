@@ -41,11 +41,17 @@ class SearchableDropdown<T> extends StatefulWidget {
   /// Pesan yang ditampilkan jika pencarian tidak menemukan hasil
   final String emptyMessage;
 
+  /// Teks placeholder saat daftar opsi kosong (opsional)
+  final String? emptyHintText;
+
   /// Fungsi filter pencarian kustom (opsional)
   final bool Function(T item, String query)? onSearch;
 
   /// Penimpa mode gelap (opsional, jika null akan dideteksi otomatis dari theme)
   final bool? isDark;
+
+  /// Status apakah data opsi sedang dimuat secara asinkron
+  final bool isLoading;
 
   const SearchableDropdown({
     super.key,
@@ -53,12 +59,14 @@ class SearchableDropdown<T> extends StatefulWidget {
     this.isRequired = false,
     this.hintText = 'Select job role',
     this.searchHint = 'Search',
+    this.emptyHintText,
     required this.value,
     required this.items,
     required this.itemLabel,
     this.itemSubtitle,
     this.onChanged,
     this.enabled = true,
+    this.isLoading = false,
     this.maxListHeight = 220.0,
     this.emptyMessage = 'Tidak ada data ditemukan',
     this.onSearch,
@@ -75,6 +83,17 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
   final FocusNode _searchFocusNode = FocusNode();
 
   @override
+  void didUpdateWidget(covariant SearchableDropdown<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((!widget.enabled || widget.isLoading || widget.items.isEmpty) && _isExpanded) {
+      setState(() {
+        _isExpanded = false;
+        _searchController.clear();
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -82,7 +101,7 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
   }
 
   void _toggleDropdown() {
-    if (!widget.enabled || widget.items.isEmpty) return;
+    if (!widget.enabled || widget.isLoading || widget.items.isEmpty) return;
 
     setState(() {
       _isExpanded = !_isExpanded;
@@ -113,6 +132,7 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkTheme = widget.isDark ?? (theme.brightness == Brightness.dark);
+    final isEffectiveEnabled = widget.enabled && !widget.isLoading && widget.items.isNotEmpty;
 
     final query = _searchController.text.trim().toLowerCase();
     final filteredItems = query.isEmpty
@@ -123,6 +143,10 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
             }
             return widget.itemLabel(item).toLowerCase().contains(query);
           }).toList();
+
+    final effectiveHintText = widget.items.isEmpty && widget.enabled && !widget.isLoading
+        ? (widget.emptyHintText ?? widget.hintText)
+        : widget.hintText;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,20 +184,30 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: isDarkTheme ? AppColors.surfaceDark : Colors.white,
+            color: !isEffectiveEnabled
+                ? (isDarkTheme
+                    ? AppColors.surfaceDark.withValues(alpha: 0.45)
+                    : const Color(0xFFF8FAFC))
+                : (isDarkTheme ? AppColors.surfaceDark : Colors.white),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _isExpanded
                   ? AppColors.primary
-                  : (isDarkTheme
-                      ? AppColors.borderDark
-                      : const Color(0xFFE2E8F0)),
+                  : (!isEffectiveEnabled
+                      ? (isDarkTheme
+                          ? AppColors.borderDark.withValues(alpha: 0.4)
+                          : const Color(0xFFE2E8F0).withValues(alpha: 0.6))
+                      : (isDarkTheme
+                          ? AppColors.borderDark
+                          : const Color(0xFFE2E8F0))),
               width: _isExpanded ? 1.5 : 1.0,
             ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(
-                  alpha: isDarkTheme ? 0.35 : (_isExpanded ? 0.08 : 0.03),
+                  alpha: !isEffectiveEnabled
+                      ? 0.01
+                      : (isDarkTheme ? 0.35 : (_isExpanded ? 0.08 : 0.03)),
                 ),
                 blurRadius: _isExpanded ? 16 : 8,
                 offset: Offset(0, _isExpanded ? 4 : 2),
@@ -185,18 +219,21 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Baris Header: Teks Nilai Terpilih / Hint + Ikon Chevron Panah (^/v)
+              // Baris Header: Teks Nilai Terpilih / Hint + Ikon Chevron Panah (^/v) atau Loading Spinner
               InkWell(
                 onTap: _toggleDropdown,
                 splashColor: Colors.transparent,
                 highlightColor: Colors.transparent,
+                mouseCursor: isEffectiveEnabled
+                    ? SystemMouseCursors.click
+                    : SystemMouseCursors.basic,
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         widget.value != null
                             ? widget.itemLabel(widget.value as T)
-                            : widget.hintText,
+                            : effectiveHintText,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: widget.value != null
@@ -206,23 +243,41 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
                               ? (isDarkTheme
                                   ? Colors.white
                                   : AppColors.textPrimaryLight)
-                              : (isDarkTheme
-                                  ? Colors.white38
-                                  : const Color(0xFF94A3B8)),
+                              : (!isEffectiveEnabled
+                                  ? (isDarkTheme
+                                      ? Colors.white24
+                                      : const Color(0xFFCBD5E1))
+                                  : (isDarkTheme
+                                      ? Colors.white38
+                                      : const Color(0xFF94A3B8))),
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Icon(
-                      _isExpanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      size: 22,
-                      color: isDarkTheme
-                          ? Colors.white70
-                          : const Color(0xFF1E293B),
-                    ),
+                    if (widget.isLoading)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    else
+                      Icon(
+                        _isExpanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 22,
+                        color: !isEffectiveEnabled
+                            ? (isDarkTheme
+                                ? Colors.white24
+                                : const Color(0xFFCBD5E1))
+                            : (isDarkTheme
+                                ? Colors.white70
+                                : const Color(0xFF1E293B)),
+                      ),
                   ],
                 ),
               ),
@@ -327,7 +382,7 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
                       shrinkWrap: true,
                       padding: EdgeInsets.zero,
                       itemCount: filteredItems.length,
-                      separatorBuilder: (_, __) => Divider(
+                      separatorBuilder: (_, _) => Divider(
                         height: 1,
                         color: isDarkTheme
                             ? AppColors.borderDark.withValues(alpha: 0.5)

@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:satset/shared/theme/theme.dart';
+import 'package:satset/shared/utils/utils.dart';
+import '../../data/datasources/order_local_datasource.dart';
+import '../../data/datasources/order_remote_datasource.dart';
+import '../../data/repositories/order_repository_impl.dart';
 import '../../domain/entities/order_shipment.dart';
+import '../../domain/repositories/order_repository.dart';
+import '../../domain/usecases/create_shipment_usecase.dart';
+import '../../domain/usecases/get_orders_usecase.dart';
 import '../bloc/order_bloc.dart';
 import '../bloc/order_event.dart';
 import '../bloc/order_state.dart';
@@ -13,12 +20,16 @@ class PaymentPage extends StatefulWidget {
   final OrderShipment order;
   final bool enableCountdown;
   final bool isLoading;
+  final OrderBloc? bloc;
+  final OrderRepository? repository;
 
   const PaymentPage({
     super.key,
     required this.order,
     this.enableCountdown = true,
     this.isLoading = false,
+    this.bloc,
+    this.repository,
   });
 
   @override
@@ -30,12 +41,73 @@ class _PaymentPageState extends State<PaymentPage> {
   Timer? _countdownTimer;
   Duration _timeLeft = const Duration(hours: 23, minutes: 59, seconds: 59);
   bool _userTappedCheck = false;
+  BankAccount? _matchedBank;
 
   @override
   void initState() {
     super.initState();
     _currentOrder = widget.order;
     _initCountdown();
+    _resolveBankDetails();
+  }
+
+  Future<void> _resolveBankDetails() async {
+    if (_currentOrder.payment?.bankAccount != null) {
+      setState(() {
+        _matchedBank = _currentOrder.payment!.bankAccount;
+      });
+      return;
+    }
+
+    try {
+      final repo = widget.repository ??
+          OrderRepositoryImpl(
+            remoteDataSource: OrderRemoteDataSourceImpl(),
+            localDataSource: OrderLocalDataSourceImpl(),
+          );
+      final banks = await repo.getBanks();
+      if (!mounted) return;
+
+      final p = _currentOrder.payment;
+      BankAccount? match;
+
+      if (p?.jenisBankId != null && p!.jenisBankId!.isNotEmpty) {
+        for (final b in banks) {
+          if (b.jenisBankId == p.jenisBankId) {
+            match = b;
+            break;
+          }
+        }
+      }
+
+      if (match == null && p?.providerReference != null && p!.providerReference!.isNotEmpty) {
+        for (final b in banks) {
+          if (b.nomorRekening == p.providerReference) {
+            match = b;
+            break;
+          }
+        }
+      }
+
+      if (match == null && p?.provider != null) {
+        final provUpper = p!.provider!.toUpperCase();
+        for (final b in banks) {
+          final bNameUpper = b.bankName.toUpperCase();
+          if (provUpper.contains(bNameUpper) || bNameUpper.contains(provUpper)) {
+            match = b;
+            break;
+          }
+        }
+      }
+
+      match ??= (banks.isNotEmpty ? banks.first : null);
+
+      if (mounted && match != null) {
+        setState(() {
+          _matchedBank = match;
+        });
+      }
+    } catch (_) {}
   }
 
   void _initCountdown() {
@@ -61,9 +133,35 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
+  OrderBloc? _internalBloc;
+
+  OrderBloc _getOrCreateBloc(BuildContext context) {
+    if (widget.bloc != null) {
+      return widget.bloc!;
+    }
+    try {
+      return BlocProvider.of<OrderBloc>(context);
+    } catch (_) {
+      if (_internalBloc == null) {
+        final repo = widget.repository ??
+            OrderRepositoryImpl(
+              remoteDataSource: OrderRemoteDataSourceImpl(),
+              localDataSource: OrderLocalDataSourceImpl(),
+            );
+        _internalBloc = OrderBloc(
+          getOrdersUseCase: GetOrdersUseCase(repo),
+          createShipmentUseCase: CreateShipmentUseCase(repo),
+          repository: repo,
+        );
+      }
+      return _internalBloc!;
+    }
+  }
+
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _internalBloc?.close();
     super.dispose();
   }
 
@@ -75,7 +173,7 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   String _formatCurrency(num amount) {
-    return 'Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+    return CurrencyFormatter.formatCurrency(amount);
   }
 
   void _copyToClipboard(String text, String label) {
@@ -130,10 +228,13 @@ class _PaymentPageState extends State<PaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bloc = _getOrCreateBloc(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return PopScope(
-      canPop: false,
+    return BlocProvider<OrderBloc>.value(
+      value: bloc,
+      child: PopScope(
+        canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (widget.isLoading) {
@@ -290,6 +391,7 @@ class _PaymentPageState extends State<PaymentPage> {
           );
         },
       ),
+    ),
     );
   }
 
@@ -597,6 +699,18 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   Widget _buildTransferInstructions(bool isDark, String providerRef, String paymentNumber) {
+    final bank = _matchedBank ?? _currentOrder.payment?.bankAccount;
+    final bankName = bank?.bankName ??
+        (_currentOrder.payment?.provider ?? 'Bank Transfer');
+    final accountNumber = (bank != null && bank.nomorRekening.isNotEmpty)
+        ? bank.nomorRekening
+        : providerRef;
+    final accountOwner = bank?.namaPemilik ??
+        (_currentOrder.payment?.bankAccount?.namaPemilik ?? '');
+    final totalNominal = _currentOrder.totalPrice > 0
+        ? _currentOrder.totalPrice
+        : _currentOrder.price.toDouble();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -612,9 +726,19 @@ class _PaymentPageState extends State<PaymentPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Instruksi Pembayaran Gateway',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.account_balance_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Transfer Bank $bankName',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -623,7 +747,7 @@ class _PaymentPageState extends State<PaymentPage> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  _currentOrder.payment?.provider ?? 'Virtual Account',
+                  bankName,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -635,12 +759,102 @@ class _PaymentPageState extends State<PaymentPage> {
           ),
           const SizedBox(height: 14),
 
-          // Nomor Virtual Account / Kode Bayar
+          // Card Nomor Rekening Bank & Pemilik Rekening
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Nomor Rekening Tujuan',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          accountNumber,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => _copyToClipboard(accountNumber, 'Nomor Rekening'),
+                      icon: const Icon(Icons.copy_rounded, size: 14),
+                      label: const Text('Salin', style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (accountOwner.isNotEmpty) ...[
+                  const Divider(height: 16),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline_rounded,
+                        size: 15,
+                        color: isDark ? Colors.white60 : Colors.black54,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Atas Nama: ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                      Text(
+                        accountOwner,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Card Jumlah Transfer yang harus dibayar
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -649,17 +863,16 @@ class _PaymentPageState extends State<PaymentPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Nomor Virtual Account',
+                      'Total Nominal Transfer',
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? Colors.white60 : Colors.black54,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      providerRef,
+                      _formatCurrency(totalNominal),
                       style: const TextStyle(
-                        fontFamily: 'monospace',
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
@@ -667,21 +880,27 @@ class _PaymentPageState extends State<PaymentPage> {
                     ),
                   ],
                 ),
-                ElevatedButton.icon(
-                  onPressed: () => _copyToClipboard(providerRef, 'Nomor Virtual Account'),
+                OutlinedButton.icon(
+                  onPressed: () => _copyToClipboard(
+                    totalNominal.toInt().toString(),
+                    'Nominal Transfer',
+                  ),
                   icon: const Icon(Icons.copy_rounded, size: 14),
-                  label: const Text('Salin', style: TextStyle(fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  label: const Text('Salin Jumlah', style: TextStyle(fontSize: 11)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Langkah Pembayaran
           const Text(
@@ -689,10 +908,11 @@ class _PaymentPageState extends State<PaymentPage> {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          _buildStepRow(1, 'Buka aplikasi Mobile Banking atau ATM bank pilihan Anda.'),
-          _buildStepRow(2, 'Pilih menu Transfer atau Pembayaran > Virtual Account.'),
-          _buildStepRow(3, 'Masukkan kode Virtual Account di atas dan periksa jumlah tagihan.'),
-          _buildStepRow(4, 'Konfirmasi pembayaran. Status akan diperbarui otomatis secara real-time.'),
+          _buildStepRow(1, 'Buka aplikasi Mobile Banking atau ATM Bank $bankName pilihan Anda.'),
+          _buildStepRow(2, 'Pilih menu Transfer > Ke Rekening Bank $bankName.'),
+          _buildStepRow(3, 'Masukkan nomor rekening $accountNumber ${accountOwner.isNotEmpty ? '(a.n. $accountOwner)' : ''}.'),
+          _buildStepRow(4, 'Masukkan nominal transfer tepat ${_formatCurrency(totalNominal)} dan selesaikan pembayaran.'),
+          _buildStepRow(5, 'Tekan tombol "Periksa Status Pembayaran" di bawah setelah transfer berhasil.'),
         ],
       ),
     );

@@ -1,24 +1,24 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:satset/shared/theme/theme.dart';
-import 'package:satset/shared/widgets/widgets.dart';
+import 'package:satset/features/customer/order/presentation/pages/payment_page.dart';
+
 import '../../data/datasources/shipment_local_datasource.dart';
 import '../../data/datasources/shipment_remote_datasource.dart';
 import '../../data/repositories/shipment_repository_impl.dart';
 import '../../domain/entities/shipment.dart';
-import 'package:satset/features/customer/order/presentation/pages/payment_page.dart';
 import '../pages/create_shipment_page.dart';
-import 'create_shipment_skeleton.dart';
+import 'package:satset/shared/utils/utils.dart';
+import 'components/shipment_address_step.dart';
+import 'components/shipment_package_step.dart';
+import 'components/shipment_payment_step.dart';
 
 class CreateShipmentSheet extends StatefulWidget {
   final Function(Map<String, dynamic> data)? onOrderCreated;
   final dynamic repository;
 
-  const CreateShipmentSheet({
-    super.key,
-    this.onOrderCreated,
-    this.repository,
-  });
+  const CreateShipmentSheet({super.key, this.onOrderCreated, this.repository});
 
   /// Navigasi langsung ke halaman penuh pembuatan pengiriman [CreateShipmentPage]
   static Future<T?> show<T>(
@@ -43,7 +43,8 @@ class CreateShipmentSheet extends StatefulWidget {
 class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
   late final dynamic _repository;
 
-  int _currentStep = 0; // 0: Alamat, 1: Paket & Layanan, 2: Pembayaran & Ringkasan
+  int _currentStep =
+      0; // 0: Alamat, 1: Paket & Layanan, 2: Pembayaran & Ringkasan
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -70,36 +71,86 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
   List<Village> _receiverVillages = [];
   Village? _receiverVillage;
 
+  // Status loading bertingkat (cascading)
+  bool _isLoadingSenderRegencies = false;
+  bool _isLoadingSenderDistricts = false;
+  bool _isLoadingSenderVillages = false;
+  bool _isLoadingReceiverRegencies = false;
+  bool _isLoadingReceiverDistricts = false;
+  bool _isLoadingReceiverVillages = false;
+
   // Text Controllers: Pengirim
   final TextEditingController _senderNameController = TextEditingController();
   final TextEditingController _senderPhoneController = TextEditingController();
-  final TextEditingController _senderAddressController = TextEditingController();
+  final TextEditingController _senderAddressController =
+      TextEditingController();
   final TextEditingController _senderPostalController = TextEditingController();
 
   // Text Controllers: Penerima
   final TextEditingController _receiverNameController = TextEditingController();
-  final TextEditingController _receiverPhoneController = TextEditingController();
-  final TextEditingController _receiverAddressController = TextEditingController();
-  final TextEditingController _receiverPostalController = TextEditingController();
+  final TextEditingController _receiverPhoneController =
+      TextEditingController();
+  final TextEditingController _receiverAddressController =
+      TextEditingController();
+  final TextEditingController _receiverPostalController =
+      TextEditingController();
 
   // Text Controllers: Paket
   final TextEditingController _itemDescController = TextEditingController();
-  final TextEditingController _weightController = TextEditingController(text: '1000');
-  final TextEditingController _lengthController = TextEditingController(text: '20');
-  final TextEditingController _widthController = TextEditingController(text: '15');
-  final TextEditingController _heightController = TextEditingController(text: '10');
-  final TextEditingController _itemCountController = TextEditingController(text: '1');
-  final TextEditingController _goodsValueController = TextEditingController(text: '0');
+  final TextEditingController _weightController = TextEditingController(
+    text: '1000',
+  );
+  final TextEditingController _lengthController = TextEditingController(
+    text: '20',
+  );
+  final TextEditingController _widthController = TextEditingController(
+    text: '15',
+  );
+  final TextEditingController _heightController = TextEditingController(
+    text: '10',
+  );
+  final TextEditingController _itemCountController = TextEditingController(
+    text: '1',
+  );
+  final TextEditingController _goodsValueController = TextEditingController(
+    text: '15.000',
+  );
 
-  // Pilihan Layanan & Pembayaran
+  // Proteksi Asuransi & Pilihan Layanan & Pembayaran
+  bool _useInsurance = false;
   OrderServiceType? _selectedService;
   String _paymentMethod = 'TRANSFER'; // 'TRANSFER' or 'COD'
-  String _paymentChannel = 'BCA_VA'; // 'BCA_VA', 'MANDIRI_VA', 'BRI_VA', 'QRIS', 'COD'
+  String _paymentChannel = 'BCA';
+  List<BankAccount> _banks = [];
+  BankAccount? _selectedBank;
+
+  // Perhitungan otomatis nilai/harga asli barang dari berat aktual & volumetrik (P x L x T)
+  double _calculateAutoGoodsValue() {
+    final weightGram = int.tryParse(_weightController.text) ?? 1000;
+    final lengthCm = int.tryParse(_lengthController.text) ?? 20;
+    final widthCm = int.tryParse(_widthController.text) ?? 15;
+    final heightCm = int.tryParse(_heightController.text) ?? 10;
+
+    final actualWeightKg = weightGram / 1000.0;
+    final volumetricWeightKg = (lengthCm * widthCm * heightCm) / 6000.0;
+    final chargeableWeightKg = max(actualWeightKg, volumetricWeightKg);
+    final billedKg = max(1.0, chargeableWeightKg.ceilToDouble());
+
+    final baseRate = _selectedService?.basePrice ?? 15000.0;
+    return billedKg * baseRate;
+  }
+
+  void _syncAutoGoodsValueIfNeeded() {
+    final autoVal = _calculateAutoGoodsValue();
+    _goodsValueController.text = CurrencyFormatter.formatNominal(autoVal);
+  }
 
   @override
   void initState() {
     super.initState();
-    _repository = widget.repository ??
+    _syncAutoGoodsValueIfNeeded();
+    _repository =
+        widget.repository ??
         ShipmentRepositoryImpl(
           remoteDataSource: ShipmentRemoteDataSourceImpl(),
           localDataSource: ShipmentLocalDataSourceImpl(),
@@ -140,40 +191,50 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
           _repository.getServiceTypes() as Future<List<OrderServiceType>>;
       final Future<Map<String, dynamic>?> profileFuture =
           _repository.getCurrentUserProfile() as Future<Map<String, dynamic>?>;
+      final Future<List<BankAccount>> banksFuture =
+          _repository.getBanks() as Future<List<BankAccount>>;
 
       final results = await Future.wait<dynamic>([
         provFuture,
         typesFuture,
         profileFuture,
+        banksFuture,
       ]);
 
       _provinces = results[0] as List<Province>;
       _serviceTypes = results[1] as List<OrderServiceType>;
       final userProfile = results[2] as Map<String, dynamic>?;
+      _banks = results[3] as List<BankAccount>;
+
+      if (_banks.isNotEmpty) {
+        _selectedBank = _banks.first;
+        _paymentChannel = _selectedBank!.bankName;
+      }
 
       if (_serviceTypes.isNotEmpty) {
         _selectedService = _serviceTypes.first;
+        _syncAutoGoodsValueIfNeeded();
       }
 
       // Prefill Pengirim dari profil pengguna
       if (userProfile != null) {
         _senderNameController.text =
-            userProfile['nama_lengkap']?.toString() ?? userProfile['name']?.toString() ?? '';
+            userProfile['nama_lengkap']?.toString() ??
+            userProfile['name']?.toString() ??
+            '';
         _senderPhoneController.text =
-            userProfile['no_hp']?.toString() ?? userProfile['phone']?.toString() ?? '';
+            userProfile['no_hp']?.toString() ??
+            userProfile['phone']?.toString() ??
+            '';
         _senderAddressController.text =
-            userProfile['alamat_lengkap']?.toString() ?? userProfile['address']?.toString() ?? '';
+            userProfile['alamat_lengkap']?.toString() ??
+            userProfile['address']?.toString() ??
+            '';
       }
 
-      // Default pilih provinsi pertama jika ada
-      if (_provinces.isNotEmpty) {
-        _senderProvince = _provinces.first;
-        _receiverProvince = _provinces.first;
-        await Future.wait([
-          _onSenderProvinceSelected(_senderProvince!),
-          _onReceiverProvinceSelected(_receiverProvince!),
-        ]);
-      }
+      // Pastikan dropdown wilayah tidak otomatis terpilih (tetap null sampai dipilih pengguna)
+      _senderProvince = null;
+      _receiverProvince = null;
     } catch (e) {
       _errorMessage = 'Gagal memuat master data: $e';
     } finally {
@@ -192,18 +253,21 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _senderDistrict = null;
       _senderVillages = [];
       _senderVillage = null;
+      _isLoadingSenderRegencies = true;
     });
     try {
       final regs = await _repository.getRegencies(prov.code);
       if (mounted) {
         setState(() {
           _senderRegencies = regs;
-          if (regs.isNotEmpty) {
-            _onSenderRegencySelected(regs.first);
-          }
+          _isLoadingSenderRegencies = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingSenderRegencies = false);
+      }
+    }
   }
 
   Future<void> _onSenderRegencySelected(Regency reg) async {
@@ -213,18 +277,21 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _senderDistrict = null;
       _senderVillages = [];
       _senderVillage = null;
+      _isLoadingSenderDistricts = true;
     });
     try {
       final dists = await _repository.getDistricts(reg.code);
       if (mounted) {
         setState(() {
           _senderDistricts = dists;
-          if (dists.isNotEmpty) {
-            _onSenderDistrictSelected(dists.first);
-          }
+          _isLoadingSenderDistricts = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingSenderDistricts = false);
+      }
+    }
   }
 
   Future<void> _onSenderDistrictSelected(District dist) async {
@@ -232,18 +299,21 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _senderDistrict = dist;
       _senderVillages = [];
       _senderVillage = null;
+      _isLoadingSenderVillages = true;
     });
     try {
       final vills = await _repository.getVillages(dist.code);
       if (mounted) {
         setState(() {
           _senderVillages = vills;
-          if (vills.isNotEmpty) {
-            _onSenderVillageSelected(vills.first);
-          }
+          _isLoadingSenderVillages = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingSenderVillages = false);
+      }
+    }
   }
 
   void _onSenderVillageSelected(Village vill) {
@@ -264,18 +334,21 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _receiverDistrict = null;
       _receiverVillages = [];
       _receiverVillage = null;
+      _isLoadingReceiverRegencies = true;
     });
     try {
       final regs = await _repository.getRegencies(prov.code);
       if (mounted) {
         setState(() {
           _receiverRegencies = regs;
-          if (regs.isNotEmpty) {
-            _onReceiverRegencySelected(regs.first);
-          }
+          _isLoadingReceiverRegencies = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingReceiverRegencies = false);
+      }
+    }
   }
 
   Future<void> _onReceiverRegencySelected(Regency reg) async {
@@ -285,18 +358,21 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _receiverDistrict = null;
       _receiverVillages = [];
       _receiverVillage = null;
+      _isLoadingReceiverDistricts = true;
     });
     try {
       final dists = await _repository.getDistricts(reg.code);
       if (mounted) {
         setState(() {
           _receiverDistricts = dists;
-          if (dists.isNotEmpty) {
-            _onReceiverDistrictSelected(dists.first);
-          }
+          _isLoadingReceiverDistricts = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingReceiverDistricts = false);
+      }
+    }
   }
 
   Future<void> _onReceiverDistrictSelected(District dist) async {
@@ -304,18 +380,21 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _receiverDistrict = dist;
       _receiverVillages = [];
       _receiverVillage = null;
+      _isLoadingReceiverVillages = true;
     });
     try {
       final vills = await _repository.getVillages(dist.code);
       if (mounted) {
         setState(() {
           _receiverVillages = vills;
-          if (vills.isNotEmpty) {
-            _onReceiverVillageSelected(vills.first);
-          }
+          _isLoadingReceiverVillages = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingReceiverVillages = false);
+      }
+    }
   }
 
   void _onReceiverVillageSelected(Village vill) {
@@ -327,50 +406,105 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     });
   }
 
-  // Perhitungan Biaya Realistis
+  // Perhitungan Biaya Realistis Sesuai Rumus Ekspedisi
   Map<String, double> _calculateCost() {
     final weightGram = int.tryParse(_weightController.text) ?? 1000;
-    final lengthCm = int.tryParse(_lengthController.text) ?? 10;
-    final widthCm = int.tryParse(_widthController.text) ?? 10;
+    final lengthCm = int.tryParse(_lengthController.text) ?? 20;
+    final widthCm = int.tryParse(_widthController.text) ?? 15;
     final heightCm = int.tryParse(_heightController.text) ?? 10;
-    final goodsVal = double.tryParse(_goodsValueController.text) ?? 0.0;
 
+    // 1. Berat Aktual (kg)
     final actualWeightKg = weightGram / 1000.0;
-    final volumetricWeightKg = (lengthCm * widthCm * heightCm) / 6000.0;
-    final chargeableWeightKg = max(actualWeightKg, volumetricWeightKg);
-    final billedKg = max(1, chargeableWeightKg.ceil());
 
-    double baseRate = _selectedService?.basePrice ?? 15000;
+    // 2. Berat Volumetrik: (P x L x T) / 6000 kg (sesuai standar ekspedisi)
+    final volumetricWeightKg = (lengthCm * widthCm * heightCm) / 6000.0;
+
+    // 3. Prinsip Kurir: Mengambil nilai terbesar antara berat aktual dan volumetrik
+    final chargeableWeightKg = max(actualWeightKg, volumetricWeightKg);
+
+    // 4. Pembulatan berat ditagih (minimal 1 kg)
+    final billedKg = max(1.0, chargeableWeightKg.ceilToDouble());
+
+    final baseRate = _selectedService?.basePrice ?? 15000.0;
     final shippingFee = baseRate * billedKg;
-    final insuranceFee = goodsVal > 0 ? (goodsVal * 0.002).clamp(2000.0, 100000.0) : 0.0;
+
+    // Nilai otomatis barang dari berat & dimensi volumetrik: billedKg * baseRate
+    final goodsVal = billedKg * baseRate;
+    final autoGoodsVal = goodsVal;
+
+    // Tarif persen premi ekspedisi yang digunakan
+    final insuranceRate = _selectedService?.insuranceRate ?? 0.002;
+    // Nominal premi asuransi otomatis dari rumus: nilai barang x tarif premi
+    final calculatedInsuranceFee = (goodsVal * insuranceRate).roundToDouble();
+    // Biaya proteksi asuransi yang aktif ditagihkan (0 jika tanpa asuransi)
+    final insuranceFee = (_useInsurance && goodsVal > 0)
+        ? calculatedInsuranceFee
+        : 0.0;
+
     const additionalFee = 1000.0;
     const discount = 0.0;
     final total = shippingFee + insuranceFee + additionalFee - discount;
 
     return {
+      'actualKg': actualWeightKg,
+      'volumetricKg': volumetricWeightKg,
+      'chargeableKg': chargeableWeightKg,
+      'billedKg': billedKg,
+      'baseRate': baseRate,
       'shippingFee': shippingFee,
       'insuranceFee': insuranceFee,
+      'calculatedInsuranceFee': calculatedInsuranceFee,
       'additionalFee': additionalFee,
       'discount': discount,
       'total': total,
-      'chargeableKg': chargeableWeightKg,
-      'volumetricKg': volumetricWeightKg,
+      'goodsValue': goodsVal,
+      'autoGoodsValue': autoGoodsVal,
+      'insuranceRate': insuranceRate,
     };
   }
 
   void _nextStep() {
     if (_currentStep == 0) {
-      // Validasi Step 1: Alamat
+      // Tunggu jika cascading wilayah masih dalam proses pemanggilan jaringan
+      if (_isLoadingSenderRegencies ||
+          _isLoadingSenderDistricts ||
+          _isLoadingSenderVillages ||
+          _isLoadingReceiverRegencies ||
+          _isLoadingReceiverDistricts ||
+          _isLoadingReceiverVillages) {
+        _showErrorToast('Sedang memuat data wilayah, harap tunggu sebentar...');
+        return;
+      }
+
+      // Validasi Step 1: Alamat Pengirim & Penerima
       if (_senderNameController.text.trim().isEmpty ||
           _senderPhoneController.text.trim().isEmpty ||
           _senderAddressController.text.trim().isEmpty) {
         _showErrorToast('Lengkapi nama, telepon, dan alamat pengirim.');
         return;
       }
+      if ((_provinces.isNotEmpty && _senderProvince == null) ||
+          (_senderRegencies.isNotEmpty && _senderRegency == null) ||
+          (_senderDistricts.isNotEmpty && _senderDistrict == null) ||
+          (_senderVillages.isNotEmpty && _senderVillage == null)) {
+        _showErrorToast(
+          'Harap lengkapi pilihan wilayah pengirim yang tersedia.',
+        );
+        return;
+      }
       if (_receiverNameController.text.trim().isEmpty ||
           _receiverPhoneController.text.trim().isEmpty ||
           _receiverAddressController.text.trim().isEmpty) {
         _showErrorToast('Lengkapi nama, telepon, dan alamat penerima.');
+        return;
+      }
+      if ((_provinces.isNotEmpty && _receiverProvince == null) ||
+          (_receiverRegencies.isNotEmpty && _receiverRegency == null) ||
+          (_receiverDistricts.isNotEmpty && _receiverDistrict == null) ||
+          (_receiverVillages.isNotEmpty && _receiverVillage == null)) {
+        _showErrorToast(
+          'Harap lengkapi pilihan wilayah penerima yang tersedia.',
+        );
         return;
       }
       setState(() => _currentStep = 1);
@@ -383,6 +517,12 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       if (_selectedService == null) {
         _showErrorToast('Pilih salah satu layanan pengiriman.');
         return;
+      }
+      // Pastikan nilai/harga asli barang selalu valid dan terisi otomatis jika kosong
+      final rawVal =
+          CurrencyFormatter.parseNominal(_goodsValueController.text);
+      if (rawVal <= 0) {
+        _syncAutoGoodsValueIfNeeded();
       }
       setState(() => _currentStep = 2);
     }
@@ -414,17 +554,38 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
 
     final cost = _calculateCost();
 
+    final senderCity =
+        (_senderRegency?.name != null && _senderRegency!.name.isNotEmpty)
+        ? _senderRegency!.name
+        : ((_senderProvince?.name != null && _senderProvince!.name.isNotEmpty)
+              ? _senderProvince!.name
+              : '');
+    final receiverCity =
+        (_receiverRegency?.name != null && _receiverRegency!.name.isNotEmpty)
+        ? _receiverRegency!.name
+        : ((_receiverProvince?.name != null &&
+                  _receiverProvince!.name.isNotEmpty)
+              ? _receiverProvince!.name
+              : '');
+
+    final senderPostal = _senderPostalController.text.trim().isNotEmpty
+        ? _senderPostalController.text.trim()
+        : (_senderVillage?.postalCode ?? '');
+    final receiverPostal = _receiverPostalController.text.trim().isNotEmpty
+        ? _receiverPostalController.text.trim()
+        : (_receiverVillage?.postalCode ?? '');
+
     final orderPayload = {
       'pengirim_nama': _senderNameController.text.trim(),
       'pengirim_no_hp': _senderPhoneController.text.trim(),
       'pengirim_alamat': _senderAddressController.text.trim(),
-      'pengirim_kota': _senderRegency?.name ?? 'Jakarta Selatan',
-      'pengirim_kode_pos': _senderPostalController.text.trim(),
+      'pengirim_kota': senderCity,
+      'pengirim_kode_pos': senderPostal,
       'penerima_nama': _receiverNameController.text.trim(),
       'penerima_no_hp': _receiverPhoneController.text.trim(),
       'penerima_alamat': _receiverAddressController.text.trim(),
-      'penerima_kota': _receiverRegency?.name ?? 'Jakarta Barat',
-      'penerima_kode_pos': _receiverPostalController.text.trim(),
+      'penerima_kota': receiverCity,
+      'penerima_kode_pos': receiverPostal,
       'catatan_pengiriman': _itemDescController.text.trim(),
       'itemName': _itemDescController.text.trim(),
       'total_berat_gram': int.tryParse(_weightController.text) ?? 1000,
@@ -432,11 +593,25 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       'lebar_cm': int.tryParse(_widthController.text) ?? 15,
       'tinggi_cm': int.tryParse(_heightController.text) ?? 10,
       'total_barang': int.tryParse(_itemCountController.text) ?? 1,
-      'nilai_barang': double.tryParse(_goodsValueController.text) ?? 0.0,
+      'nilai_barang':
+          cost['goodsValue'] ??
+          CurrencyFormatter.parseNominal(_goodsValueController.text),
+      'is_insured': _useInsurance,
+      'use_insurance': _useInsurance,
+      'biaya_asuransi': cost['insuranceFee']!,
+      'tarif_asuransi': _selectedService?.insuranceRate ?? 0.002,
+      'tarif_asuransi_persen': (_selectedService?.insuranceRate ?? 0.002) * 100,
       'service_type_id': _selectedService?.id ?? 1,
       'serviceType': _selectedService?.name ?? 'Reguler',
       'metode_pembayaran': _paymentMethod,
-      'payment_channel': _paymentMethod == 'COD' ? 'COD' : _paymentChannel,
+      'payment_channel': _paymentMethod == 'COD' ? 'COD' : (_selectedBank?.bankName ?? _paymentChannel),
+      'selected_bank': _selectedBank,
+      'bank_name': _selectedBank?.bankName,
+      'nomor_rekening': _selectedBank?.nomorRekening,
+      'nama_pemilik': _selectedBank?.namaPemilik,
+      'jenis_bank_id': _selectedBank?.jenisBankId,
+      'biaya_pengiriman': cost['shippingFee']!,
+      'biaya_layanan_tambahan': cost['additionalFee']!,
       'total_biaya': cost['total']!,
     };
 
@@ -449,9 +624,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
 
         // Langsung arahkan ke Halaman Pembayaran menggantikan halaman formulir
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => PaymentPage(order: createdOrder),
-          ),
+          MaterialPageRoute(builder: (_) => PaymentPage(order: createdOrder)),
         );
       }
     } catch (e) {
@@ -503,14 +676,19 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: AppColors.error, size: 20),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.error,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _errorMessage!,
-                    style:
-                        const TextStyle(fontSize: 12, color: AppColors.error),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.error,
+                    ),
                   ),
                 ),
               ],
@@ -522,7 +700,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: _buildCurrentStepContent(isDark, theme),
+            child: _buildCurrentStepContent(isDark),
           ),
         ),
 
@@ -550,7 +728,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
               ),
             ],
           ),
-          child: _buildBottomNavigationButtons(isDark),
+          child: _buildBottomNavigationButtons(),
         ),
       ],
     );
@@ -573,8 +751,10 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
                     color: isCurrent
                         ? AppColors.primary
                         : (isCompleted
-                            ? AppColors.success
-                            : (isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF1F5F9))),
+                              ? AppColors.success
+                              : (isDark
+                                    ? const Color(0xFF1B2A3D)
+                                    : const Color(0xFFF1F5F9))),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -608,644 +788,130 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     );
   }
 
-  Widget _buildCurrentStepContent(bool isDark, ThemeData theme) {
+  Widget _buildCurrentStepContent(bool isDark) {
+    final cost = _calculateCost();
+
     switch (_currentStep) {
       case 0:
-        return _buildStep1Address(isDark, theme);
+        return ShipmentAddressStep(
+          isDark: isDark,
+          senderNameController: _senderNameController,
+          senderPhoneController: _senderPhoneController,
+          senderAddressController: _senderAddressController,
+          senderPostalController: _senderPostalController,
+          receiverNameController: _receiverNameController,
+          receiverPhoneController: _receiverPhoneController,
+          receiverAddressController: _receiverAddressController,
+          receiverPostalController: _receiverPostalController,
+          provinces: _provinces,
+          senderProvince: _senderProvince,
+          senderRegencies: _senderRegencies,
+          senderRegency: _senderRegency,
+          senderDistricts: _senderDistricts,
+          senderDistrict: _senderDistrict,
+          senderVillages: _senderVillages,
+          senderVillage: _senderVillage,
+          isLoadingSenderRegencies: _isLoadingSenderRegencies,
+          isLoadingSenderDistricts: _isLoadingSenderDistricts,
+          isLoadingSenderVillages: _isLoadingSenderVillages,
+          onSenderProvinceSelected: _onSenderProvinceSelected,
+          onSenderRegencySelected: _onSenderRegencySelected,
+          onSenderDistrictSelected: _onSenderDistrictSelected,
+          onSenderVillageSelected: _onSenderVillageSelected,
+          receiverProvince: _receiverProvince,
+          receiverRegencies: _receiverRegencies,
+          receiverRegency: _receiverRegency,
+          receiverDistricts: _receiverDistricts,
+          receiverDistrict: _receiverDistrict,
+          receiverVillages: _receiverVillages,
+          receiverVillage: _receiverVillage,
+          isLoadingReceiverRegencies: _isLoadingReceiverRegencies,
+          isLoadingReceiverDistricts: _isLoadingReceiverDistricts,
+          isLoadingReceiverVillages: _isLoadingReceiverVillages,
+          onReceiverProvinceSelected: _onReceiverProvinceSelected,
+          onReceiverRegencySelected: _onReceiverRegencySelected,
+          onReceiverDistrictSelected: _onReceiverDistrictSelected,
+          onReceiverVillageSelected: _onReceiverVillageSelected,
+        );
       case 1:
-        return _buildStep2Package(isDark, theme);
+        return ShipmentPackageStep(
+          isDark: isDark,
+          itemDescController: _itemDescController,
+          weightController: _weightController,
+          lengthController: _lengthController,
+          widthController: _widthController,
+          heightController: _heightController,
+          itemCountController: _itemCountController,
+          serviceTypes: _serviceTypes,
+          selectedService: _selectedService,
+          useInsurance: _useInsurance,
+          cost: cost,
+          onServiceSelected: (service) {
+            setState(() {
+              _selectedService = service;
+              _syncAutoGoodsValueIfNeeded();
+            });
+          },
+          onInsuranceChanged: (val) {
+            setState(() {
+              _useInsurance = val;
+              if (_useInsurance) {
+                _syncAutoGoodsValueIfNeeded();
+              }
+            });
+          },
+          onPackageDimensionsChanged: () {
+            _syncAutoGoodsValueIfNeeded();
+            setState(() {});
+          },
+        );
       case 2:
       default:
-        return _buildStep3PaymentSummary(isDark, theme);
+        final senderCity =
+            (_senderRegency?.name != null && _senderRegency!.name.isNotEmpty)
+            ? _senderRegency!.name
+            : ((_senderProvince?.name != null &&
+                      _senderProvince!.name.isNotEmpty)
+                  ? _senderProvince!.name
+                  : '-');
+        final receiverCity =
+            (_receiverRegency?.name != null &&
+                _receiverRegency!.name.isNotEmpty)
+            ? _receiverRegency!.name
+            : ((_receiverProvince?.name != null &&
+                      _receiverProvince!.name.isNotEmpty)
+                  ? _receiverProvince!.name
+                  : '-');
+
+        return ShipmentPaymentStep(
+          isDark: isDark,
+          paymentMethod: _paymentMethod,
+          paymentChannel: _paymentChannel,
+          onPaymentMethodChanged: (method) {
+            setState(() => _paymentMethod = method);
+          },
+          onPaymentChannelChanged: (channel) {
+            setState(() => _paymentChannel = channel);
+          },
+          banks: _banks,
+          selectedBank: _selectedBank,
+          onBankSelected: (bank) {
+            setState(() {
+              _selectedBank = bank;
+              _paymentChannel = bank.bankName;
+            });
+          },
+          cost: cost,
+          senderLocation: senderCity,
+          receiverLocation: receiverCity,
+          selectedService: _selectedService,
+          weightGramText: _weightController.text,
+          useInsurance: _useInsurance,
+        );
     }
   }
 
-  Widget _buildStep1Address(bool isDark, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // SENDER SECTION CARD
-        _buildFormCard(
-          title: 'Alamat Pengirim (Asal)',
-          subtitle: 'Lokasi dan rincian kontak penjemputan paket',
-          icon: Icons.outbox_rounded,
-          isDark: isDark,
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'Asal',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CustomTextField(
-                label: 'Nama Lengkap Pengirim',
-                hintText: 'Nama pengirim paket',
-                controller: _senderNameController,
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-              ),
-              const SizedBox(height: 12),
-              CustomTextField(
-                label: 'Nomor Telepon / WhatsApp',
-                hintText: '0812xxxxxxxx',
-                controller: _senderPhoneController,
-                keyboardType: TextInputType.phone,
-                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-              ),
-              const SizedBox(height: 12),
-              _buildRegionDropdown<Province>(
-                label: 'Provinsi Pengirim',
-                value: _senderProvince,
-                items: _provinces,
-                itemLabel: (p) => p.name,
-                onChanged: (p) {
-                  if (p != null) _onSenderProvinceSelected(p);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildRegionDropdown<Regency>(
-                label: 'Kabupaten / Kota',
-                value: _senderRegency,
-                items: _senderRegencies,
-                itemLabel: (r) => r.name,
-                onChanged: (r) {
-                  if (r != null) _onSenderRegencySelected(r);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildRegionDropdown<District>(
-                label: 'Kecamatan',
-                value: _senderDistrict,
-                items: _senderDistricts,
-                itemLabel: (d) => d.name,
-                onChanged: (d) {
-                  if (d != null) _onSenderDistrictSelected(d);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildRegionDropdown<Village>(
-                label: 'Kelurahan',
-                value: _senderVillage,
-                items: _senderVillages,
-                itemLabel: (v) => v.name,
-                onChanged: (v) {
-                  if (v != null) _onSenderVillageSelected(v);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: CustomTextField(
-                      label: 'Alamat Lengkap Pengirim',
-                      hintText: 'Nama jalan, nomor rumah, RT/RW, patokan',
-                      controller: _senderAddressController,
-                      maxLines: 2,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: CustomTextField(
-                      label: 'Kode Pos',
-                      hintText: '12xxx',
-                      controller: _senderPostalController,
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        // RECIPIENT SECTION CARD
-        _buildFormCard(
-          title: 'Alamat Penerima (Tujuan)',
-          subtitle: 'Lokasi dan rincian kontak tujuan pengantaran',
-          icon: Icons.move_to_inbox_rounded,
-          isDark: isDark,
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'Tujuan',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.secondary,
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CustomTextField(
-                label: 'Nama Lengkap Penerima',
-                hintText: 'Nama penerima paket',
-                controller: _receiverNameController,
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-              ),
-              const SizedBox(height: 12),
-              CustomTextField(
-                label: 'Nomor Telepon / WhatsApp',
-                hintText: '0812xxxxxxxx',
-                controller: _receiverPhoneController,
-                keyboardType: TextInputType.phone,
-                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-              ),
-              const SizedBox(height: 12),
-              _buildRegionDropdown<Province>(
-                label: 'Provinsi Penerima',
-                value: _receiverProvince,
-                items: _provinces,
-                itemLabel: (p) => p.name,
-                onChanged: (p) {
-                  if (p != null) _onReceiverProvinceSelected(p);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildRegionDropdown<Regency>(
-                label: 'Kabupaten / Kota',
-                value: _receiverRegency,
-                items: _receiverRegencies,
-                itemLabel: (r) => r.name,
-                onChanged: (r) {
-                  if (r != null) _onReceiverRegencySelected(r);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildRegionDropdown<District>(
-                label: 'Kecamatan',
-                value: _receiverDistrict,
-                items: _receiverDistricts,
-                itemLabel: (d) => d.name,
-                onChanged: (d) {
-                  if (d != null) _onReceiverDistrictSelected(d);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildRegionDropdown<Village>(
-                label: 'Kelurahan',
-                value: _receiverVillage,
-                items: _receiverVillages,
-                itemLabel: (v) => v.name,
-                onChanged: (v) {
-                  if (v != null) _onReceiverVillageSelected(v);
-                },
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: CustomTextField(
-                      label: 'Alamat Lengkap Penerima',
-                      hintText: 'Nama jalan, gedung, nomor rumah, RT/RW',
-                      controller: _receiverAddressController,
-                      maxLines: 2,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: CustomTextField(
-                      label: 'Kode Pos',
-                      hintText: '14xxx',
-                      controller: _receiverPostalController,
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep2Package(bool isDark, ThemeData theme) {
-    final cost = _calculateCost();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // INFORMASI BARANG & PAKET CARD
-        _buildFormCard(
-          title: 'Informasi Barang & Paket',
-          subtitle: 'Rincian deskripsi, berat, dan dimensi fisik paket',
-          icon: Icons.inventory_2_outlined,
-          isDark: isDark,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CustomTextField(
-                label: 'Deskripsi / Nama Barang',
-                hintText: 'Contoh: Pakaian, Dokumen, Makanan Kering, Aksesoris',
-                controller: _itemDescController,
-                prefixIcon: const Icon(Icons.description_outlined, size: 20),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'Berat Total (Gram)',
-                      hintText: '1000',
-                      controller: _weightController,
-                      keyboardType: TextInputType.number,
-                      prefixIcon: const Icon(Icons.scale_rounded, size: 20),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'Jumlah Paket (Pcs)',
-                      hintText: '1',
-                      controller: _itemCountController,
-                      keyboardType: TextInputType.number,
-                      prefixIcon: const Icon(Icons.layers_outlined, size: 20),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Dimensi Paket (Panjang x Lebar x Tinggi)',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'P (cm)',
-                      hintText: '20',
-                      controller: _lengthController,
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'L (cm)',
-                      hintText: '15',
-                      controller: _widthController,
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'T (cm)',
-                      hintText: '10',
-                      controller: _heightController,
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      size: 16,
-                      color: isDark ? Colors.white60 : Colors.black54,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Berat Volumetrik: ${cost['volumetricKg']!.toStringAsFixed(2)} kg (dibulatkan: ${cost['chargeableKg']!.ceil()} kg)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? Colors.white70 : Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              CustomTextField(
-                label: 'Nilai Barang / Proteksi Asuransi (Rp)',
-                hintText: '0 (Opsional)',
-                controller: _goodsValueController,
-                keyboardType: TextInputType.number,
-                prefixIcon: const Icon(Icons.shield_outlined, size: 20),
-                onChanged: (_) => setState(() {}),
-              ),
-            ],
-          ),
-        ),
-
-        // PILIHAN LAYANAN CARD
-        _buildFormCard(
-          title: 'Pilihan Jenis Layanan',
-          subtitle: 'Pilih layanan pengiriman sesuai durasi dan tarif',
-          icon: Icons.local_shipping_outlined,
-          isDark: isDark,
-          child: Column(
-            children: _serviceTypes.map((service) {
-              final isSelected = _selectedService?.id == service.id;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedService = service),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary.withValues(alpha: 0.12)
-                        : (isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF8FAFC)),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                        color: isSelected ? AppColors.primary : Colors.grey,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              service.name,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected ? AppColors.primary : null,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Estimasi Tiba: ${service.estimationLabel}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? Colors.white60 : Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        'Rp ${(service.basePrice).toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}/kg',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep3PaymentSummary(bool isDark, ThemeData theme) {
-    final cost = _calculateCost();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // METODE PEMBAYARAN CARD
-        _buildFormCard(
-          title: 'Metode Pembayaran',
-          subtitle: 'Pilih transfer gateway atau bayar di tempat (COD)',
-          icon: Icons.payment_rounded,
-          isDark: isDark,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildPaymentMethodCard(
-                      label: 'Transfer Gateway',
-                      icon: Icons.account_balance_wallet_outlined,
-                      method: 'TRANSFER',
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildPaymentMethodCard(
-                      label: 'Cash on Delivery',
-                      icon: Icons.payments_outlined,
-                      method: 'COD',
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
-              ),
-              if (_paymentMethod == 'TRANSFER') ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Pilih Saluran Pembayaran Transfer:',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildChannelChip('BCA Virtual Account', 'BCA_VA'),
-                    _buildChannelChip('Mandiri VA', 'MANDIRI_VA'),
-                    _buildChannelChip('BRI VA', 'BRI_VA'),
-                    _buildChannelChip('QRIS Instan', 'QRIS'),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        // RINGKASAN RINCIAN BIAYA CARD
-        _buildFormCard(
-          title: 'Ringkasan Rincian Biaya Pengiriman',
-          subtitle: 'Rincian ongkos kirim dan total yang harus dibayar',
-          icon: Icons.receipt_long_rounded,
-          isDark: isDark,
-          child: Column(
-            children: [
-              _buildSummaryLine('Asal', _senderRegency?.name ?? 'Jakarta Selatan', isDark),
-              _buildSummaryLine('Tujuan', _receiverRegency?.name ?? 'Bandung', isDark),
-              _buildSummaryLine('Layanan', _selectedService?.name ?? 'Reguler', isDark),
-              _buildSummaryLine(
-                'Berat Ditagih',
-                '${cost['chargeableKg']!.ceil()} kg (${_weightController.text} gr)',
-                isDark,
-              ),
-              const Divider(height: 20),
-              _buildSummaryLine(
-                'Biaya Pengiriman',
-                'Rp ${cost['shippingFee']!.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                isDark,
-              ),
-              if (cost['insuranceFee']! > 0)
-                _buildSummaryLine(
-                  'Asuransi Barang',
-                  'Rp ${cost['insuranceFee']!.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                  isDark,
-                ),
-              _buildSummaryLine(
-                'Biaya Layanan Tambahan',
-                'Rp ${cost['additionalFee']!.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                isDark,
-              ),
-              const Divider(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total Pembayaran',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Rp ${cost['total']!.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryLine(String label, String value, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.white60 : Colors.black54,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethodCard({
-    required String label,
-    required IconData icon,
-    required String method,
-    required bool isDark,
-  }) {
-    final isSelected = _paymentMethod == method;
-    return GestureDetector(
-      onTap: () => setState(() => _paymentMethod = method),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.12)
-              : (isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF1F5F9)),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? AppColors.primary : Colors.grey,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? AppColors.primary : null,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChannelChip(String label, String channelCode) {
-    final isSelected = _paymentChannel == channelCode;
-    return ChoiceChip(
-      label: Text(label, style: const TextStyle(fontSize: 11)),
-      selected: isSelected,
-      selectedColor: AppColors.primary.withValues(alpha: 0.18),
-      onSelected: (val) {
-        if (val) setState(() => _paymentChannel = channelCode);
-      },
-    );
-  }
-
-  Widget _buildBottomNavigationButtons(bool isDark) {
+  Widget _buildBottomNavigationButtons() {
     return Row(
       children: [
         if (_currentStep > 0) ...[
@@ -1306,118 +972,6 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFormCard({
-    required String title,
-    String? subtitle,
-    required IconData icon,
-    required Widget child,
-    required bool isDark,
-    Widget? trailing,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 20, color: AppColors.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? Colors.white60 : Colors.black54,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (trailing != null) trailing,
-            ],
-          ),
-          const SizedBox(height: 14),
-          Divider(
-            height: 1,
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRegionDropdown<T>({
-    required String label,
-    required T? value,
-    required List<T> items,
-    required String Function(T) itemLabel,
-    required ValueChanged<T?> onChanged,
-    required bool isDark,
-  }) {
-    return SearchableDropdown<T>(
-      label: label,
-      value: items.contains(value) ? value : null,
-      items: items,
-      itemLabel: itemLabel,
-      onChanged: onChanged,
-      isDark: isDark,
-      hintText: 'Pilih $label',
-      searchHint: 'Search',
     );
   }
 }
