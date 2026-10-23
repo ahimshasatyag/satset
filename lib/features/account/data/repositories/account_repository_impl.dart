@@ -1,6 +1,6 @@
 import '../../domain/entities/user_account.dart';
 import '../../domain/repositories/account_repository.dart';
-import '../../../shipments/domain/entities/shipment.dart';
+import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
 import '../datasources/account_local_datasource.dart';
 import '../datasources/account_remote_datasource.dart';
 import '../models/user_account_model.dart';

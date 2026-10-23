@@ -7,7 +7,7 @@ import '../../../auth/presentation/pages/login_page.dart';
 import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:satset/features/customer/livetrack/presentation/pages/live_track_page.dart';
 import 'package:satset/features/customer/order/presentation/pages/orders_page.dart';
-import 'package:satset/features/shipments/presentation/widgets/create_shipment_sheet.dart';
+import 'package:satset/features/customer/shipments/presentation/widgets/create_shipment_sheet.dart';
 import '../../domain/entities/navigation_item.dart';
 import '../bloc/navigation_bloc.dart';
 import '../bloc/navigation_event.dart';

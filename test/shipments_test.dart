@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:satset/features/shipments/data/datasources/shipment_local_datasource.dart';
-import 'package:satset/features/shipments/data/datasources/shipment_remote_datasource.dart';
-import 'package:satset/features/shipments/data/models/shipment_model.dart';
-import 'package:satset/features/shipments/data/repositories/shipment_repository_impl.dart';
-import 'package:satset/features/shipments/domain/usecases/create_shipment_usecase.dart';
-import 'package:satset/features/shipments/presentation/bloc/shipment_bloc.dart';
-import 'package:satset/features/shipments/presentation/bloc/shipment_event.dart';
-import 'package:satset/features/shipments/presentation/pages/create_shipment_page.dart';
-import 'package:satset/features/shipments/presentation/widgets/create_shipment_sheet.dart';
+import 'package:satset/features/customer/shipments/data/datasources/shipment_local_datasource.dart';
+import 'package:satset/features/customer/shipments/data/datasources/shipment_remote_datasource.dart';
+import 'package:satset/features/customer/shipments/data/models/shipment_model.dart';
+import 'package:satset/features/customer/shipments/data/repositories/shipment_repository_impl.dart';
+import 'package:satset/features/customer/shipments/domain/usecases/create_shipment_usecase.dart';
+import 'package:satset/features/customer/shipments/presentation/bloc/shipment_bloc.dart';
+import 'package:satset/features/customer/shipments/presentation/bloc/shipment_event.dart';
+import 'package:satset/features/customer/shipments/presentation/pages/create_shipment_page.dart';
+import 'package:satset/features/customer/shipments/presentation/widgets/create_shipment_sheet.dart';
 import 'package:satset/shared/widgets/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

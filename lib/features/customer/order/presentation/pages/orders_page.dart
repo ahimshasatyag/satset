@@ -11,7 +11,7 @@ import '../../domain/usecases/get_orders_usecase.dart';
 import '../bloc/order_bloc.dart';
 import '../bloc/order_event.dart';
 import '../bloc/order_state.dart';
-import 'package:satset/features/shipments/presentation/widgets/create_shipment_sheet.dart';
+import 'package:satset/features/customer/shipments/presentation/widgets/create_shipment_sheet.dart';
 import '../widgets/order_filter_chips_bar.dart';
 import '../widgets/order_shipment_card.dart';
 import '../widgets/orders_skeleton.dart';

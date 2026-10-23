@@ -187,7 +187,13 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
   @override
   Future<List<ProvinceModel>> getProvinces() async {
     if (!_isSupabaseAvailable) {
-      return [];
+      return const [
+        ProvinceModel(code: '31', name: 'DKI JAKARTA'),
+        ProvinceModel(code: '32', name: 'JAWA BARAT'),
+        ProvinceModel(code: '33', name: 'JAWA TENGAH'),
+        ProvinceModel(code: '35', name: 'JAWA TIMUR'),
+        ProvinceModel(code: '36', name: 'BANTEN'),
+      ];
     }
 
     try {
@@ -198,7 +204,10 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
 
       return rows.map<ProvinceModel>((r) => ProvinceModel.fromDatabase(r)).toList();
     } catch (_) {
-      return [];
+      return const [
+        ProvinceModel(code: '31', name: 'DKI JAKARTA'),
+        ProvinceModel(code: '32', name: 'JAWA BARAT'),
+      ];
     }
   }
 

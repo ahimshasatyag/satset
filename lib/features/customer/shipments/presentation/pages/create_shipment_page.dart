@@ -4,7 +4,7 @@ import '../widgets/create_shipment_sheet.dart';
 import '../widgets/create_shipment_skeleton.dart';
 
 export '../widgets/create_shipment_skeleton.dart';
-export '../../../../shared/widgets/inputs/searchable_dropdown.dart';
+export 'package:satset/shared/widgets/inputs/searchable_dropdown.dart';
 
 /// Halaman penuh untuk pembuatan pesanan pengiriman SatSet
 class CreateShipmentPage extends StatelessWidget {

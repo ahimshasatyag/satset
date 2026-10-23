@@ -9,7 +9,7 @@ import 'package:satset/features/main_navigation/presentation/bloc/navigation_blo
 import 'package:satset/features/main_navigation/presentation/bloc/navigation_event.dart';
 import 'package:satset/features/main_navigation/presentation/pages/main_navigation_page.dart';
 import 'package:satset/features/main_navigation/presentation/widgets/satset_bottom_navigation_bar.dart';
-import 'package:satset/features/shipments/presentation/widgets/create_shipment_sheet.dart';
+import 'package:satset/features/customer/shipments/presentation/widgets/create_shipment_sheet.dart';
 import 'package:satset/features/notifications/presentation/pages/notifications_page.dart';
 import '../../data/datasources/dashboard_local_datasource.dart';
 import '../../data/datasources/dashboard_remote_datasource.dart';

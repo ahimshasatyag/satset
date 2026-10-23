@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../../shipments/domain/entities/shipment.dart';
+import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
 import '../../domain/entities/user_account.dart';
 import '../../domain/repositories/account_repository.dart';
 import '../../../auth/data/utils/validators.dart';

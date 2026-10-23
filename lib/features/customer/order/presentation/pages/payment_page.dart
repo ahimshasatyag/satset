@@ -702,9 +702,11 @@ class _PaymentPageState extends State<PaymentPage> {
     final bank = _matchedBank ?? _currentOrder.payment?.bankAccount;
     final bankName = bank?.bankName ??
         (_currentOrder.payment?.provider ?? 'Bank Transfer');
-    final accountNumber = (bank != null && bank.nomorRekening.isNotEmpty)
-        ? bank.nomorRekening
-        : providerRef;
+    final accountNumber = providerRef.isNotEmpty
+        ? providerRef
+        : ((bank != null && bank.nomorRekening.isNotEmpty)
+            ? bank.nomorRekening
+            : '-');
     final accountOwner = bank?.namaPemilik ??
         (_currentOrder.payment?.bankAccount?.namaPemilik ?? '');
     final totalNominal = _currentOrder.totalPrice > 0

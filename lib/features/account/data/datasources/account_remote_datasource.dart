@@ -3,7 +3,7 @@ import '../../../../app/config/supabase_config.dart';
 import '../../../../app/constants/database_constants.dart';
 import '../../../auth/data/datasources/auth_local_datasource.dart';
 import '../../../auth/data/utils/password_hasher.dart';
-import '../../../shipments/data/models/shipment_model.dart';
+import 'package:satset/features/customer/shipments/data/models/shipment_model.dart';
 import '../models/user_account_model.dart';
 
 abstract class AccountRemoteDataSource {

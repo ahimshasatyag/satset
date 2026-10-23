@@ -1,5 +1,5 @@
 import '../entities/user_account.dart';
-import '../../../shipments/domain/entities/shipment.dart';
+import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
 
 abstract class AccountRepository {
   /// Mengambil data profil dan akun pengguna yang aktif
