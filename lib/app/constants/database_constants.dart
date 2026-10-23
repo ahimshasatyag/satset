@@ -42,6 +42,9 @@ class DatabaseConstants {
   /// Nama tabel penugasan kurir pengiriman
   static const String tableShipmentAssignments = 't_shipment_assignments';
 
+  /// Nama tabel catatan pemindaian barcode kurir
+  static const String tableBarcodeScans = 't_barcode_scans';
+
   /// Kolom umum
   static const String colId = 'id';
   static const String colEmail = 'email';
@@ -299,4 +302,22 @@ class ShipmentAssignmentTableColumns {
   static const String createdAt = 'created_at';
 }
 
+/// Kolom-kolom tabel t_barcode_scans di Supabase
+class BarcodeScanTableColumns {
+  BarcodeScanTableColumns._();
 
+  static const String id = 'id';
+  static const String shipmentId = 'shipment_id';
+  static const String courierId = 'courier_id';
+  static const String employeeId = 'employee_id';
+  static const String barcodeValue = 'barcode_value';
+  static const String scanType = 'scan_type';
+  static const String status = 'status';
+  static const String actionType = 'action_type';
+  static const String location = 'lokasi';
+  static const String latitude = 'latitude';
+  static const String longitude = 'longitude';
+  static const String notes = 'catatan';
+  static const String scannedAt = 'scanned_at';
+  static const String createdAt = 'created_at';
+}
