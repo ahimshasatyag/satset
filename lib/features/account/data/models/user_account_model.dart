@@ -108,6 +108,7 @@ class UserAccountModel extends UserAccount {
     super.satsetPayBalance = 450000,
     super.savedAddressesCount = 3,
     super.insuranceClaimsCount = 0,
+    super.isCourier = false,
   });
 
   factory UserAccountModel.fromJson(Map<String, dynamic> json) {
@@ -121,6 +122,9 @@ class UserAccountModel extends UserAccount {
       }
     }
 
+    final isCourier = json['isCourier'] as bool? ??
+        ((json['membershipTier'] as String?)?.toLowerCase().contains('kurir') ?? false);
+
     return UserAccountModel(
       id: json['id'] as String? ?? 'usr-01',
       name: json['name'] as String? ?? 'Satria Perkasa',
@@ -133,14 +137,15 @@ class UserAccountModel extends UserAccount {
       isEmailVerified: json['isEmailVerified'] as bool? ?? false,
       shipmentCount: json['shipmentCount'] as int? ?? 0,
       membershipTier:
-          json['membershipTier'] as String? ?? 'SatSet Priority Member',
-      satsetPayBalance: json['satsetPayBalance'] as int? ?? 450000,
+          json['membershipTier'] as String? ?? (isCourier ? 'Mitra Kurir SatSet' : 'SatSet Priority Member'),
+      satsetPayBalance: json['satsetPayBalance'] as int? ?? (isCourier ? 0 : 450000),
       savedAddressesCount: json['savedAddressesCount'] as int? ??
           (addressList.isNotEmpty ? addressList.length : 3),
       insuranceClaimsCount: json['insuranceClaimsCount'] as int? ?? 0,
       isNotificationsEnabled:
           json['isNotificationsEnabled'] as bool? ?? true,
       addresses: addressList,
+      isCourier: isCourier,
     );
   }
 
@@ -149,14 +154,37 @@ class UserAccountModel extends UserAccount {
     bool isEmailVerified = false,
     int shipmentCount = 0,
     List<UserAddress> addresses = const [],
+    String? membershipTier,
   }) {
     final id = userRow['id']?.toString() ?? '';
-    final name = userRow['nama_lengkap'] as String? ?? '';
+    final name = (userRow['nama_lengkap'] ??
+            userRow['nama'] ??
+            userRow['name']) as String? ??
+        '';
     final email = userRow['email'] as String? ?? '';
-    final phone = userRow['no_hp'] as String? ?? '';
+    final phone = (userRow['no_hp'] ??
+            userRow['telepon'] ??
+            userRow['phone']) as String? ??
+        '';
     final fullAddress = userRow['alamat_lengkap'] as String?;
     final lat = (userRow['latitude'] as num?)?.toDouble();
     final lng = (userRow['longitude'] as num?)?.toDouble();
+
+    final roleId = int.tryParse(userRow['id_users_role']?.toString() ?? '');
+    final roleStr = userRow['role']?.toString().toLowerCase();
+    final isCourier = roleId == 2 ||
+        roleStr == 'courier' ||
+        roleStr == 'kurir' ||
+        userRow.containsKey('employee_code') ||
+        userRow.containsKey('employee_type');
+    final empCode = userRow['employee_code']?.toString();
+
+    final tier = membershipTier ??
+        (isCourier
+            ? (empCode != null && empCode.isNotEmpty
+                ? 'Mitra Kurir SatSet • Kode: $empCode'
+                : 'Mitra Kurir SatSet')
+            : 'SatSet Priority Member');
 
     return UserAccountModel(
       id: id,
@@ -168,8 +196,12 @@ class UserAccountModel extends UserAccount {
       longitude: lng,
       isEmailVerified: isEmailVerified,
       shipmentCount: shipmentCount,
+      membershipTier: tier,
+      satsetPayBalance: isCourier ? 0 : 450000,
       addresses: addresses,
-      savedAddressesCount: addresses.isNotEmpty ? addresses.length : (fullAddress != null ? 1 : 0),
+      savedAddressesCount:
+          addresses.isNotEmpty ? addresses.length : (fullAddress != null ? 1 : 0),
+      isCourier: isCourier,
     );
   }
 
@@ -191,6 +223,7 @@ class UserAccountModel extends UserAccount {
       insuranceClaimsCount: entity.insuranceClaimsCount,
       isNotificationsEnabled: entity.isNotificationsEnabled,
       addresses: entity.addresses,
+      isCourier: entity.isCourier,
     );
   }
 
@@ -211,6 +244,7 @@ class UserAccountModel extends UserAccount {
       'savedAddressesCount': savedAddressesCount,
       'insuranceClaimsCount': insuranceClaimsCount,
       'isNotificationsEnabled': isNotificationsEnabled,
+      'isCourier': isCourier,
       'addresses': addresses
           .map((a) => UserAddressModel.fromEntity(a).toJson())
           .toList(),

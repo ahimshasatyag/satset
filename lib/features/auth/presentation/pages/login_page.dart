@@ -19,8 +19,10 @@ import '../widgets/login_form.dart';
 import '../widgets/social_login_buttons.dart';
 import 'forgot_password_page.dart';
 import 'register_page.dart';
+import 'courier_register_page.dart';
 import 'package:satset/app/config/supabase_config.dart';
 import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
+import 'package:satset/features/main_navigation/presentation/pages/main_navigation_page.dart';
 
 /// Halaman Login Utama SatSet
 class LoginPage extends StatelessWidget {
@@ -135,15 +137,18 @@ class _LoginViewState extends State<LoginView> {
             void go() {
               if (!hasNavigated && mounted) {
                 hasNavigated = true;
-                _navigateToDashboard(context, state.user);
+                _navigateToRoleDestination(context, state.user);
               }
             }
 
+            final isCourier =
+                state.user.idUsersRole == 2 || state.user.role == 'courier';
             CustomDialog.showSuccess(
               context: context,
               title: 'Login Berhasil! 🎉',
               message: state.message,
-              confirmText: 'Lanjutkan ke Dashboard',
+              confirmText:
+                  isCourier ? 'Buka Tugas Kurir' : 'Lanjutkan ke Dashboard',
               onConfirm: go,
             ).then((_) => go());
           } else if (state is AuthFailure && _userInitiatedLogin) {
@@ -297,6 +302,41 @@ class _LoginViewState extends State<LoginView> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              SmoothPageRoute(
+                                child: BlocProvider.value(
+                                  value: context.read<AuthBloc>(),
+                                  child: const CourierRegisterPage(),
+                                ),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.delivery_dining_rounded,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Gabung Menjadi Mitra Kurir SatSet',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 12),
                     ],
                   ),
@@ -311,22 +351,41 @@ class _LoginViewState extends State<LoginView> {
 );
   }
 
-  void _navigateToDashboard(BuildContext context, User user) {
+  void _navigateToRoleDestination(BuildContext context, User user) {
     if (widget.onLoginSuccess != null) {
       widget.onLoginSuccess!(user);
     }
-    // Jika tidak ditangani oleh callback root, navigasikan langsung menggunakan MaterialPageRoute dengan token
+    // Jika tidak ditangani oleh callback root, navigasikan langsung sesuai id_users_role
     if (Navigator.of(context).canPop() || widget.onLoginSuccess == null) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => DashboardPage(
-            token: user.token,
-            user: user,
+      if (user.idUsersRole == 2 || user.role == 'courier') {
+        // id_users_role = 2 -> Halaman Utama Kurir lengkap dengan Bilah Navigasi Bawah
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => CourierMainNavigationPage(
+              user: user,
+              token: user.token,
+            ),
           ),
-        ),
-        (route) => false,
-      );
+          (route) => false,
+        );
+      } else {
+        // id_users_role = 3 -> Halaman Dashboard Pelanggan (DashboardPage)
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => DashboardPage(
+              token: user.token,
+              user: user,
+            ),
+          ),
+          (route) => false,
+        );
+      }
     }
+  }
+
+  /// Alias navigasi untuk kompatibilitas pemanggilan sebelumnya
+  void _navigateToDashboard(BuildContext context, User user) {
+    _navigateToRoleDestination(context, user);
   }
 
   /// Memeriksa izin akses lokasi & GPS sebelum memproses login SatSet

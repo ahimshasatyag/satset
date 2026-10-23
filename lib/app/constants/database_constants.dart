@@ -36,6 +36,12 @@ class DatabaseConstants {
   static const String tableJenisBank = 'm_jenis_bank';
   static const String tableBank = 'm_bank';
 
+  /// Nama tabel master pegawai / kurir
+  static const String tableEmployee = 'm_employee';
+
+  /// Nama tabel penugasan kurir pengiriman
+  static const String tableShipmentAssignments = 't_shipment_assignments';
+
   /// Kolom umum
   static const String colId = 'id';
   static const String colEmail = 'email';
@@ -53,12 +59,35 @@ class UserTableColumns {
   static const String noHp = 'no_hp';
   static const String password = 'password';
   static const String role = 'role';
+  static const String idUsersRole = 'id_users_role';
   static const String googleId = 'google_id';
   static const String alamatLengkap = 'alamat_lengkap';
   static const String latitude = 'latitude';
   static const String longitude = 'longitude';
   static const String resetToken = 'reset_token';
   static const String tokenExpiredAt = 'token_expired_at';
+  static const String createdAt = 'created_at';
+  static const String updatedAt = 'updated_at';
+}
+
+/// Kolom-kolom tabel m_employee di Supabase
+class EmployeeTableColumns {
+  EmployeeTableColumns._();
+
+  static const String id = 'id';
+  static const String employeeCode = 'employee_code';
+  static const String userId = 'user_id';
+  static const String namaLengkap = 'nama_lengkap';
+  static const String nama = 'nama';
+  static const String email = 'email';
+  static const String noHp = 'no_hp';
+  static const String telepon = 'telepon';
+  static const String password = 'password';
+  static const String idUsersRole = 'id_users_role';
+  static const String role = 'role';
+  static const String alamatLengkap = 'alamat_lengkap';
+  static const String employeeType = 'employee_type';
+  static const String employeeTypeCourier = 'COURIER';
   static const String createdAt = 'created_at';
   static const String updatedAt = 'updated_at';
 }
@@ -250,6 +279,23 @@ class BankTableColumns {
   static const String nmBank = 'nm_bank';
   static const String nmrRekening = 'nmr_rekening';
   static const String jenisBankId = 'jenis_bank_id';
+  static const String createdAt = 'created_at';
+}
+
+/// Kolom-kolom tabel t_shipment_assignments di Supabase
+class ShipmentAssignmentTableColumns {
+  ShipmentAssignmentTableColumns._();
+
+  static const String id = 'id';
+  static const String shipmentId = 'shipment_id';
+  static const String courierId = 'courier_id';
+  static const String assignedBy = 'assigned_by';
+  static const String assignedAt = 'assigned_at';
+  static const String acceptedAt = 'accepted_at';
+  static const String completedAt = 'completed_at';
+  static const String unassignedAt = 'unassigned_at';
+  static const String catatan = 'catatan';
+  static const String notes = 'catatan';
   static const String createdAt = 'created_at';
 }
 

@@ -66,6 +66,30 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<User> registerCourier({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final userModel = await remoteDataSource.registerCourier(
+      name: name,
+      email: email,
+      phone: phone,
+      password: password,
+      alamatLengkap: alamatLengkap,
+      latitude: latitude,
+      longitude: longitude,
+    );
+
+    await localDataSource.saveUser(userModel);
+    return userModel;
+  }
+
+  @override
   Future<User> loginWithGoogle() async {
     final userModel = await remoteDataSource.loginWithGoogle();
     await localDataSource.saveUser(userModel);

@@ -27,6 +27,16 @@ abstract class AuthRemoteDataSource {
     double? longitude,
   });
 
+  Future<UserModel> registerCourier({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+  });
+
   Future<UserModel> loginWithGoogle();
 
   Future<void> forgotPassword(String email);
@@ -121,7 +131,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
     if (_isSupabaseAvailable) {
       try {
-        final response = await _executeWithSessionRecovery(() async {
+        // 1. Cek di tabel master pengguna m_users
+        Map<String, dynamic>? response = await _executeWithSessionRecovery(() async {
           return await _client
               .from(DatabaseConstants.tableUsers)
               .select()
@@ -129,12 +140,32 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
               .maybeSingle();
         });
 
+        bool isFromEmployeeTable = false;
+
+        // 2. Jika tidak ditemukan di m_users, cek di tabel master pegawai / kurir m_employee
+        if (response == null) {
+          try {
+            response = await _executeWithSessionRecovery(() async {
+              return await _client
+                  .from(DatabaseConstants.tableEmployee)
+                  .select()
+                  .eq(EmployeeTableColumns.email, cleanEmail)
+                  .maybeSingle();
+            });
+            if (response != null) {
+              isFromEmployeeTable = true;
+            }
+          } catch (_) {
+            // Abaikan jika tabel m_employee belum ada atau terjadi error
+          }
+        }
+
         if (response == null) {
           throw Exception('Email belum terdaftar pada sistem SatSet.');
         }
 
         final storedHashedPassword =
-            response[UserTableColumns.password] as String?;
+            (response[UserTableColumns.password] ?? response['password']) as String?;
         if (storedHashedPassword != null && storedHashedPassword.isNotEmpty) {
           final isPasswordValid = PasswordHasher.verify(
             password,
@@ -145,18 +176,65 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           }
         }
 
-        // Perbarui lokasi pengguna terkini di database Supabase jika koordinat tersedia
+        // 3. Tentukan id_users_role (2 = Courier, 3 = Customer)
+        int? idUsersRole;
+        if (response['id_users_role'] != null) {
+          idUsersRole = int.tryParse(response['id_users_role'].toString());
+        }
+
+        if (isFromEmployeeTable) {
+          idUsersRole ??= 2;
+        } else if (idUsersRole == null) {
+          // Jika ditemukan di m_users tanpa id_users_role, periksa apakah terdaftar di m_employee
+          try {
+            final userId = response[UserTableColumns.id];
+            final employeeData = await _client
+                .from(DatabaseConstants.tableEmployee)
+                .select()
+                .or('email.eq.$cleanEmail,user_id.eq.$userId')
+                .maybeSingle();
+
+            if (employeeData != null) {
+              idUsersRole = int.tryParse(
+                    employeeData['id_users_role']?.toString() ?? '2',
+                  ) ??
+                  2;
+            }
+          } catch (_) {}
+        }
+
+        // Fallback berdasarkan nama role jika id_users_role belum terisi
+        if (idUsersRole == null) {
+          final roleString = response['role']?.toString().toLowerCase();
+          if (roleString == 'courier' || roleString == 'kurir') {
+            idUsersRole = 2;
+          } else {
+            idUsersRole = 3;
+          }
+        }
+
+        // Terapkan penyesuaian role ke payload
+        response['id_users_role'] = idUsersRole;
+        if (idUsersRole == 2) {
+          response['role'] = 'courier';
+        } else if (idUsersRole == 3) {
+          response['role'] = 'customer';
+        }
+
+        // 4. Perbarui lokasi pengguna terkini di database Supabase jika koordinat tersedia
         if (latitude != null && longitude != null) {
           try {
-            await _client.from(DatabaseConstants.tableUsers).update({
-              UserTableColumns.latitude: latitude,
-              UserTableColumns.longitude: longitude,
-              UserTableColumns.updatedAt:
-                  DateTime.now().toUtc().toIso8601String(),
-            }).eq(UserTableColumns.id, response[UserTableColumns.id]);
+            final targetTable = isFromEmployeeTable
+                ? DatabaseConstants.tableEmployee
+                : DatabaseConstants.tableUsers;
+            await _client.from(targetTable).update({
+              'latitude': latitude,
+              'longitude': longitude,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            }).eq('id', response['id']);
 
-            response[UserTableColumns.latitude] = latitude;
-            response[UserTableColumns.longitude] = longitude;
+            response['latitude'] = latitude;
+            response['longitude'] = longitude;
           } catch (_) {}
         }
 
@@ -172,13 +250,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     // Fallback simulasi jika berjalan di lingkungan tanpa Supabase (misal testing)
     await Future.delayed(const Duration(milliseconds: 600));
 
+    final isCourierEmail = cleanEmail.contains('courier') ||
+        cleanEmail.contains('kurir') ||
+        cleanEmail.contains('employee');
+    final roleId = isCourierEmail ? 2 : 3;
+
     return UserModel(
       id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
       name: cleanEmail.split('@').first.toUpperCase(),
       email: cleanEmail,
       phone: '+6281234567890',
       token: 'jwt_token_${DateTime.now().millisecondsSinceEpoch}',
-      role: 'customer',
+      role: isCourierEmail ? 'courier' : 'customer',
+      idUsersRole: roleId,
       latitude: latitude,
       longitude: longitude,
     );
@@ -289,6 +373,216 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       longitude: longitude,
       token: 'jwt_token_${DateTime.now().millisecondsSinceEpoch}',
       role: 'customer',
+    );
+  }
+
+  @override
+  Future<UserModel> registerCourier({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPhone = phone.trim();
+    final cleanName = name.trim();
+    final cleanAlamat = alamatLengkap?.trim();
+
+    // Validasi data pendaftaran kurir menggunakan Validators
+    final nameError = Validators.validateName(cleanName);
+    if (nameError != null) throw Exception(nameError);
+
+    final emailError = Validators.validateEmail(cleanEmail);
+    if (emailError != null) throw Exception(emailError);
+
+    final phoneError = Validators.validatePhone(cleanPhone);
+    if (phoneError != null) throw Exception(phoneError);
+
+    final passwordError = Validators.validatePassword(password);
+    if (passwordError != null) throw Exception(passwordError);
+
+    if (_isSupabaseAvailable) {
+      try {
+        // 1. Cek apakah email sudah terdaftar di tabel master pegawai / kurir m_employee
+        final existingEmployee = await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableEmployee)
+              .select(EmployeeTableColumns.id)
+              .eq(EmployeeTableColumns.email, cleanEmail)
+              .maybeSingle();
+        });
+
+        if (existingEmployee != null) {
+          throw Exception(
+            'Email kurir sudah terdaftar. Silakan masuk dengan akun Anda.',
+          );
+        }
+
+        // Cek juga di tabel m_users untuk memastikan email tidak bertabrakan
+        final existingUser = await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select(UserTableColumns.id)
+              .eq(UserTableColumns.email, cleanEmail)
+              .maybeSingle();
+        });
+
+        if (existingUser != null) {
+          throw Exception(
+            'Email sudah terdaftar pada sistem SatSet sebagai pelanggan.',
+          );
+        }
+
+        // 2. Hash kata sandi untuk keamanan penyimpanan di basis data
+        final hashedPassword = PasswordHasher.hash(password);
+
+        // 3. Daftarkan juga akun ke Supabase Auth
+        String? authUserId;
+        try {
+          final authRes = await _client.auth.signUp(
+            email: cleanEmail,
+            password: password,
+            data: {
+              'nama_lengkap': cleanName,
+              'no_hp': cleanPhone,
+              'alamat_lengkap': cleanAlamat,
+              'role': 'courier',
+              'id_users_role': 2,
+            },
+          );
+          authUserId = authRes.user?.id;
+        } catch (_) {}
+
+        // 4. Buat kode kurir otomatis (employee_code) dengan format 001, 002, dst.
+        String nextEmployeeCode = '001';
+        int maxCodeNum = 0;
+        try {
+          final employees = await _executeWithSessionRecovery(() async {
+            return await _client
+                .from(DatabaseConstants.tableEmployee)
+                .select('employee_code')
+                .order('id', ascending: false)
+                .limit(50);
+          });
+
+          if (employees != null && employees is List && employees.isNotEmpty) {
+            for (final emp in employees) {
+              final code = emp['employee_code']?.toString() ?? '';
+              final match = RegExp(r'\d+').firstMatch(code);
+              if (match != null) {
+                final parsed = int.tryParse(match.group(0)!);
+                if (parsed != null && parsed > maxCodeNum) {
+                  maxCodeNum = parsed;
+                }
+              }
+            }
+          }
+
+          if (maxCodeNum == 0) {
+            try {
+              final countRes = await _client
+                  .from(DatabaseConstants.tableEmployee)
+                  .count(CountOption.exact);
+              maxCodeNum = countRes;
+            } catch (_) {}
+          }
+
+          nextEmployeeCode = (maxCodeNum + 1).toString().padLeft(3, '0');
+        } catch (_) {
+          nextEmployeeCode = '001';
+        }
+
+        // 5. Simpan data kurir ke tabel m_employee di Supabase
+        // Menyertakan employee_code dengan format 001 dst untuk memenuhi not-null constraint
+        final newEmployeeData = <String, dynamic>{
+          'employee_code': nextEmployeeCode,
+          'email': cleanEmail,
+          'nama_lengkap': cleanName,
+          'no_hp': cleanPhone,
+          'password': hashedPassword,
+          'id_users_role': 2,
+          if (cleanAlamat != null && cleanAlamat.isNotEmpty)
+            'alamat_lengkap': cleanAlamat,
+          if (authUserId != null) 'user_id': authUserId,
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        };
+
+        Map<String, dynamic> inserted = {};
+        bool insertSuccess = false;
+        int maxRetries = 6;
+        int currentCodeNum = int.tryParse(nextEmployeeCode) ?? 1;
+
+        while (!insertSuccess && maxRetries > 0) {
+          maxRetries--;
+          try {
+            inserted = await _executeWithSessionRecovery(() async {
+              return await _client
+                  .from(DatabaseConstants.tableEmployee)
+                  .insert(newEmployeeData)
+                  .select()
+                  .single();
+            });
+            insertSuccess = true;
+          } catch (e) {
+            if (e is PostgrestException) {
+              // Jika terjadi konflik duplikasi kode kurir, naikkan angka berikutnya (002, 003, dst)
+              if (e.message.toLowerCase().contains('unique') ||
+                  e.message.toLowerCase().contains('duplicate') ||
+                  e.code == '23505') {
+                currentCodeNum++;
+                newEmployeeData['employee_code'] =
+                    currentCodeNum.toString().padLeft(3, '0');
+                continue;
+              }
+
+              final match = RegExp(r"Could not find the '([^']+)' column")
+                  .firstMatch(e.message);
+              if (match != null) {
+                final missingCol = match.group(1);
+                if (missingCol != null &&
+                    newEmployeeData.containsKey(missingCol)) {
+                  newEmployeeData.remove(missingCol);
+                  continue;
+                }
+              }
+            }
+            rethrow;
+          }
+        }
+
+        // Pastikan atribut id_users_role = 2 dan role = courier terpasang
+        inserted['email'] ??= cleanEmail;
+        inserted['nama_lengkap'] ??= cleanName;
+        inserted['no_hp'] ??= cleanPhone;
+        inserted['id_users_role'] = 2;
+        inserted['role'] = 'courier';
+
+        return UserModel.fromDatabase(inserted);
+      } catch (e) {
+        if (e is PostgrestException) {
+          throw Exception('Gagal menyimpan pendaftaran kurir: ${e.message}');
+        }
+        rethrow;
+      }
+    }
+
+    // Fallback simulasi jika Supabase tidak tersedia (lingkungan testing)
+    await Future.delayed(const Duration(milliseconds: 600));
+    return UserModel(
+      id: 'emp_${DateTime.now().millisecondsSinceEpoch}',
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      alamatLengkap: cleanAlamat,
+      latitude: latitude,
+      longitude: longitude,
+      token: 'jwt_courier_${DateTime.now().millisecondsSinceEpoch}',
+      role: 'courier',
+      idUsersRole: 2,
     );
   }
 

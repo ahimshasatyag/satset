@@ -11,6 +11,7 @@ class UserModel extends User {
     super.photoUrl,
     super.token,
     super.role = 'customer',
+    super.idUsersRole,
     super.alamatLengkap,
     super.latitude,
     super.longitude,
@@ -19,41 +20,111 @@ class UserModel extends User {
     super.updatedAt,
   });
 
-  /// Mengonversi dari baris tabel Supabase `m_users`
+  /// Mengonversi dari baris tabel Supabase `m_users` atau `m_employee`
   factory UserModel.fromDatabase(Map<String, dynamic> map) {
+    int? parsedRoleId;
+    if (map['id_users_role'] != null) {
+      parsedRoleId = int.tryParse(map['id_users_role'].toString());
+    } else if (map['role_id'] != null) {
+      parsedRoleId = int.tryParse(map['role_id'].toString());
+    } else {
+      final roleStr = (map['role'] as String?)?.toLowerCase();
+      if (roleStr == 'courier' || roleStr == 'kurir') {
+        parsedRoleId = 2;
+      } else if (roleStr == 'customer') {
+        parsedRoleId = 3;
+      }
+    }
+
+    String role = map['role'] as String? ?? '';
+    if (role.isEmpty) {
+      role = (parsedRoleId == 2) ? 'courier' : 'customer';
+    }
+
     return UserModel(
       id: map['id']?.toString() ?? '',
-      name: map['nama_lengkap'] as String? ?? map['name'] as String? ?? '',
+      name: map['nama_lengkap'] as String? ??
+          map['nama'] as String? ??
+          map['name'] as String? ??
+          '',
       email: map['email'] as String? ?? '',
-      phone: map['no_hp'] as String? ?? map['phone'] as String? ?? '',
+      phone: map['no_hp'] as String? ??
+          map['telepon'] as String? ??
+          map['phone'] as String? ??
+          '',
       alamatLengkap: map['alamat_lengkap'] as String?,
-      latitude: map['latitude'] != null ? double.tryParse(map['latitude'].toString()) : null,
-      longitude: map['longitude'] != null ? double.tryParse(map['longitude'].toString()) : null,
+      latitude: map['latitude'] != null
+          ? double.tryParse(map['latitude'].toString())
+          : null,
+      longitude: map['longitude'] != null
+          ? double.tryParse(map['longitude'].toString())
+          : null,
       googleId: map['google_id'] as String?,
-      createdAt: map['created_at'] != null ? DateTime.tryParse(map['created_at'].toString()) : null,
-      updatedAt: map['updated_at'] != null ? DateTime.tryParse(map['updated_at'].toString()) : null,
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString())
+          : null,
+      updatedAt: map['updated_at'] != null
+          ? DateTime.tryParse(map['updated_at'].toString())
+          : null,
       photoUrl: map['photo_url'] as String?,
       token: map['token'] as String?,
-      role: map['role'] as String? ?? 'customer',
+      role: role,
+      idUsersRole: parsedRoleId,
     );
   }
 
   /// Mengonversi dari Map / JSON umum
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    int? parsedRoleId;
+    if (json['id_users_role'] != null) {
+      parsedRoleId = int.tryParse(json['id_users_role'].toString());
+    } else if (json['idUsersRole'] != null) {
+      parsedRoleId = int.tryParse(json['idUsersRole'].toString());
+    } else if (json['role_id'] != null) {
+      parsedRoleId = int.tryParse(json['role_id'].toString());
+    } else {
+      final roleStr = (json['role'] as String?)?.toLowerCase();
+      if (roleStr == 'courier' || roleStr == 'kurir') {
+        parsedRoleId = 2;
+      } else if (roleStr == 'customer') {
+        parsedRoleId = 3;
+      }
+    }
+
+    String role = json['role'] as String? ?? '';
+    if (role.isEmpty) {
+      role = (parsedRoleId == 2) ? 'courier' : 'customer';
+    }
+
     return UserModel(
       id: json['id']?.toString() ?? '',
-      name: json['nama_lengkap'] as String? ?? json['name'] as String? ?? '',
+      name: json['nama_lengkap'] as String? ??
+          json['nama'] as String? ??
+          json['name'] as String? ??
+          '',
       email: json['email'] as String? ?? '',
-      phone: json['no_hp'] as String? ?? json['phone'] as String? ?? '',
+      phone: json['no_hp'] as String? ??
+          json['telepon'] as String? ??
+          json['phone'] as String? ??
+          '',
       photoUrl: json['photo_url'] as String?,
       token: json['token'] as String?,
-      role: json['role'] as String? ?? 'customer',
+      role: role,
+      idUsersRole: parsedRoleId,
       alamatLengkap: json['alamat_lengkap'] as String?,
-      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
-      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
+      latitude: json['latitude'] != null
+          ? double.tryParse(json['latitude'].toString())
+          : null,
+      longitude: json['longitude'] != null
+          ? double.tryParse(json['longitude'].toString())
+          : null,
       googleId: json['google_id'] as String?,
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'].toString())
+          : null,
     );
   }
 
@@ -71,6 +142,7 @@ class UserModel extends User {
       'photo_url': photoUrl,
       'token': token,
       'role': role,
+      'id_users_role': idUsersRole,
       'alamat_lengkap': alamatLengkap,
       'latitude': latitude,
       'longitude': longitude,
@@ -86,6 +158,8 @@ class UserModel extends User {
       'nama_lengkap': name,
       'email': email.trim().toLowerCase(),
       'no_hp': phone.trim(),
+      'role': role,
+      'id_users_role': idUsersRole,
       'alamat_lengkap': alamatLengkap,
       'latitude': latitude,
       'longitude': longitude,
@@ -112,6 +186,7 @@ class UserModel extends User {
       photoUrl: user.photoUrl,
       token: user.token,
       role: user.role,
+      idUsersRole: user.idUsersRole,
       alamatLengkap: user.alamatLengkap,
       latitude: user.latitude,
       longitude: user.longitude,
@@ -130,6 +205,7 @@ class UserModel extends User {
     String? photoUrl,
     String? token,
     String? role,
+    int? idUsersRole,
     String? alamatLengkap,
     double? latitude,
     double? longitude,
@@ -145,6 +221,7 @@ class UserModel extends User {
       photoUrl: photoUrl ?? this.photoUrl,
       token: token ?? this.token,
       role: role ?? this.role,
+      idUsersRole: idUsersRole ?? this.idUsersRole,
       alamatLengkap: alamatLengkap ?? this.alamatLengkap,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,

@@ -25,6 +25,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthCheckRequested>(_onCheckRequested);
     on<AuthLoginSubmitted>(_onLoginSubmitted);
     on<AuthRegisterSubmitted>(_onRegisterSubmitted);
+    on<AuthCourierRegisterSubmitted>(_onCourierRegisterSubmitted);
     on<AuthGoogleLoginSubmitted>(_onGoogleLoginSubmitted);
     on<AuthForgotPasswordSubmitted>(_onForgotPasswordSubmitted);
     on<AuthVerifyCodeSubmitted>(_onVerifyCodeSubmitted);
@@ -98,6 +99,31 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthSuccess(
         user: user,
         message: 'Pendaftaran akun SatSet berhasil!',
+      ));
+    } catch (e) {
+      final cleanMessage = e.toString().replaceAll('Exception: ', '');
+      emit(AuthFailure(cleanMessage));
+    }
+  }
+
+  Future<void> _onCourierRegisterSubmitted(
+    AuthCourierRegisterSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading(message: 'Mendaftarkan akun kurir baru...'));
+    try {
+      final user = await repository.registerCourier(
+        name: event.name.trim(),
+        email: event.email.trim(),
+        phone: event.phone.trim(),
+        password: event.password,
+        alamatLengkap: event.alamatLengkap?.trim(),
+        latitude: event.latitude,
+        longitude: event.longitude,
+      );
+      emit(AuthSuccess(
+        user: user,
+        message: 'Pendaftaran akun kurir SatSet berhasil!',
       ));
     } catch (e) {
       final cleanMessage = e.toString().replaceAll('Exception: ', '');

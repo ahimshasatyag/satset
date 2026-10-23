@@ -120,6 +120,7 @@ class UserAccount extends Equatable {
   final int satsetPayBalance;
   final int savedAddressesCount;
   final int insuranceClaimsCount;
+  final bool isCourier;
 
   const UserAccount({
     required this.id,
@@ -138,7 +139,14 @@ class UserAccount extends Equatable {
     this.satsetPayBalance = 450000,
     this.savedAddressesCount = 3,
     this.insuranceClaimsCount = 0,
+    this.isCourier = false,
   });
+
+  /// Helper untuk mengecek apakah akun merupakan akun kurir
+  bool get isCourierAccount =>
+      isCourier ||
+      membershipTier.toLowerCase().contains('kurir') ||
+      membershipTier.toLowerCase().contains('courier');
 
   /// Mengambil alamat utama jika ada
   UserAddress? get primaryAddress {
@@ -166,6 +174,7 @@ class UserAccount extends Equatable {
     int? satsetPayBalance,
     int? savedAddressesCount,
     int? insuranceClaimsCount,
+    bool? isCourier,
   }) {
     final updatedAddresses = addresses ?? this.addresses;
     return UserAccount(
@@ -187,6 +196,7 @@ class UserAccount extends Equatable {
       savedAddressesCount:
           savedAddressesCount ?? updatedAddresses.length,
       insuranceClaimsCount: insuranceClaimsCount ?? this.insuranceClaimsCount,
+      isCourier: isCourier ?? this.isCourier,
     );
   }
 
@@ -208,5 +218,6 @@ class UserAccount extends Equatable {
         satsetPayBalance,
         savedAddressesCount,
         insuranceClaimsCount,
+        isCourier,
       ];
 }

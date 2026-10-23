@@ -11,6 +11,8 @@ import 'package:satset/features/account/presentation/bloc/account_bloc.dart';
 import 'package:satset/features/account/presentation/bloc/account_event.dart';
 import 'package:satset/features/account/presentation/bloc/account_state.dart';
 import 'package:satset/features/account/presentation/pages/account_page.dart';
+import 'package:satset/features/account/presentation/widgets/account_skeleton.dart';
+import 'package:satset/features/auth/domain/entities/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -231,6 +233,82 @@ void main() {
       expect(find.text('Pilih Tema Tampilan'), findsOneWidget);
       expect(find.text('Mode Terang (Light Theme)'), findsOneWidget);
       expect(find.text('Mode Gelap (Dark Theme)'), findsOneWidget);
+    });
+
+    test('AccountRemoteDataSource handles courier account properly', () async {
+      const courierUser = User(
+        id: 'emp-001',
+        name: 'Sandi Courier',
+        email: 'sandi@satset.id',
+        phone: '08123456789',
+        role: 'courier',
+        idUsersRole: 2,
+        alamatLengkap: 'Pangkalan Pos SatSet Barat',
+      );
+
+      final courierRemote = AccountRemoteDataSourceImpl(currentUser: courierUser);
+      final account = await courierRemote.getUserAccount();
+
+      expect(account.id, equals('emp-001'));
+      expect(account.name, equals('Sandi Courier'));
+      expect(account.email, equals('sandi@satset.id'));
+      expect(account.phone, equals('08123456789'));
+      expect(account.isCourierAccount, isTrue);
+      expect(account.membershipTier, contains('Mitra Kurir SatSet'));
+      expect(account.fullAddress, equals('Pangkalan Pos SatSet Barat'));
+    });
+
+    testWidgets('AccountPage renders correctly for courier account', (tester) async {
+      const courierUser = User(
+        id: 'emp-001',
+        name: 'Sandi Courier',
+        email: 'sandi@satset.id',
+        phone: '08123456789',
+        role: 'courier',
+        idUsersRole: 2,
+        alamatLengkap: 'Pangkalan Pos SatSet Barat',
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AccountPage(user: courierUser),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sandi Courier'), findsOneWidget);
+      expect(find.text('sandi@satset.id'), findsOneWidget);
+      expect(find.text('Operasional & Tugas Kurir'), findsNothing);
+      expect(find.text('Pengiriman & Alamat'), findsNothing);
+      expect(find.text('Keamanan Akun'), findsOneWidget);
+      expect(find.text('Pengaturan dan Bantuan'), findsOneWidget);
+    });
+
+    testWidgets('AccountSkeleton renders customer and courier variants properly', (tester) async {
+      // 1. Variant Customer
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AccountSkeleton(isCourier: false),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(AccountSkeleton), findsOneWidget);
+
+      // 2. Variant Courier
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AccountSkeleton(isCourier: true),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(AccountSkeleton), findsOneWidget);
     });
   });
 }

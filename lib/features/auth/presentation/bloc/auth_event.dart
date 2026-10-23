@@ -65,6 +65,38 @@ class AuthRegisterSubmitted extends AuthEvent {
       ];
 }
 
+/// Event saat form registrasi akun kurir disubmit (ke tabel m_employee dengan id_users_role=2)
+class AuthCourierRegisterSubmitted extends AuthEvent {
+  final String name;
+  final String email;
+  final String phone;
+  final String password;
+  final String? alamatLengkap;
+  final double? latitude;
+  final double? longitude;
+
+  const AuthCourierRegisterSubmitted({
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.password,
+    this.alamatLengkap,
+    this.latitude,
+    this.longitude,
+  });
+
+  @override
+  List<Object?> get props => [
+        name,
+        email,
+        phone,
+        password,
+        alamatLengkap,
+        latitude,
+        longitude,
+      ];
+}
+
 /// Event saat pengguna menekan tombol login Google
 class AuthGoogleLoginSubmitted extends AuthEvent {
   const AuthGoogleLoginSubmitted();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../auth/domain/entities/user.dart';
 import '../../data/datasources/account_local_datasource.dart';
 import '../../data/datasources/account_remote_datasource.dart';
 import '../../data/repositories/account_repository_impl.dart';
@@ -20,18 +21,21 @@ import '../widgets/account_menu_card.dart';
 import '../widgets/account_menu_item.dart';
 import '../widgets/account_profile_header.dart';
 import '../widgets/account_security_dialog.dart';
+import '../widgets/account_skeleton.dart';
 import '../widgets/account_theme_dialog.dart';
 
 class AccountPage extends StatefulWidget {
   final VoidCallback? onToggleTheme;
   final bool? isDarkMode;
   final VoidCallback? onLogout;
+  final User? user;
 
   const AccountPage({
     super.key,
     this.onToggleTheme,
     this.isDarkMode,
     this.onLogout,
+    this.user,
   });
 
   @override
@@ -50,7 +54,7 @@ class _AccountPageState extends State<AccountPage> {
 
   AccountRepository _getOrCreateRepository() {
     if (_repository == null) {
-      final remote = AccountRemoteDataSourceImpl();
+      final remote = AccountRemoteDataSourceImpl(currentUser: widget.user);
       final local = AccountLocalDataSourceImpl();
       _repository = AccountRepositoryImpl(
         remoteDataSource: remote,
@@ -184,13 +188,50 @@ class _AccountPageState extends State<AccountPage> {
           }
         },
         builder: (context, state) {
+          if (state.isLoading && state.account == null) {
+            final isCourierHint = widget.user?.isCourier ?? false;
+            return Scaffold(
+              backgroundColor:
+                  isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+              body: SafeArea(
+                child: AccountSkeleton(
+                  isCourier: isCourierHint,
+                ),
+              ),
+            );
+          }
+
           final account = state.account ??
-              const UserAccount(
-                id: 'usr-01',
-                name: 'Satria Perkasa',
-                email: 'satria@satset.id',
-                phone: '+62 812-3456-7890',
-              );
+              (widget.user != null && widget.user!.isNotEmpty
+                  ? UserAccount(
+                      id: widget.user!.id,
+                      name: widget.user!.name.isNotEmpty
+                          ? widget.user!.name
+                          : (widget.user!.isCourier
+                              ? 'Kurir SatSet'
+                              : 'Pelanggan SatSet'),
+                      email: widget.user!.email,
+                      phone: widget.user!.phone,
+                      fullAddress: widget.user!.alamatLengkap,
+                      latitude: widget.user!.latitude,
+                      longitude: widget.user!.longitude,
+                      membershipTier: widget.user!.isCourier
+                          ? 'Mitra Kurir SatSet'
+                          : 'SatSet Priority Member',
+                      isCourier: widget.user!.isCourier,
+                      satsetPayBalance: widget.user!.isCourier ? 0 : 450000,
+                      savedAddressesCount:
+                          widget.user!.alamatLengkap != null ? 1 : 0,
+                    )
+                  : const UserAccount(
+                      id: 'usr-01',
+                      name: 'Satria Perkasa',
+                      email: 'satria@satset.id',
+                      phone: '+62 812-3456-7890',
+                    ));
+
+          final isCourier = account.isCourierAccount ||
+              (widget.user?.isCourier == true);
 
           return Scaffold(
             backgroundColor:
@@ -218,67 +259,69 @@ class _AccountPageState extends State<AccountPage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Bagian 1: Pengiriman & Alamat
-                      Text(
-                        'Pengiriman & Alamat',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white70 : AppColors.tertiary,
+                      // Bagian 1: Pengiriman & Alamat (Hanya untuk Pelanggan / Customer)
+                      if (!isCourier) ...[
+                        Text(
+                          'Pengiriman & Alamat',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white70 : AppColors.tertiary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
+                        const SizedBox(height: 10),
 
-                      AccountMenuCard(
-                        children: [
-                          AccountMenuItem(
-                            icon: Icons.bookmark_added_rounded,
-                            color: AppColors.primary,
-                            title: 'Alamat Pengiriman Saya',
-                            subtitle: account.addresses.isNotEmpty
-                                ? '${account.addresses.length} Alamat Tersimpan • Utama: ${account.primaryAddress?.label ?? "Aktif"}'
-                                : 'Kelola alamat utama & titik jemput/antar',
-                            onTap: () =>
-                                _showAddressManagement(context, account, bloc),
-                          ),
-                          const Divider(height: 1),
-                          AccountMenuItem(
-                            icon: Icons.local_shipping_rounded,
-                            color: AppColors.tertiary,
-                            title: 'Ringkasan Aktivitas Pengiriman',
-                            subtitle:
-                                '${account.shipmentCount} Pengiriman Terdaftar pada Sistem SatSet',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Anda memiliki ${account.shipmentCount} riwayat pengiriman di SatSet Delivery.',
+                        AccountMenuCard(
+                          children: [
+                            AccountMenuItem(
+                              icon: Icons.bookmark_added_rounded,
+                              color: AppColors.primary,
+                              title: 'Alamat Pengiriman Saya',
+                              subtitle: account.addresses.isNotEmpty
+                                  ? '${account.addresses.length} Alamat Tersimpan • Utama: ${account.primaryAddress?.label ?? "Aktif"}'
+                                  : 'Kelola alamat utama & titik jemput/antar',
+                              onTap: () =>
+                                  _showAddressManagement(context, account, bloc),
+                            ),
+                            const Divider(height: 1),
+                            AccountMenuItem(
+                              icon: Icons.local_shipping_rounded,
+                              color: AppColors.tertiary,
+                              title: 'Ringkasan Aktivitas Pengiriman',
+                              subtitle:
+                                  '${account.shipmentCount} Pengiriman Terdaftar pada Sistem SatSet',
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Anda memiliki ${account.shipmentCount} riwayat pengiriman di SatSet Delivery.',
+                                    ),
+                                    behavior: SnackBarBehavior.floating,
                                   ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                          ),
-                          const Divider(height: 1),
-                          AccountMenuItem(
-                            icon: Icons.account_balance_wallet_rounded,
-                            color: AppColors.secondary,
-                            title: 'Metode Pembayaran',
-                            subtitle:
-                                'SatSet Pay (Rp ${account.satsetPayBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}), QRIS, & Virtual Account',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Saldo SatSet Pay Anda saat ini Rp ${account.satsetPayBalance}. Siap digunakan untuk pengiriman instan.',
+                                );
+                              },
+                            ),
+                            const Divider(height: 1),
+                            AccountMenuItem(
+                              icon: Icons.account_balance_wallet_rounded,
+                              color: AppColors.secondary,
+                              title: 'Metode Pembayaran',
+                              subtitle:
+                                  'SatSet Pay (Rp ${account.satsetPayBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}), QRIS, & Virtual Account',
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Saldo SatSet Pay Anda saat ini Rp ${account.satsetPayBalance}. Siap digunakan untuk pengiriman instan.',
+                                    ),
+                                    behavior: SnackBarBehavior.floating,
                                   ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                      ],
 
                       // Bagian 2: Keamanan Akun
                       Text(

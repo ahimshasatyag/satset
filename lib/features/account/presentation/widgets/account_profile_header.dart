@@ -226,35 +226,44 @@ class AccountProfileHeader extends StatelessWidget {
                   ),
                 ),
 
-              // Badge Membership Tier
+              // Badge Membership Tier / Status Kurir
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.15),
+                  color: (account.isCourierAccount
+                          ? AppColors.primary
+                          : AppColors.secondary)
+                      .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.workspace_premium_rounded,
+                    Icon(
+                      account.isCourierAccount
+                          ? Icons.two_wheeler_rounded
+                          : Icons.workspace_premium_rounded,
                       size: 13,
-                      color: AppColors.secondary,
+                      color: account.isCourierAccount
+                          ? AppColors.primary
+                          : AppColors.secondary,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       account.membershipTier,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.secondary,
+                        color: account.isCourierAccount
+                            ? AppColors.primary
+                            : AppColors.secondary,
                       ),
                     ),
                   ],
                 ),
               ),
 
-              // Ringkasan Aktivitas Pengiriman
+              // Ringkasan Aktivitas Pengiriman / Tugas Kurir
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -264,14 +273,18 @@ class AccountProfileHeader extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.local_shipping_rounded,
+                    Icon(
+                      account.isCourierAccount
+                          ? Icons.assignment_turned_in_rounded
+                          : Icons.local_shipping_rounded,
                       size: 13,
                       color: AppColors.tertiary,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${account.shipmentCount} Pengiriman',
+                      account.isCourierAccount
+                          ? '${account.shipmentCount} Tugas Kurir'
+                          : '${account.shipmentCount} Pengiriman',
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,

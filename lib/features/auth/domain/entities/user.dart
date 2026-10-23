@@ -13,6 +13,7 @@ class User extends Equatable {
   final double? latitude;
   final double? longitude;
   final String? googleId;
+  final int? idUsersRole;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -24,6 +25,7 @@ class User extends Equatable {
     this.photoUrl,
     this.token,
     this.role = 'customer',
+    this.idUsersRole,
     this.alamatLengkap,
     this.latitude,
     this.longitude,
@@ -43,6 +45,18 @@ class User extends Equatable {
   bool get isEmpty => id.isEmpty;
   bool get isNotEmpty => id.isNotEmpty;
 
+  /// Helper untuk mengecek apakah user memiliki peran kurir (id_users_role == 2)
+  bool get isCourier =>
+      idUsersRole == 2 ||
+      role.toLowerCase() == 'courier' ||
+      role.toLowerCase() == 'kurir';
+
+  /// Helper untuk mengecek apakah user memiliki peran customer (id_users_role == 3)
+  bool get isCustomer =>
+      idUsersRole == 3 ||
+      role.toLowerCase() == 'customer' ||
+      (!isCourier);
+
   User copyWith({
     String? id,
     String? name,
@@ -51,6 +65,7 @@ class User extends Equatable {
     String? photoUrl,
     String? token,
     String? role,
+    int? idUsersRole,
     String? alamatLengkap,
     double? latitude,
     double? longitude,
@@ -66,6 +81,7 @@ class User extends Equatable {
       photoUrl: photoUrl ?? this.photoUrl,
       token: token ?? this.token,
       role: role ?? this.role,
+      idUsersRole: idUsersRole ?? this.idUsersRole,
       alamatLengkap: alamatLengkap ?? this.alamatLengkap,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
@@ -84,6 +100,7 @@ class User extends Equatable {
         photoUrl,
         token,
         role,
+        idUsersRole,
         alamatLengkap,
         latitude,
         longitude,

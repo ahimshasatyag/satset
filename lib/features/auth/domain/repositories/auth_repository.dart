@@ -11,8 +11,19 @@ abstract class AuthRepository {
     double? longitude,
   });
 
-  /// Proses registrasi akun pengguna baru
+  /// Proses registrasi akun pengguna baru (Pelanggan)
   Future<User> register({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+  });
+
+  /// Proses registrasi akun khusus kurir (ke tabel m_employee dengan id_users_role=2)
+  Future<User> registerCourier({
     required String name,
     required String email,
     required String phone,
