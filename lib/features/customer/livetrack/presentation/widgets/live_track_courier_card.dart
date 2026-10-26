@@ -8,6 +8,10 @@ class LiveTrackCourierCard extends StatelessWidget {
   final VoidCallback? onContactCourier;
   final VoidCallback? onViewBarcode;
   final VoidCallback? onViewDetails;
+  final int currentIndex;
+  final int totalCount;
+  final VoidCallback? onPreviousTracking;
+  final VoidCallback? onNextTracking;
 
   const LiveTrackCourierCard({
     super.key,
@@ -15,6 +19,10 @@ class LiveTrackCourierCard extends StatelessWidget {
     this.onContactCourier,
     this.onViewBarcode,
     this.onViewDetails,
+    this.currentIndex = 0,
+    this.totalCount = 1,
+    this.onPreviousTracking,
+    this.onNextTracking,
   });
 
   @override
@@ -43,6 +51,179 @@ class LiveTrackCourierCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 0. Baris Navigasi Antar Tracking Paket (Arrow Kiri & Arrow Kanan)
+          if (totalCount > 1) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.surfaceVariantDark.withValues(alpha: 0.5)
+                    : AppColors.primary50.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark
+                      ? AppColors.borderDark
+                      : AppColors.primary.withValues(alpha: 0.15),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Sisi Kiri: Tombol Panah Kiri (Lihat Tracking Sebelumnya)
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: onPreviousTracking != null
+                          ? InkWell(
+                              onTap: onPreviousTracking,
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.surfaceDark : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppColors.primary.withValues(alpha: 0.25),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.arrow_back_ios_new_rounded,
+                                      size: 12,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Tracking $currentIndex',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+
+                  // Sisi Tengah: Indikator Posisi Tracking (Contoh: "2 / 2")
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${currentIndex + 1} / $totalCount',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Indikator Titik (Dots)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(
+                          totalCount,
+                          (idx) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            width: idx == currentIndex ? 14 : 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: idx == currentIndex
+                                  ? AppColors.primary
+                                  : (isDark ? Colors.white30 : Colors.black26),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Sisi Kanan: Tombol Panah Kanan (Lihat Tracking Berikutnya)
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: onNextTracking != null
+                          ? InkWell(
+                              onTap: onNextTracking,
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.surfaceDark : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppColors.primary.withValues(alpha: 0.25),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Tracking ${currentIndex + 2}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 12,
+                                      color: AppColors.primary,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // 1. Baris Informasi Kurir & Status Pengiriman
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -38,12 +38,12 @@ class LiveTrackBloc extends Bloc<LiveTrackEvent, LiveTrackState> {
     emit(state.copyWith(
       selectedDirection: direction,
       initialResiFilter: initialResi,
-      searchQuery: initialResi ?? '',
+      searchQuery: '',
       isLoading: true,
       clearError: true,
     ));
 
-    _subscribeToStream(direction, specificResi: initialResi);
+    _subscribeToStream(direction);
   }
 
   void _onDirectionChanged(

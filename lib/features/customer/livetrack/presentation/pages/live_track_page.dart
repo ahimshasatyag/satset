@@ -661,6 +661,21 @@ class _LiveTrackPageState extends State<LiveTrackPage>
                             bottom: 16,
                             child: LiveTrackCourierCard(
                               shipment: selectedShipment,
+                              currentIndex: state.selectedIndex,
+                              totalCount: activeShipments.length,
+                              onPreviousTracking: state.selectedIndex > 0
+                                  ? () {
+                                      final newIdx = state.selectedIndex - 1;
+                                      bloc.add(LiveTrackOrderSelected(newIdx));
+                                    }
+                                  : null,
+                              onNextTracking: state.selectedIndex <
+                                      activeShipments.length - 1
+                                  ? () {
+                                      final newIdx = state.selectedIndex + 1;
+                                      bloc.add(LiveTrackOrderSelected(newIdx));
+                                    }
+                                  : null,
                               onViewBarcode: () =>
                                   _showBarcodeDialog(context, selectedShipment),
                               onViewDetails: () =>
