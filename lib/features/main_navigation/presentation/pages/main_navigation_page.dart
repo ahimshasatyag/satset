@@ -10,6 +10,7 @@ import '../../../courier/tasks/presentation/pages/courier_tasks_page.dart';
 import '../../../courier/location_tracking/presentation/pages/courier_location_tracking_page.dart';
 import '../../../courier/barcode_scanner/presentation/pages/courier_barcode_scanner_page.dart';
 import '../../../courier/tasks_history/presentation/pages/courier_tasks_history_page.dart';
+import '../../../courier/delivery_proof/presentation/pages/courier_delivery_proof_page.dart';
 
 import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:satset/features/customer/livetrack/presentation/pages/live_track_page.dart';
@@ -214,6 +215,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             onNavigateToTaskHistory: () {
               _navigationBloc.add(
                 const CourierNavigationTabChanged(CourierNavigationTab.history),
+              );
+            },
+            onNavigateToDeliveryProof: () {
+              Navigator.of(context).push(
+                SmoothPageRoute(
+                  child: CourierDeliveryProofPage(
+                    user: widget.user,
+                  ),
+                ),
               );
             },
           ),

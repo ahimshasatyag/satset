@@ -17,6 +17,9 @@ import '../bloc/courier_tasks_state.dart';
 import '../widgets/courier_task_card.dart';
 import '../widgets/courier_task_detail_bottom_sheet.dart';
 import '../widgets/courier_task_filter_tabs.dart';
+import 'package:satset/features/courier/delivery_proof/presentation/pages/courier_delivery_proof_page.dart';
+import 'package:satset/features/courier/notifications/presentation/pages/courier_notifications_page.dart';
+import 'package:satset/features/courier/tasks_status/presentation/pages/courier_task_status_page.dart';
 import '../widgets/courier_tasks_skeleton.dart';
 
 class CourierTasksPage extends StatefulWidget {
@@ -30,6 +33,8 @@ class CourierTasksPage extends StatefulWidget {
   final VoidCallback? onNavigateToLocationTracking;
   final VoidCallback? onNavigateToDeliveryProof;
   final VoidCallback? onNavigateToTaskHistory;
+  final VoidCallback? onNavigateToNotifications;
+  final Function(String shipmentId)? onNavigateToTaskStatus;
 
   const CourierTasksPage({
     super.key,
@@ -41,6 +46,8 @@ class CourierTasksPage extends StatefulWidget {
     this.onNavigateToLocationTracking,
     this.onNavigateToDeliveryProof,
     this.onNavigateToTaskHistory,
+    this.onNavigateToNotifications,
+    this.onNavigateToTaskStatus,
   });
 
   @override
@@ -149,6 +156,24 @@ class _CourierTasksPageState extends State<CourierTasksPage> {
               elevation: 0,
               backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined),
+                  tooltip: 'Notifikasi Tugas',
+                  onPressed: () {
+                    if (widget.onNavigateToNotifications != null) {
+                      widget.onNavigateToNotifications!();
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CourierNotificationsPage(
+                            courierId: widget.courierId,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded),
                   tooltip: 'Segarkan Tugas',
@@ -384,8 +409,35 @@ class _CourierTasksPageState extends State<CourierTasksPage> {
       },
       onOpenScanner: widget.onNavigateToScanner,
       onOpenLocationTracking: widget.onNavigateToLocationTracking,
-      onOpenDeliveryProof: widget.onNavigateToDeliveryProof,
+      onOpenDeliveryProof: () {
+        if (widget.onNavigateToDeliveryProof != null) {
+          widget.onNavigateToDeliveryProof!();
+        } else {
+          Navigator.of(context).push(
+            SmoothPageRoute(
+              child: CourierDeliveryProofPage(
+                user: widget.user,
+                initialShipmentId: task.shipmentId,
+              ),
+            ),
+          );
+        }
+      },
       onOpenTaskHistory: widget.onNavigateToTaskHistory,
+      onOpenTaskStatus: () {
+        if (widget.onNavigateToTaskStatus != null) {
+          widget.onNavigateToTaskStatus!(task.shipmentId);
+        } else {
+          Navigator.of(context).push(
+            SmoothPageRoute(
+              child: CourierTaskStatusPage(
+                shipmentId: task.shipmentId,
+                courierId: widget.user?.id ?? widget.courierId,
+              ),
+            ),
+          );
+        }
+      },
     );
   }
 

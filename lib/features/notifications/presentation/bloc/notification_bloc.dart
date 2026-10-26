@@ -24,7 +24,9 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     required this.markAllNotificationsAsReadUseCase,
     required this.deleteNotificationUseCase,
     required this.repository,
-  }) : super(const NotificationState()) {
+    bool isCourier = false,
+    String? courierId,
+  }) : super(NotificationState(isCourier: isCourier, courierId: courierId)) {
     on<NotificationLoadStarted>(_onLoadStarted);
     on<NotificationFilterChanged>(_onFilterChanged);
     on<NotificationSearchQueryChanged>(_onSearchQueryChanged);
@@ -35,16 +37,18 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     on<NotificationRealtimeUpdated>(_onRealtimeUpdated);
 
     // Mulai dengarkan pembaruan real-time dari Supabase
-    _startRealtimeSubscription();
+    _startRealtimeSubscription(isCourier: isCourier, courierId: courierId);
 
     // Muat data awal
-    add(const NotificationLoadStarted());
+    add(NotificationLoadStarted(isCourier: isCourier, courierId: courierId));
   }
 
-  void _startRealtimeSubscription() {
+  void _startRealtimeSubscription({bool isCourier = false, String? courierId}) {
     _realtimeSubscription?.cancel();
     try {
-      _realtimeSubscription = repository.subscribeNotifications().listen(
+      _realtimeSubscription = repository
+          .subscribeNotifications(isCourier: isCourier, courierId: courierId)
+          .listen(
         (items) {
           add(NotificationRealtimeUpdated(items));
         },
@@ -72,6 +76,12 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       filtered = filtered.where((n) => n.isShipment).toList();
     } else if (filter == NotificationFilter.payment) {
       filtered = filtered.where((n) => n.isPayment).toList();
+    } else if (filter == NotificationFilter.assignment) {
+      filtered = filtered.where((n) => n.isAssignment).toList();
+    } else if (filter == NotificationFilter.urgent) {
+      filtered = filtered.where((n) => n.isUrgent).toList();
+    } else if (filter == NotificationFilter.system) {
+      filtered = filtered.where((n) => n.type == NotificationType.system).toList();
     }
 
     if (query.trim().isNotEmpty) {
@@ -79,7 +89,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       filtered = filtered
           .where((n) =>
               n.title.toLowerCase().contains(q) ||
-              n.message.toLowerCase().contains(q))
+              n.message.toLowerCase().contains(q) ||
+              (n.metadata?['nomor_resi']?.toString().toLowerCase().contains(q) ?? false))
           .toList();
     }
 
@@ -90,16 +101,24 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     NotificationLoadStarted event,
     Emitter<NotificationState> emit,
   ) async {
+    final effectiveIsCourier = event.isCourier || state.isCourier;
+    final effectiveCourierId = event.courierId ?? state.courierId;
+
     if (!event.isRefresh) {
       emit(state.copyWith(
         status: NotificationStatus.loading,
         clearError: true,
         clearAction: true,
+        isCourier: effectiveIsCourier,
+        courierId: effectiveCourierId,
       ));
     }
 
     try {
-      final items = await getNotificationsUseCase();
+      final items = await getNotificationsUseCase(
+        isCourier: effectiveIsCourier,
+        courierId: effectiveCourierId,
+      );
       final unread = items.where((n) => !n.isRead).length;
 
       final filtered =
@@ -110,6 +129,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         notifications: items,
         filteredNotifications: filtered,
         unreadCount: unread,
+        isCourier: effectiveIsCourier,
+        courierId: effectiveCourierId,
         clearError: true,
       ));
     } catch (e) {
@@ -177,7 +198,10 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     ));
 
     try {
-      await markNotificationAsReadUseCase(event.notificationId);
+      await markNotificationAsReadUseCase(
+        event.notificationId,
+        isCourier: state.isCourier,
+      );
     } catch (_) {}
   }
 
@@ -200,7 +224,10 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     ));
 
     try {
-      await markAllNotificationsAsReadUseCase();
+      await markAllNotificationsAsReadUseCase(
+        isCourier: state.isCourier,
+        courierId: state.courierId,
+      );
     } catch (_) {}
   }
 
@@ -222,7 +249,10 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     ));
 
     try {
-      await deleteNotificationUseCase(event.notificationId);
+      await deleteNotificationUseCase(
+        event.notificationId,
+        isCourier: state.isCourier,
+      );
     } catch (_) {}
   }
 
@@ -238,7 +268,10 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     ));
 
     try {
-      await deleteNotificationUseCase.clearAll();
+      await deleteNotificationUseCase.clearAll(
+        isCourier: state.isCourier,
+        courierId: state.courierId,
+      );
     } catch (_) {}
   }
 

@@ -1,29 +1,34 @@
 import '../entities/notification_item.dart';
 
 abstract class NotificationRepository {
-  /// Mengambil daftar notifikasi milik pelanggan yang sedang login
+  /// Mengambil daftar notifikasi milik pengguna / kurir
   Future<List<NotificationItem>> getNotifications({
     int limit = 30,
     int offset = 0,
     NotificationFilter filter = NotificationFilter.all,
     String? searchQuery,
+    bool isCourier = false,
+    String? courierId,
   });
 
   /// Mengambil jumlah notifikasi yang belum dibaca
-  Future<int> getUnreadCount();
+  Future<int> getUnreadCount({bool isCourier = false, String? courierId});
 
   /// Menandai satu notifikasi sebagai sudah dibaca
-  Future<void> markAsRead(String notificationId);
+  Future<void> markAsRead(String notificationId, {bool isCourier = false});
 
-  /// Menandai seluruh notifikasi pelanggan sebagai sudah dibaca
-  Future<void> markAllAsRead();
+  /// Menandai seluruh notifikasi sebagai sudah dibaca
+  Future<void> markAllAsRead({bool isCourier = false, String? courierId});
 
-  /// Menghapus satu notifikasi pelanggan
-  Future<void> deleteNotification(String notificationId);
+  /// Menghapus satu notifikasi
+  Future<void> deleteNotification(String notificationId, {bool isCourier = false});
 
-  /// Menghapus seluruh riwayat notifikasi pelanggan
-  Future<void> clearAllNotifications();
+  /// Menghapus seluruh riwayat notifikasi
+  Future<void> clearAllNotifications({bool isCourier = false, String? courierId});
 
   /// Berlangganan aliran notifikasi baru secara real-time via Supabase
-  Stream<List<NotificationItem>> subscribeNotifications();
+  Stream<List<NotificationItem>> subscribeNotifications({
+    bool isCourier = false,
+    String? courierId,
+  });
 }

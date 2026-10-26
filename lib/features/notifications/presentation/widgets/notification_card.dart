@@ -28,6 +28,10 @@ class NotificationCard extends StatelessWidget {
         return Icons.discount_rounded;
       case NotificationType.system:
         return Icons.info_outline_rounded;
+      case NotificationType.taskAssignment:
+        return Icons.assignment_rounded;
+      case NotificationType.urgentTask:
+        return Icons.warning_amber_rounded;
     }
   }
 
@@ -43,6 +47,10 @@ class NotificationCard extends StatelessWidget {
         return AppColors.warning;
       case NotificationType.system:
         return AppColors.info;
+      case NotificationType.taskAssignment:
+        return AppColors.primary;
+      case NotificationType.urgentTask:
+        return AppColors.error;
     }
   }
 
@@ -193,7 +201,52 @@ class NotificationCard extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 50, top: 8),
                 child: Row(
                   children: [
-                    if (item.isShipment && item.shipmentId != null)
+                    if (item.isAssignment || item.isUrgent)
+                      InkWell(
+                        onTap: () => onTap?.call(item),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (item.isUrgent
+                                    ? AppColors.error
+                                    : AppColors.primary)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                item.isUrgent
+                                    ? Icons.bolt_rounded
+                                    : Icons.assignment_turned_in_rounded,
+                                size: 12,
+                                color: item.isUrgent
+                                    ? AppColors.error
+                                    : AppColors.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                item.isUrgent
+                                    ? 'Lihat Tugas Mendesak'
+                                    : 'Buka Tugas',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: item.isUrgent
+                                      ? AppColors.error
+                                      : AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (item.isShipment && item.shipmentId != null)
                       InkWell(
                         onTap: () => onTap?.call(item),
                         borderRadius: BorderRadius.circular(8),

@@ -15,12 +15,12 @@ abstract class CourierTasksLocalDataSource {
 
 class CourierTasksLocalDataSourceImpl implements CourierTasksLocalDataSource {
   static const String _tasksCacheKey = 'satset_courier_tasks_cache_v1';
-  final SharedPreferences? _prefs;
+  final SharedPreferences? prefs;
 
-  CourierTasksLocalDataSourceImpl({SharedPreferences? prefs}) : _prefs = prefs;
+  CourierTasksLocalDataSourceImpl({this.prefs});
 
   Future<SharedPreferences> get _instance async =>
-      _prefs ?? await SharedPreferences.getInstance();
+      prefs ?? await SharedPreferences.getInstance();
 
   @override
   Future<List<CourierTaskModel>> getCachedTasks() async {

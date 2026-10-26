@@ -11,20 +11,24 @@ class GetNotificationsUseCase {
     int offset = 0,
     NotificationFilter filter = NotificationFilter.all,
     String? searchQuery,
+    bool isCourier = false,
+    String? courierId,
   }) {
     return repository.getNotifications(
       limit: limit,
       offset: offset,
       filter: filter,
       searchQuery: searchQuery,
+      isCourier: isCourier,
+      courierId: courierId,
     );
   }
 
-  Future<int> getUnreadCount() {
-    return repository.getUnreadCount();
+  Future<int> getUnreadCount({bool isCourier = false, String? courierId}) {
+    return repository.getUnreadCount(isCourier: isCourier, courierId: courierId);
   }
 
-  Stream<List<NotificationItem>> subscribe() {
-    return repository.subscribeNotifications();
+  Stream<List<NotificationItem>> subscribe({bool isCourier = false, String? courierId}) {
+    return repository.subscribeNotifications(isCourier: isCourier, courierId: courierId);
   }
 }

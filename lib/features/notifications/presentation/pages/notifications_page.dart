@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../customer/livetrack/presentation/pages/live_track_page.dart';
+import '../../../courier/tasks_status/presentation/pages/courier_task_status_page.dart';
 import '../../data/datasources/notification_local_datasource.dart';
 import '../../data/datasources/notification_remote_datasource.dart';
 import '../../data/repositories/notification_repository_impl.dart';
@@ -22,8 +23,15 @@ import '../widgets/notification_skeleton.dart';
 
 class NotificationsPage extends StatefulWidget {
   final NotificationRepository? repository;
+  final bool isCourier;
+  final String? courierId;
 
-  const NotificationsPage({super.key, this.repository});
+  const NotificationsPage({
+    super.key,
+    this.repository,
+    this.isCourier = false,
+    this.courierId,
+  });
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -58,6 +66,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
               MarkAllNotificationsAsReadUseCase(repo),
           deleteNotificationUseCase: DeleteNotificationUseCase(repo),
           repository: repo,
+          isCourier: widget.isCourier,
+          courierId: widget.courierId,
         );
       }
       return _internalBloc!;
@@ -71,6 +81,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
 
     final resi = item.metadata?['nomor_resi']?.toString();
+    final shipmentId = item.shipmentId ??
+        item.metadata?['shipment_id']?.toString() ??
+        resi;
+
+    if (widget.isCourier) {
+      if (shipmentId != null && shipmentId.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CourierTaskStatusPage(
+              shipmentId: shipmentId,
+              courierId: widget.courierId,
+            ),
+          ),
+        );
+        return;
+      }
+    }
 
     if (item.isShipment && (resi != null || item.shipmentId != null)) {
       Navigator.push(
@@ -210,7 +238,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
-              bloc.add(const NotificationClearAllSubmitted());
+              bloc.add(NotificationClearAllSubmitted(
+                isCourier: widget.isCourier,
+                courierId: widget.courierId,
+              ));
             },
             child: const Text('Bersihkan'),
           ),
@@ -264,9 +295,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Pemberitahuan',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    widget.isCourier ? 'Notifikasi Tugas' : 'Pemberitahuan',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   if (state.unreadCount > 0) ...[
                     const SizedBox(width: 8),
@@ -297,7 +328,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     icon: const Icon(Icons.done_all_rounded),
                     tooltip: 'Tandai semua dibaca',
                     onPressed: () {
-                      bloc.add(const NotificationMarkAllAsReadSubmitted());
+                      bloc.add(NotificationMarkAllAsReadSubmitted(
+                        isCourier: widget.isCourier,
+                        courierId: widget.courierId,
+                      ));
                     },
                   ),
                 PopupMenuButton<String>(
@@ -307,7 +341,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   icon: const Icon(Icons.more_vert_rounded),
                   onSelected: (value) {
                     if (value == 'read_all') {
-                      bloc.add(const NotificationMarkAllAsReadSubmitted());
+                      bloc.add(NotificationMarkAllAsReadSubmitted(
+                        isCourier: widget.isCourier,
+                        courierId: widget.courierId,
+                      ));
                     } else if (value == 'clear_all') {
                       _confirmClearAll(context, bloc);
                     }
@@ -352,7 +389,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: CustomTextField(
-                    hintText: 'Cari notifikasi, resi, pembayaran...',
+                    hintText: widget.isCourier
+                        ? 'Cari tugas, nomor resi, catatan...'
+                        : 'Cari notifikasi, resi, pembayaran...',
                     controller: _searchController,
                     prefixIcon: const Icon(Icons.search_rounded, size: 20),
                     suffixIcon: _searchController.text.isNotEmpty
@@ -371,10 +410,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                 ),
 
-                // Tab Filter (Semua, Belum Dibaca, Pengiriman, Pembayaran)
+                // Tab Filter (Semua, Belum Dibaca, Pengiriman, Pembayaran / Tugas Kurir)
                 NotificationFilterTabs(
                   activeFilter: state.activeFilter,
                   unreadCount: state.unreadCount,
+                  isCourier: widget.isCourier,
                   onFilterChanged: (filter) {
                     bloc.add(NotificationFilterChanged(filter));
                   },
@@ -387,7 +427,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   child: RefreshIndicator(
                     color: AppColors.primary,
                     onRefresh: () async {
-                      bloc.add(const NotificationLoadStarted(isRefresh: true));
+                      bloc.add(NotificationLoadStarted(
+                        isRefresh: true,
+                        isCourier: widget.isCourier,
+                        courierId: widget.courierId,
+                      ));
                     },
                     child: state.isLoading && state.notifications.isEmpty
                         ? const NotificationSkeleton()
@@ -395,7 +439,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             ? NotificationEmptyState(
                                 activeFilter: state.activeFilter,
                                 onRefresh: () {
-                                  bloc.add(const NotificationLoadStarted());
+                                  bloc.add(NotificationLoadStarted(
+                                    isCourier: widget.isCourier,
+                                    courierId: widget.courierId,
+                                  ));
                                 },
                               )
                             : ListView.builder(

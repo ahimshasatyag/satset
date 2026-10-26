@@ -6,7 +6,9 @@ enum NotificationType {
   payment,
   account,
   promo,
-  system;
+  system,
+  taskAssignment,
+  urgentTask;
 
   String get label {
     switch (this) {
@@ -20,6 +22,10 @@ enum NotificationType {
         return 'Promo & Hadiah';
       case NotificationType.system:
         return 'Informasi Layanan';
+      case NotificationType.taskAssignment:
+        return 'Penugasan Tugas';
+      case NotificationType.urgentTask:
+        return 'Tugas Mendesak';
     }
   }
 
@@ -27,6 +33,17 @@ enum NotificationType {
     if (typeStr == null) return NotificationType.system;
     final lower = typeStr.trim().toLowerCase();
     switch (lower) {
+      case 'assignment':
+      case 'task_assignment':
+      case 'penugasan':
+      case 'tugas_baru':
+      case 'task':
+        return NotificationType.taskAssignment;
+      case 'urgent':
+      case 'urgent_task':
+      case 'mendesak':
+      case 'prioritas':
+        return NotificationType.urgentTask;
       case 'shipment':
       case 'pengiriman':
       case 'kurir':
@@ -57,7 +74,10 @@ enum NotificationFilter {
   all,
   unread,
   shipment,
-  payment;
+  payment,
+  assignment,
+  urgent,
+  system;
 
   String get label {
     switch (this) {
@@ -69,11 +89,17 @@ enum NotificationFilter {
         return 'Pengiriman';
       case NotificationFilter.payment:
         return 'Pembayaran';
+      case NotificationFilter.assignment:
+        return 'Tugas Baru';
+      case NotificationFilter.urgent:
+        return 'Mendesak';
+      case NotificationFilter.system:
+        return 'Operasional';
     }
   }
 }
 
-/// Entity item notifikasi pelanggan
+/// Entity item notifikasi pelanggan dan kurir
 class NotificationItem extends Equatable {
   final String id;
   final String userId;
@@ -101,8 +127,13 @@ class NotificationItem extends Equatable {
     this.metadata,
   });
 
-  bool get isShipment => type == NotificationType.shipment;
+  bool get isShipment =>
+      type == NotificationType.shipment ||
+      type == NotificationType.taskAssignment ||
+      type == NotificationType.urgentTask;
   bool get isPayment => type == NotificationType.payment;
+  bool get isAssignment => type == NotificationType.taskAssignment;
+  bool get isUrgent => type == NotificationType.urgentTask;
 
   /// Kategori pengelompokan tanggal untuk UI (Hari Ini, Kemarin, Minggu Ini, Terdahulu)
   String get dateCategory {

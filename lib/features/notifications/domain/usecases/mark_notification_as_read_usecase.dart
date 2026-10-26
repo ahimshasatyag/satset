@@ -5,7 +5,7 @@ class MarkNotificationAsReadUseCase {
 
   MarkNotificationAsReadUseCase(this.repository);
 
-  Future<void> call(String notificationId) {
-    return repository.markAsRead(notificationId);
+  Future<void> call(String notificationId, {bool isCourier = false}) {
+    return repository.markAsRead(notificationId, isCourier: isCourier);
   }
 }

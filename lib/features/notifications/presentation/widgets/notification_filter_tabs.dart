@@ -6,12 +6,14 @@ class NotificationFilterTabs extends StatelessWidget {
   final NotificationFilter activeFilter;
   final int unreadCount;
   final ValueChanged<NotificationFilter> onFilterChanged;
+  final bool isCourier;
 
   const NotificationFilterTabs({
     super.key,
     required this.activeFilter,
     required this.unreadCount,
     required this.onFilterChanged,
+    this.isCourier = false,
   });
 
   @override
@@ -19,11 +21,28 @@ class NotificationFilterTabs extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final filters = isCourier
+        ? const [
+            NotificationFilter.all,
+            NotificationFilter.unread,
+            NotificationFilter.assignment,
+            NotificationFilter.urgent,
+            NotificationFilter.shipment,
+            NotificationFilter.system,
+          ]
+        : const [
+            NotificationFilter.all,
+            NotificationFilter.unread,
+            NotificationFilter.shipment,
+            NotificationFilter.payment,
+            NotificationFilter.system,
+          ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        children: NotificationFilter.values.map((filter) {
+        children: filters.map((filter) {
           final isSelected = activeFilter == filter;
           final showUnreadBadge =
               filter == NotificationFilter.unread && unreadCount > 0;

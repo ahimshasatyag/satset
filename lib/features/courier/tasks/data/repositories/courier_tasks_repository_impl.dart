@@ -2,7 +2,6 @@ import '../../domain/entities/courier_task.dart';
 import '../../domain/repositories/courier_tasks_repository.dart';
 import '../datasources/courier_tasks_local_datasource.dart';
 import '../datasources/courier_tasks_remote_datasource.dart';
-import '../models/courier_task_model.dart';
 
 /// Implementasi Clean Architecture repositori tugas kurir
 class CourierTasksRepositoryImpl implements CourierTasksRepository {

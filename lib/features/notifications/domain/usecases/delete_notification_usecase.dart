@@ -5,11 +5,14 @@ class DeleteNotificationUseCase {
 
   DeleteNotificationUseCase(this.repository);
 
-  Future<void> call(String notificationId) {
-    return repository.deleteNotification(notificationId);
+  Future<void> call(String notificationId, {bool isCourier = false}) {
+    return repository.deleteNotification(notificationId, isCourier: isCourier);
   }
 
-  Future<void> clearAll() {
-    return repository.clearAllNotifications();
+  Future<void> clearAll({bool isCourier = false, String? courierId}) {
+    return repository.clearAllNotifications(
+      isCourier: isCourier,
+      courierId: courierId,
+    );
   }
 }

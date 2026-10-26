@@ -3,28 +3,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_item_model.dart';
 
 abstract class NotificationLocalDataSource {
-  Future<List<NotificationItemModel>> getCachedNotifications();
-  Future<void> cacheNotifications(List<NotificationItemModel> notifications);
-  Future<void> markNotificationAsRead(String notificationId);
-  Future<void> markAllAsRead();
-  Future<void> deleteNotification(String notificationId);
-  Future<void> clearCache();
+  Future<List<NotificationItemModel>> getCachedNotifications({bool isCourier = false});
+  Future<void> cacheNotifications(List<NotificationItemModel> notifications, {bool isCourier = false});
+  Future<void> markNotificationAsRead(String notificationId, {bool isCourier = false});
+  Future<void> markAllAsRead({bool isCourier = false});
+  Future<void> deleteNotification(String notificationId, {bool isCourier = false});
+  Future<void> clearCache({bool isCourier = false});
 }
 
 class NotificationLocalDataSourceImpl implements NotificationLocalDataSource {
   static const String _keyNotifications = 'satset_cached_notifications_data';
-  final SharedPreferences? _prefs;
+  static const String _keyCourierNotifications = 'satset_cached_courier_notifications_data';
+  final SharedPreferences? prefs;
 
-  NotificationLocalDataSourceImpl({SharedPreferences? prefs}) : _prefs = prefs;
+  NotificationLocalDataSourceImpl({this.prefs});
 
   Future<SharedPreferences> _getPrefs() async {
-    return _prefs ?? await SharedPreferences.getInstance();
+    return prefs ?? await SharedPreferences.getInstance();
   }
 
+  String _resolveKey(bool isCourier) => isCourier ? _keyCourierNotifications : _keyNotifications;
+
   @override
-  Future<List<NotificationItemModel>> getCachedNotifications() async {
+  Future<List<NotificationItemModel>> getCachedNotifications({bool isCourier = false}) async {
     final prefs = await _getPrefs();
-    final jsonStr = prefs.getString(_keyNotifications);
+    final jsonStr = prefs.getString(_resolveKey(isCourier));
     if (jsonStr == null || jsonStr.isEmpty) return [];
 
     try {
@@ -40,16 +43,18 @@ class NotificationLocalDataSourceImpl implements NotificationLocalDataSource {
 
   @override
   Future<void> cacheNotifications(
-      List<NotificationItemModel> notifications) async {
+    List<NotificationItemModel> notifications, {
+    bool isCourier = false,
+  }) async {
     final prefs = await _getPrefs();
     final jsonStr =
         jsonEncode(notifications.map((n) => n.toJson()).toList());
-    await prefs.setString(_keyNotifications, jsonStr);
+    await prefs.setString(_resolveKey(isCourier), jsonStr);
   }
 
   @override
-  Future<void> markNotificationAsRead(String notificationId) async {
-    final current = await getCachedNotifications();
+  Future<void> markNotificationAsRead(String notificationId, {bool isCourier = false}) async {
+    final current = await getCachedNotifications(isCourier: isCourier);
     final updated = current.map((n) {
       if (n.id == notificationId) {
         return NotificationItemModel.fromEntity(
@@ -58,30 +63,30 @@ class NotificationLocalDataSourceImpl implements NotificationLocalDataSource {
       }
       return n;
     }).toList();
-    await cacheNotifications(updated);
+    await cacheNotifications(updated, isCourier: isCourier);
   }
 
   @override
-  Future<void> markAllAsRead() async {
-    final current = await getCachedNotifications();
+  Future<void> markAllAsRead({bool isCourier = false}) async {
+    final current = await getCachedNotifications(isCourier: isCourier);
     final updated = current.map((n) {
       return NotificationItemModel.fromEntity(
         n.copyWith(isRead: true, readAt: DateTime.now()),
       );
     }).toList();
-    await cacheNotifications(updated);
+    await cacheNotifications(updated, isCourier: isCourier);
   }
 
   @override
-  Future<void> deleteNotification(String notificationId) async {
-    final current = await getCachedNotifications();
+  Future<void> deleteNotification(String notificationId, {bool isCourier = false}) async {
+    final current = await getCachedNotifications(isCourier: isCourier);
     final updated = current.where((n) => n.id != notificationId).toList();
-    await cacheNotifications(updated);
+    await cacheNotifications(updated, isCourier: isCourier);
   }
 
   @override
-  Future<void> clearCache() async {
+  Future<void> clearCache({bool isCourier = false}) async {
     final prefs = await _getPrefs();
-    await prefs.remove(_keyNotifications);
+    await prefs.remove(_resolveKey(isCourier));
   }
 }

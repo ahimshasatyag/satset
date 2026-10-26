@@ -11,14 +11,20 @@ abstract class NotificationEvent extends Equatable {
 /// Permintaan pemuatan notifikasi awal atau pull-to-refresh
 class NotificationLoadStarted extends NotificationEvent {
   final bool isRefresh;
+  final bool isCourier;
+  final String? courierId;
 
-  const NotificationLoadStarted({this.isRefresh = false});
+  const NotificationLoadStarted({
+    this.isRefresh = false,
+    this.isCourier = false,
+    this.courierId,
+  });
 
   @override
-  List<Object?> get props => [isRefresh];
+  List<Object?> get props => [isRefresh, isCourier, courierId];
 }
 
-/// Pengguna mengganti filter kategori (Semua, Belum Dibaca, Pengiriman, Pembayaran)
+/// Pengguna mengganti filter kategori
 class NotificationFilterChanged extends NotificationEvent {
   final NotificationFilter filter;
 
@@ -50,10 +56,19 @@ class NotificationMarkAsReadSubmitted extends NotificationEvent {
 
 /// Menandai seluruh notifikasi yang belum dibaca sebagai sudah dibaca
 class NotificationMarkAllAsReadSubmitted extends NotificationEvent {
-  const NotificationMarkAllAsReadSubmitted();
+  final bool isCourier;
+  final String? courierId;
+
+  const NotificationMarkAllAsReadSubmitted({
+    this.isCourier = false,
+    this.courierId,
+  });
+
+  @override
+  List<Object?> get props => [isCourier, courierId];
 }
 
-/// Menghapus satu notifikasi pelanggan
+/// Menghapus satu notifikasi
 class NotificationDeleted extends NotificationEvent {
   final String notificationId;
 
@@ -65,7 +80,16 @@ class NotificationDeleted extends NotificationEvent {
 
 /// Menghapus semua notifikasi
 class NotificationClearAllSubmitted extends NotificationEvent {
-  const NotificationClearAllSubmitted();
+  final bool isCourier;
+  final String? courierId;
+
+  const NotificationClearAllSubmitted({
+    this.isCourier = false,
+    this.courierId,
+  });
+
+  @override
+  List<Object?> get props => [isCourier, courierId];
 }
 
 /// Pembaruan streaming Supabase Realtime ketika ada perubahan data

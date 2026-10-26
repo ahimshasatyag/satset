@@ -307,7 +307,7 @@ class CourierBarcodeScannerRemoteDataSourceImpl
           ShipmentTrackingTableColumns.statusId: targetStatusId,
           ShipmentTrackingTableColumns.employeeId: parsedCourierId,
           ShipmentTrackingTableColumns.catatan: notes ?? 'Status diperbarui kurir via Scanner ($cleanCode)',
-          ShipmentTrackingTableColumns.eventSource: 'COURIER_SCANNER',
+          ShipmentTrackingTableColumns.eventSource: 'COURIER',
           ShipmentTrackingTableColumns.createdAt: nowStr,
         };
         if (latitude != null) trackingData[ShipmentTrackingTableColumns.latitude] = latitude;

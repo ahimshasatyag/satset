@@ -12,6 +12,7 @@ class CourierTaskDetailBottomSheet extends StatelessWidget {
   final VoidCallback? onOpenLocationTracking;
   final VoidCallback? onOpenDeliveryProof;
   final VoidCallback? onOpenTaskHistory;
+  final VoidCallback? onOpenTaskStatus;
 
   const CourierTaskDetailBottomSheet({
     super.key,
@@ -21,6 +22,7 @@ class CourierTaskDetailBottomSheet extends StatelessWidget {
     this.onOpenLocationTracking,
     this.onOpenDeliveryProof,
     this.onOpenTaskHistory,
+    this.onOpenTaskStatus,
   });
 
   static Future<void> show(
@@ -31,6 +33,7 @@ class CourierTaskDetailBottomSheet extends StatelessWidget {
     VoidCallback? onOpenLocationTracking,
     VoidCallback? onOpenDeliveryProof,
     VoidCallback? onOpenTaskHistory,
+    VoidCallback? onOpenTaskStatus,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -43,6 +46,7 @@ class CourierTaskDetailBottomSheet extends StatelessWidget {
         onOpenLocationTracking: onOpenLocationTracking,
         onOpenDeliveryProof: onOpenDeliveryProof,
         onOpenTaskHistory: onOpenTaskHistory,
+        onOpenTaskStatus: onOpenTaskStatus,
       ),
     );
   }
@@ -303,6 +307,16 @@ class CourierTaskDetailBottomSheet extends StatelessWidget {
                       onTap: () {
                         Navigator.of(context).pop();
                         onOpenTaskHistory?.call();
+                      },
+                    ),
+                    _buildFeatureButton(
+                      context,
+                      label: 'Detail Status Operasional',
+                      icon: Icons.alt_route_rounded,
+                      color: AppColors.primary,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        onOpenTaskStatus?.call();
                       },
                     ),
                   ],

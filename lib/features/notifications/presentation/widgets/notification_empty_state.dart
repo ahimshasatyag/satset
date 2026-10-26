@@ -21,8 +21,13 @@ class NotificationEmptyState extends StatelessWidget {
         return Icons.local_shipping_outlined;
       case NotificationFilter.payment:
         return Icons.account_balance_wallet_outlined;
+      case NotificationFilter.assignment:
+        return Icons.assignment_outlined;
+      case NotificationFilter.urgent:
+        return Icons.priority_high_rounded;
+      case NotificationFilter.system:
+        return Icons.build_circle_outlined;
       case NotificationFilter.all:
-      default:
         return Icons.notifications_off_outlined;
     }
   }
@@ -35,8 +40,13 @@ class NotificationEmptyState extends StatelessWidget {
         return 'Belum Ada Info Pengiriman';
       case NotificationFilter.payment:
         return 'Belum Ada Info Pembayaran';
+      case NotificationFilter.assignment:
+        return 'Belum Ada Tugas Baru';
+      case NotificationFilter.urgent:
+        return 'Tidak Ada Tugas Mendesak';
+      case NotificationFilter.system:
+        return 'Belum Ada Info Operasional';
       case NotificationFilter.all:
-      default:
         return 'Kotak Masuk Masih Bersih';
     }
   }
@@ -49,8 +59,13 @@ class NotificationEmptyState extends StatelessWidget {
         return 'Pemberitahuan perubahan status paket dan pergerakan kurir akan muncul di sini.';
       case NotificationFilter.payment:
         return 'Konfirmasi transaksi, tagihan ongkir, dan status pembayaran akan dicatat di sini.';
+      case NotificationFilter.assignment:
+        return 'Penugasan kiriman dan jemputan paket baru untuk Anda akan muncul di tab ini.';
+      case NotificationFilter.urgent:
+        return 'Semua penugasan prioritas tinggi atau mendekati batas waktu telah terkendali.';
+      case NotificationFilter.system:
+        return 'Pengumuman sistem, info hub, atau instruksi operasional akan tampil di sini.';
       case NotificationFilter.all:
-      default:
         return 'Pemberitahuan terkait paket, kurir, dan keamanan akun Anda akan tampil di halaman ini.';
     }
   }

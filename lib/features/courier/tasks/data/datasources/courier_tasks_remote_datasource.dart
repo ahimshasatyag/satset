@@ -378,15 +378,25 @@ class CourierTasksRemoteDataSourceImpl implements CourierTasksRemoteDataSource {
         ShipmentTrackingTableColumns.statusId: targetStatusId,
         ShipmentTrackingTableColumns.employeeId: int.tryParse(activeCourierId) ?? activeCourierId,
         ShipmentTrackingTableColumns.catatan: notes ?? 'Status diperbarui oleh kurir menjadi $cleanCode',
-        ShipmentTrackingTableColumns.eventSource: 'COURIER_APP',
+        ShipmentTrackingTableColumns.eventSource: 'COURIER',
         ShipmentTrackingTableColumns.createdAt: nowStr,
       };
       if (latitude != null) trackingData[ShipmentTrackingTableColumns.latitude] = latitude;
       if (longitude != null) trackingData[ShipmentTrackingTableColumns.longitude] = longitude;
 
-      await _client
-          .from(DatabaseConstants.tableShipmentTracking)
-          .insert(trackingData);
+      try {
+        await _client
+            .from(DatabaseConstants.tableShipmentTracking)
+            .insert(trackingData);
+      } catch (_) {
+        try {
+          // Fallback tanpa event_source jika skema database berbeda
+          trackingData.remove(ShipmentTrackingTableColumns.eventSource);
+          await _client
+              .from(DatabaseConstants.tableShipmentTracking)
+              .insert(trackingData);
+        } catch (_) {}
+      }
 
       // 5. Muat ulang data terbaru tugas tersebut
       try {

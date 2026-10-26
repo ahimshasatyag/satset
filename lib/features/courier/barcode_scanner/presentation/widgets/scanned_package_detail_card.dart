@@ -58,7 +58,6 @@ class _ScannedPackageDetailCardState extends State<ScannedPackageDetailCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
     final shipment = widget.shipment;
 
     final recommendedCode = shipment.recommendedActionStatusCode;
