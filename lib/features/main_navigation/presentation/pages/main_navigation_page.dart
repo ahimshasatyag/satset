@@ -7,7 +7,9 @@ import '../../../account/presentation/pages/account_page.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../courier/tasks/presentation/pages/courier_tasks_page.dart';
+import '../../../courier/location_tracking/presentation/pages/courier_location_tracking_page.dart';
 import '../../../courier/barcode_scanner/presentation/pages/courier_barcode_scanner_page.dart';
+import '../../../courier/tasks_history/presentation/pages/courier_tasks_history_page.dart';
 
 import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:satset/features/customer/livetrack/presentation/pages/live_track_page.dart';
@@ -216,8 +218,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             },
           ),
 
-          // 1. tracking_courier/ -> Placeholder delegasi fitur location_tracking
-          const SizedBox.shrink(),
+          // 1. tracking_courier/ -> Halaman Location Tracking khusus Kurir
+          CourierLocationTrackingPage(
+            user: widget.user,
+          ),
 
           // 2. scan/ -> Halaman Barcode Scanner khusus Courier
           CourierBarcodeScannerPage(
@@ -229,8 +233,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             },
           ),
 
-          // 3. history/ -> Placeholder delegasi fitur task_history
-          const SizedBox.shrink(),
+          // 3. history/ -> Halaman Task History khusus Courier
+          CourierTasksHistoryPage(
+            user: widget.user,
+          ),
 
           // 4. account/ -> Halaman Akun yang sudah ada di aplikasi
           AccountPage(

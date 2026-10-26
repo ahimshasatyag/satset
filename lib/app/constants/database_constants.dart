@@ -45,6 +45,9 @@ class DatabaseConstants {
   /// Nama tabel catatan pemindaian barcode kurir
   static const String tableBarcodeScans = 't_barcode_scans';
 
+  /// Nama tabel bukti serah terima / pengiriman kurir
+  static const String tableShipmentProofs = 't_shipment_proofs';
+
   /// Kolom umum
   static const String colId = 'id';
   static const String colEmail = 'email';
@@ -163,14 +166,18 @@ class ShipmentLocationTableColumns {
 
   static const String id = 'id';
   static const String shipmentId = 'shipment_id';
-  static const String employeeId = 'employee_id';
+  static const String courierId = 'courier_id';
+  static const String employeeId = 'courier_id';
   static const String latitude = 'latitude';
   static const String longitude = 'longitude';
-  static const String speed = 'speed';
+  static const String speedMps = 'speed_mps';
+  static const String speed = 'speed_mps';
   static const String heading = 'heading';
-  static const String accuracy = 'accuracy';
-  static const String createdAt = 'created_at';
-  static const String updatedAt = 'updated_at';
+  static const String accuracyM = 'accuracy_m';
+  static const String accuracy = 'accuracy_m';
+  static const String recordedAt = 'recorded_at';
+  static const String createdAt = 'recorded_at';
+  static const String updatedAt = 'recorded_at';
 }
 
 /// Kolom-kolom tabel t_shipment_payments di Supabase
@@ -321,3 +328,20 @@ class BarcodeScanTableColumns {
   static const String scannedAt = 'scanned_at';
   static const String createdAt = 'created_at';
 }
+
+/// Kolom-kolom tabel t_shipment_proofs di Supabase
+class ShipmentProofTableColumns {
+  ShipmentProofTableColumns._();
+
+  static const String id = 'id';
+  static const String shipmentId = 'shipment_id';
+  static const String courierId = 'courier_id';
+  static const String jenisBukti = 'jenis_bukti';
+  static const String filePath = 'file_path';
+  static const String penerimaNama = 'penerima_nama';
+  static const String catatan = 'catatan';
+  static const String latitude = 'latitude';
+  static const String longitude = 'longitude';
+  static const String createdAt = 'created_at';
+}
+
