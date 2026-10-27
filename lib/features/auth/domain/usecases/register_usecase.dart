@@ -10,6 +10,10 @@ class RegisterParams {
   final String? alamatLengkap;
   final double? latitude;
   final double? longitude;
+  final String? idProvinsi;
+  final String? idKabkot;
+  final String? idKecamatan;
+  final String? idKelurahan;
 
   const RegisterParams({
     required this.name,
@@ -19,6 +23,10 @@ class RegisterParams {
     this.alamatLengkap,
     this.latitude,
     this.longitude,
+    this.idProvinsi,
+    this.idKabkot,
+    this.idKecamatan,
+    this.idKelurahan,
   });
 }
 
@@ -37,6 +45,10 @@ class RegisterUseCase {
       alamatLengkap: params.alamatLengkap,
       latitude: params.latitude,
       longitude: params.longitude,
+      idProvinsi: params.idProvinsi,
+      idKabkot: params.idKabkot,
+      idKecamatan: params.idKecamatan,
+      idKelurahan: params.idKelurahan,
     );
   }
 }

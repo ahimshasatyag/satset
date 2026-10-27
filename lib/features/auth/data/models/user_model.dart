@@ -16,6 +16,12 @@ class UserModel extends User {
     super.latitude,
     super.longitude,
     super.googleId,
+    super.emailVerified,
+    super.emailVerifiedAt,
+    super.idProvinsi,
+    super.idKabkot,
+    super.idKecamatan,
+    super.idKelurahan,
     super.createdAt,
     super.updatedAt,
   });
@@ -60,6 +66,16 @@ class UserModel extends User {
           ? double.tryParse(map['longitude'].toString())
           : null,
       googleId: map['google_id'] as String?,
+      emailVerified: map['email_verified'] == true ||
+          map['email_verified'] == 1 ||
+          map['email_verified']?.toString().toLowerCase() == 'true',
+      emailVerifiedAt: map['email_verified_at'] != null
+          ? DateTime.tryParse(map['email_verified_at'].toString())
+          : null,
+      idProvinsi: map['id_provinsi'] as String?,
+      idKabkot: map['id_kabkot'] as String?,
+      idKecamatan: map['id_kecamatan'] as String?,
+      idKelurahan: map['id_kelurahan'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'].toString())
           : null,
@@ -119,6 +135,16 @@ class UserModel extends User {
           ? double.tryParse(json['longitude'].toString())
           : null,
       googleId: json['google_id'] as String?,
+      emailVerified: json['email_verified'] == true ||
+          json['email_verified'] == 1 ||
+          json['email_verified']?.toString().toLowerCase() == 'true',
+      emailVerifiedAt: json['email_verified_at'] != null
+          ? DateTime.tryParse(json['email_verified_at'].toString())
+          : null,
+      idProvinsi: json['id_provinsi'] as String?,
+      idKabkot: json['id_kabkot'] as String?,
+      idKecamatan: json['id_kecamatan'] as String?,
+      idKelurahan: json['id_kelurahan'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -147,6 +173,12 @@ class UserModel extends User {
       'latitude': latitude,
       'longitude': longitude,
       'google_id': googleId,
+      'email_verified': emailVerified,
+      'email_verified_at': emailVerifiedAt?.toIso8601String(),
+      'id_provinsi': idProvinsi,
+      'id_kabkot': idKabkot,
+      'id_kecamatan': idKecamatan,
+      'id_kelurahan': idKelurahan,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -164,6 +196,17 @@ class UserModel extends User {
       'latitude': latitude,
       'longitude': longitude,
       'google_id': googleId,
+      'email_verified': emailVerified ?? false,
+      if (emailVerifiedAt != null)
+        'email_verified_at': emailVerifiedAt!.toIso8601String(),
+      if (idProvinsi != null && idProvinsi!.isNotEmpty)
+        'id_provinsi': idProvinsi,
+      if (idKabkot != null && idKabkot!.isNotEmpty)
+        'id_kabkot': idKabkot,
+      if (idKecamatan != null && idKecamatan!.isNotEmpty)
+        'id_kecamatan': idKecamatan,
+      if (idKelurahan != null && idKelurahan!.isNotEmpty)
+        'id_kelurahan': idKelurahan,
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
@@ -191,6 +234,12 @@ class UserModel extends User {
       latitude: user.latitude,
       longitude: user.longitude,
       googleId: user.googleId,
+      emailVerified: user.emailVerified,
+      emailVerifiedAt: user.emailVerifiedAt,
+      idProvinsi: user.idProvinsi,
+      idKabkot: user.idKabkot,
+      idKecamatan: user.idKecamatan,
+      idKelurahan: user.idKelurahan,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     );
@@ -210,6 +259,12 @@ class UserModel extends User {
     double? latitude,
     double? longitude,
     String? googleId,
+    bool? emailVerified,
+    DateTime? emailVerifiedAt,
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -226,6 +281,12 @@ class UserModel extends User {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       googleId: googleId ?? this.googleId,
+      emailVerified: emailVerified ?? this.emailVerified,
+      emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
+      idProvinsi: idProvinsi ?? this.idProvinsi,
+      idKabkot: idKabkot ?? this.idKabkot,
+      idKecamatan: idKecamatan ?? this.idKecamatan,
+      idKelurahan: idKelurahan ?? this.idKelurahan,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -42,6 +42,10 @@ class AuthRegisterSubmitted extends AuthEvent {
   final String? alamatLengkap;
   final double? latitude;
   final double? longitude;
+  final String? idProvinsi;
+  final String? idKabkot;
+  final String? idKecamatan;
+  final String? idKelurahan;
 
   const AuthRegisterSubmitted({
     required this.name,
@@ -51,6 +55,10 @@ class AuthRegisterSubmitted extends AuthEvent {
     this.alamatLengkap,
     this.latitude,
     this.longitude,
+    this.idProvinsi,
+    this.idKabkot,
+    this.idKecamatan,
+    this.idKelurahan,
   });
 
   @override
@@ -62,6 +70,10 @@ class AuthRegisterSubmitted extends AuthEvent {
         alamatLengkap,
         latitude,
         longitude,
+        idProvinsi,
+        idKabkot,
+        idKecamatan,
+        idKelurahan,
       ];
 }
 

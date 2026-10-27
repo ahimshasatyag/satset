@@ -20,6 +20,10 @@ abstract class AuthRepository {
     String? alamatLengkap,
     double? latitude,
     double? longitude,
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
   });
 
   /// Proses registrasi akun khusus kurir (ke tabel m_employee dengan id_users_role=2)

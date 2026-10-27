@@ -50,6 +50,10 @@ class AuthRepositoryImpl implements AuthRepository {
     String? alamatLengkap,
     double? latitude,
     double? longitude,
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
   }) async {
     final userModel = await remoteDataSource.register(
       name: name,
@@ -59,6 +63,10 @@ class AuthRepositoryImpl implements AuthRepository {
       alamatLengkap: alamatLengkap,
       latitude: latitude,
       longitude: longitude,
+      idProvinsi: idProvinsi,
+      idKabkot: idKabkot,
+      idKecamatan: idKecamatan,
+      idKelurahan: idKelurahan,
     );
 
     await localDataSource.saveUser(userModel);

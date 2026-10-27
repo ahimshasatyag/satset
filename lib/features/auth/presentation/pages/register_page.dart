@@ -6,10 +6,16 @@ import 'package:latlong2/latlong.dart';
 import 'package:satset/shared/theme/theme.dart';
 import 'package:satset/shared/widgets/widgets.dart';
 
+import 'package:satset/app/config/supabase_config.dart';
+import 'package:satset/app/constants/database_constants.dart';
+import 'package:satset/features/customer/shipments/data/models/shipment_model.dart';
+import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
+
 import '../../data/utils/validators.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import 'email_verification_waiting_page.dart';
 
 /// Halaman Pendaftaran Akun Baru SatSet
 class RegisterPage extends StatefulWidget {
@@ -32,6 +38,22 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _hasMixedCase = false;
   bool _hasDigits = false;
   bool _hasSpecialChars = false;
+
+  // Variabel dropdown wilayah berjenjang
+  Province? _selectedProvince;
+  Regency? _selectedRegency;
+  District? _selectedDistrict;
+  Village? _selectedVillage;
+
+  List<Province> _provinces = [];
+  List<Regency> _regencies = [];
+  List<District> _districts = [];
+  List<Village> _villages = [];
+
+  bool _isLoadingProvinces = false;
+  bool _isLoadingRegencies = false;
+  bool _isLoadingDistricts = false;
+  bool _isLoadingVillages = false;
 
   final MapController _mapController = MapController();
   double _latitude = -6.2088; // Default awal: Jakarta
@@ -62,6 +84,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void initState() {
     super.initState();
     _passwordController.addListener(_validatePasswordRules);
+    _fetchProvinces();
     // Ambil posisi terakhir secara instan dari cache jika izin sudah ada, tanpa memblokir UI
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
@@ -255,6 +278,152 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
+  Future<void> _fetchProvinces() async {
+    setState(() {
+      _isLoadingProvinces = true;
+    });
+    try {
+      final rows = await SupabaseConfig.client
+          .from(DatabaseConstants.tableProvinsi)
+          .select()
+          .order(ProvinsiTableColumns.namaProvinsi, ascending: true);
+
+      if (mounted) {
+        setState(() {
+          _provinces = (rows as List)
+              .map<Province>(
+                (r) => ProvinceModel.fromDatabase(r as Map<String, dynamic>),
+              )
+              .toList();
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _provinces = const [
+            ProvinceModel(code: '31', name: 'DKI JAKARTA'),
+            ProvinceModel(code: '32', name: 'JAWA BARAT'),
+            ProvinceModel(code: '33', name: 'JAWA TENGAH'),
+            ProvinceModel(code: '34', name: 'DI YOGYAKARTA'),
+            ProvinceModel(code: '35', name: 'JAWA TIMUR'),
+            ProvinceModel(code: '36', name: 'BANTEN'),
+          ];
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingProvinces = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchRegencies(String provinceCode) async {
+    setState(() {
+      _isLoadingRegencies = true;
+      _regencies = [];
+      _selectedRegency = null;
+      _districts = [];
+      _selectedDistrict = null;
+      _villages = [];
+      _selectedVillage = null;
+    });
+
+    try {
+      final rows = await SupabaseConfig.client
+          .from(DatabaseConstants.tableKabkot)
+          .select()
+          .eq(KabkotTableColumns.kodeProvinsi, provinceCode)
+          .order(KabkotTableColumns.namaKabkot, ascending: true);
+
+      if (mounted) {
+        setState(() {
+          _regencies = (rows as List)
+              .map<Regency>(
+                (r) => RegencyModel.fromDatabase(r as Map<String, dynamic>),
+              )
+              .toList();
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingRegencies = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchDistricts(String regencyCode) async {
+    setState(() {
+      _isLoadingDistricts = true;
+      _districts = [];
+      _selectedDistrict = null;
+      _villages = [];
+      _selectedVillage = null;
+    });
+
+    try {
+      final rows = await SupabaseConfig.client
+          .from(DatabaseConstants.tableKecamatan)
+          .select()
+          .eq(KecamatanTableColumns.kodeKabkot, regencyCode)
+          .order(KecamatanTableColumns.namaKecamatan, ascending: true);
+
+      if (mounted) {
+        setState(() {
+          _districts = (rows as List)
+              .map<District>(
+                (d) => DistrictModel.fromDatabase(d as Map<String, dynamic>),
+              )
+              .toList();
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingDistricts = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchVillages(String districtCode) async {
+    setState(() {
+      _isLoadingVillages = true;
+      _villages = [];
+      _selectedVillage = null;
+    });
+
+    try {
+      final rows = await SupabaseConfig.client
+          .from(DatabaseConstants.tableKelurahan)
+          .select()
+          .eq(KelurahanTableColumns.kodeKecamatan, districtCode)
+          .order(KelurahanTableColumns.namaKelurahan, ascending: true);
+
+      if (mounted) {
+        setState(() {
+          _villages = (rows as List)
+              .map<Village>(
+                (v) => VillageModel.fromDatabase(v as Map<String, dynamic>),
+              )
+              .toList();
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingVillages = false;
+        });
+      }
+    }
+  }
+
   void _handleSubmit() {
     if (_formKey.currentState?.validate() ?? false) {
       if (_passwordController.text != _confirmPasswordController.text) {
@@ -275,6 +444,10 @@ class _RegisterPageState extends State<RegisterPage> {
           alamatLengkap: _alamatController.text.trim(),
           latitude: _latitude,
           longitude: _longitude,
+          idProvinsi: _selectedProvince?.code,
+          idKabkot: _selectedRegency?.code,
+          idKecamatan: _selectedDistrict?.code,
+          idKelurahan: _selectedVillage?.code,
         ),
       );
     }
@@ -315,18 +488,24 @@ class _RegisterPageState extends State<RegisterPage> {
               child: BlocConsumer<AuthBloc, AuthState>(
                 listener: (context, state) {
                   if (state is AuthSuccess) {
-                    CustomDialog.showSuccess(
-                      context: context,
-                      title: 'Pendaftaran Berhasil!',
-                      message:
-                          'Selamat datang di SatSet.id, ${state.user.name}. Akun Anda siap digunakan.',
-                      confirmText: 'Mulai Pengiriman',
-                      onConfirm: () {
-                        Navigator.pop(
-                          context,
-                        ); // Kembali ke login atau dashboard
-                      },
+                    final registeredEmail = _emailController.text.trim();
+                    final registeredName = _nameController.text.trim();
+
+                    // Arahkan ke halaman loading menunggu verifikasi email
+                    Navigator.pushReplacement(
+                      context,
+                      SmoothPageRoute(
+                        child: EmailVerificationWaitingPage(
+                          email: registeredEmail,
+                          name: registeredName.isNotEmpty
+                              ? registeredName
+                              : state.user.name,
+                        ),
+                      ),
                     );
+
+                    // Reset state AuthBloc agar tidak otomatis login sebelum verifikasi email
+                    context.read<AuthBloc>().add(const AuthResetState());
                   } else if (state is AuthFailure) {
                     CustomDialog.showError(
                       context: context,
@@ -440,6 +619,114 @@ class _RegisterPageState extends State<RegisterPage> {
                                         Icons.phone_outlined,
                                       ),
                                       validator: Validators.validatePhone,
+                                    ),
+                                    const SizedBox(height: 16),
+
+                                    // Dropdown Wilayah Berjenjang
+                                    _buildRegionDropdown<Province>(
+                                      label: 'Provinsi',
+                                      hintText: 'Pilih Provinsi',
+                                      value: _selectedProvince,
+                                      items: _provinces,
+                                      itemLabel: (p) => p.name,
+                                      isLoading: _isLoadingProvinces,
+                                      isDark: isDark,
+                                      enabled: !isLoading,
+                                      onChanged: (p) {
+                                        if (p != _selectedProvince) {
+                                          setState(() {
+                                            _selectedProvince = p;
+                                          });
+                                          if (p != null) {
+                                            _fetchRegencies(p.code);
+                                          } else {
+                                            setState(() {
+                                              _regencies = [];
+                                              _selectedRegency = null;
+                                              _districts = [];
+                                              _selectedDistrict = null;
+                                              _villages = [];
+                                              _selectedVillage = null;
+                                            });
+                                          }
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+
+                                    _buildRegionDropdown<Regency>(
+                                      label: 'Kabupaten / Kota',
+                                      hintText: 'Pilih Kabupaten/Kota',
+                                      disabledHint: 'Pilih provinsi terlebih dahulu',
+                                      value: _selectedRegency,
+                                      items: _regencies,
+                                      itemLabel: (r) => r.name,
+                                      enabled: !isLoading && _selectedProvince != null,
+                                      isLoading: _isLoadingRegencies,
+                                      isDark: isDark,
+                                      onChanged: (r) {
+                                        if (r != _selectedRegency) {
+                                          setState(() {
+                                            _selectedRegency = r;
+                                          });
+                                          if (r != null) {
+                                            _fetchDistricts(r.code);
+                                          } else {
+                                            setState(() {
+                                              _districts = [];
+                                              _selectedDistrict = null;
+                                              _villages = [];
+                                              _selectedVillage = null;
+                                            });
+                                          }
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+
+                                    _buildRegionDropdown<District>(
+                                      label: 'Kecamatan',
+                                      hintText: 'Pilih Kecamatan',
+                                      disabledHint: 'Pilih kabupaten/kota terlebih dahulu',
+                                      value: _selectedDistrict,
+                                      items: _districts,
+                                      itemLabel: (d) => d.name,
+                                      enabled: !isLoading && _selectedRegency != null,
+                                      isLoading: _isLoadingDistricts,
+                                      isDark: isDark,
+                                      onChanged: (d) {
+                                        if (d != _selectedDistrict) {
+                                          setState(() {
+                                            _selectedDistrict = d;
+                                          });
+                                          if (d != null) {
+                                            _fetchVillages(d.code);
+                                          } else {
+                                            setState(() {
+                                              _villages = [];
+                                              _selectedVillage = null;
+                                            });
+                                          }
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+
+                                    _buildRegionDropdown<Village>(
+                                      label: 'Kelurahan',
+                                      hintText: 'Pilih Kelurahan',
+                                      disabledHint: 'Pilih kecamatan terlebih dahulu',
+                                      value: _selectedVillage,
+                                      items: _villages,
+                                      itemLabel: (v) => v.name,
+                                      enabled: !isLoading && _selectedDistrict != null,
+                                      isLoading: _isLoadingVillages,
+                                      isDark: isDark,
+                                      onChanged: (v) {
+                                        setState(() {
+                                          _selectedVillage = v;
+                                        });
+                                      },
                                     ),
                                     const SizedBox(height: 16),
 
@@ -1245,6 +1532,48 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Helper untuk membangun SearchableDropdown wilayah
+  Widget _buildRegionDropdown<T>({
+    required String label,
+    required T? value,
+    required List<T> items,
+    required String Function(T) itemLabel,
+    required ValueChanged<T?> onChanged,
+    String? hintText,
+    String? disabledHint,
+    bool enabled = true,
+    bool isLoading = false,
+    bool isDark = false,
+  }) {
+    String effectiveHint;
+    if (isLoading) {
+      effectiveHint = 'Memuat $label...';
+    } else if (!enabled) {
+      effectiveHint =
+          disabledHint ?? 'Pilih wilayah sebelumnya terlebih dahulu';
+    } else if (items.isEmpty) {
+      effectiveHint = 'Tidak ada data $label';
+    } else {
+      effectiveHint = hintText ?? 'Pilih $label';
+    }
+
+    final isActuallyEnabled = enabled && !isLoading && items.isNotEmpty;
+
+    return SearchableDropdown<T>(
+      label: label,
+      value: items.contains(value) ? value : null,
+      items: items,
+      itemLabel: itemLabel,
+      onChanged: onChanged,
+      isDark: isDark,
+      enabled: isActuallyEnabled,
+      isLoading: isLoading,
+      hintText: effectiveHint,
+      emptyHintText: 'Tidak ada data $label',
+      searchHint: 'Cari $label...',
     );
   }
 }

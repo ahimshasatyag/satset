@@ -94,6 +94,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           alamatLengkap: event.alamatLengkap?.trim(),
           latitude: event.latitude,
           longitude: event.longitude,
+          idProvinsi: event.idProvinsi,
+          idKabkot: event.idKabkot,
+          idKecamatan: event.idKecamatan,
+          idKelurahan: event.idKelurahan,
         ),
       );
       emit(AuthSuccess(

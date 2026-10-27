@@ -10,7 +10,6 @@ import '../../data/utils/validators.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
-import 'login_page.dart';
 import 'register_page.dart';
 
 /// Halaman Pendaftaran Akun Khusus Kurir SatSet Express.

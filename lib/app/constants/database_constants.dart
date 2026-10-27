@@ -72,6 +72,12 @@ class UserTableColumns {
   static const String longitude = 'longitude';
   static const String resetToken = 'reset_token';
   static const String tokenExpiredAt = 'token_expired_at';
+  static const String emailVerified = 'email_verified';
+  static const String emailVerifiedAt = 'email_verified_at';
+  static const String idProvinsi = 'id_provinsi';
+  static const String idKabkot = 'id_kabkot';
+  static const String idKecamatan = 'id_kecamatan';
+  static const String idKelurahan = 'id_kelurahan';
   static const String createdAt = 'created_at';
   static const String updatedAt = 'updated_at';
 }

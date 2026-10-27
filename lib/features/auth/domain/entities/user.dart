@@ -14,6 +14,12 @@ class User extends Equatable {
   final double? longitude;
   final String? googleId;
   final int? idUsersRole;
+  final bool? emailVerified;
+  final DateTime? emailVerifiedAt;
+  final String? idProvinsi;
+  final String? idKabkot;
+  final String? idKecamatan;
+  final String? idKelurahan;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -30,6 +36,12 @@ class User extends Equatable {
     this.latitude,
     this.longitude,
     this.googleId,
+    this.emailVerified,
+    this.emailVerifiedAt,
+    this.idProvinsi,
+    this.idKabkot,
+    this.idKecamatan,
+    this.idKelurahan,
     this.createdAt,
     this.updatedAt,
   });
@@ -70,6 +82,12 @@ class User extends Equatable {
     double? latitude,
     double? longitude,
     String? googleId,
+    bool? emailVerified,
+    DateTime? emailVerifiedAt,
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -86,6 +104,12 @@ class User extends Equatable {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       googleId: googleId ?? this.googleId,
+      emailVerified: emailVerified ?? this.emailVerified,
+      emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
+      idProvinsi: idProvinsi ?? this.idProvinsi,
+      idKabkot: idKabkot ?? this.idKabkot,
+      idKecamatan: idKecamatan ?? this.idKecamatan,
+      idKelurahan: idKelurahan ?? this.idKelurahan,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -105,6 +129,12 @@ class User extends Equatable {
         latitude,
         longitude,
         googleId,
+        emailVerified,
+        emailVerifiedAt,
+        idProvinsi,
+        idKabkot,
+        idKecamatan,
+        idKelurahan,
         createdAt,
         updatedAt,
       ];

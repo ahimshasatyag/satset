@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/config/supabase_config.dart';
@@ -25,6 +25,10 @@ abstract class AuthRemoteDataSource {
     String? alamatLengkap,
     double? latitude,
     double? longitude,
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
   });
 
   Future<UserModel> registerCourier({
@@ -67,6 +71,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  void _ensureSupabaseAvailable() {
+    if (!_isSupabaseAvailable) {
+      throw Exception(
+        'Layanan Supabase tidak tersedia. Periksa koneksi jaringan Anda.',
+      );
     }
   }
 
@@ -129,143 +141,129 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final passwordError = Validators.validatePassword(password);
     if (passwordError != null) throw Exception(passwordError);
 
-    if (_isSupabaseAvailable) {
-      try {
-        // 1. Cek di tabel master pengguna m_users
-        Map<String, dynamic>? response = await _executeWithSessionRecovery(() async {
+    _ensureSupabaseAvailable();
+    try {
+      // 1. Cek di tabel master pengguna m_users
+      Map<String, dynamic>? response = await _executeWithSessionRecovery(
+        () async {
           return await _client
               .from(DatabaseConstants.tableUsers)
               .select()
               .eq(UserTableColumns.email, cleanEmail)
               .maybeSingle();
-        });
+        },
+      );
 
-        bool isFromEmployeeTable = false;
+      bool isFromEmployeeTable = false;
 
-        // 2. Jika tidak ditemukan di m_users, cek di tabel master pegawai / kurir m_employee
-        if (response == null) {
-          try {
-            response = await _executeWithSessionRecovery(() async {
-              return await _client
-                  .from(DatabaseConstants.tableEmployee)
-                  .select()
-                  .eq(EmployeeTableColumns.email, cleanEmail)
-                  .maybeSingle();
-            });
-            if (response != null) {
-              isFromEmployeeTable = true;
-            }
-          } catch (_) {
-            // Abaikan jika tabel m_employee belum ada atau terjadi error
-          }
-        }
-
-        if (response == null) {
-          throw Exception('Email belum terdaftar pada sistem SatSet.');
-        }
-
-        final storedHashedPassword =
-            (response[UserTableColumns.password] ?? response['password']) as String?;
-        if (storedHashedPassword != null && storedHashedPassword.isNotEmpty) {
-          final isPasswordValid = PasswordHasher.verify(
-            password,
-            storedHashedPassword,
-          );
-          if (!isPasswordValid) {
-            throw Exception('Kata sandi yang Anda masukkan salah.');
-          }
-        }
-
-        // 3. Tentukan id_users_role (2 = Courier, 3 = Customer)
-        int? idUsersRole;
-        if (response['id_users_role'] != null) {
-          idUsersRole = int.tryParse(response['id_users_role'].toString());
-        }
-
-        if (isFromEmployeeTable) {
-          idUsersRole ??= 2;
-        } else if (idUsersRole == null) {
-          // Jika ditemukan di m_users tanpa id_users_role, periksa apakah terdaftar di m_employee
-          try {
-            final userId = response[UserTableColumns.id];
-            final employeeData = await _client
+      // 2. Jika tidak ditemukan di m_users, cek di tabel master pegawai / kurir m_employee
+      if (response == null) {
+        try {
+          response = await _executeWithSessionRecovery(() async {
+            return await _client
                 .from(DatabaseConstants.tableEmployee)
                 .select()
-                .or('email.eq.$cleanEmail,user_id.eq.$userId')
+                .eq(EmployeeTableColumns.email, cleanEmail)
                 .maybeSingle();
-
-            if (employeeData != null) {
-              idUsersRole = int.tryParse(
-                    employeeData['id_users_role']?.toString() ?? '2',
-                  ) ??
-                  2;
-            }
-          } catch (_) {}
-        }
-
-        // Fallback berdasarkan nama role jika id_users_role belum terisi
-        if (idUsersRole == null) {
-          final roleString = response['role']?.toString().toLowerCase();
-          if (roleString == 'courier' || roleString == 'kurir') {
-            idUsersRole = 2;
-          } else {
-            idUsersRole = 3;
+          });
+          if (response != null) {
+            isFromEmployeeTable = true;
           }
+        } catch (_) {
+          // Abaikan jika tabel m_employee belum ada atau terjadi error
         }
-
-        // Terapkan penyesuaian role ke payload
-        response['id_users_role'] = idUsersRole;
-        if (idUsersRole == 2) {
-          response['role'] = 'courier';
-        } else if (idUsersRole == 3) {
-          response['role'] = 'customer';
-        }
-
-        // 4. Perbarui lokasi pengguna terkini di database Supabase jika koordinat tersedia
-        if (latitude != null && longitude != null) {
-          try {
-            final targetTable = isFromEmployeeTable
-                ? DatabaseConstants.tableEmployee
-                : DatabaseConstants.tableUsers;
-            await _client.from(targetTable).update({
-              'latitude': latitude,
-              'longitude': longitude,
-              'updated_at': DateTime.now().toUtc().toIso8601String(),
-            }).eq('id', response['id']);
-
-            response['latitude'] = latitude;
-            response['longitude'] = longitude;
-          } catch (_) {}
-        }
-
-        return UserModel.fromDatabase(response);
-      } catch (e) {
-        if (e is PostgrestException) {
-          throw Exception('Kesalahan basis data Supabase: ${e.message}');
-        }
-        rethrow;
       }
+
+      if (response == null) {
+        throw Exception('Email belum terdaftar pada sistem SatSet.');
+      }
+
+      final storedHashedPassword =
+          (response[UserTableColumns.password] ?? response['password'])
+              as String?;
+      if (storedHashedPassword != null && storedHashedPassword.isNotEmpty) {
+        final isPasswordValid = PasswordHasher.verify(
+          password,
+          storedHashedPassword,
+        );
+        if (!isPasswordValid) {
+          throw Exception('Kata sandi yang Anda masukkan salah.');
+        }
+      }
+
+      // 3. Tentukan id_users_role (2 = Courier, 3 = Customer)
+      int? idUsersRole;
+      if (response['id_users_role'] != null) {
+        idUsersRole = int.tryParse(response['id_users_role'].toString());
+      }
+
+      if (isFromEmployeeTable) {
+        idUsersRole ??= 2;
+      } else if (idUsersRole == null) {
+        // Jika ditemukan di m_users tanpa id_users_role, periksa apakah terdaftar di m_employee
+        try {
+          final userId = response[UserTableColumns.id];
+          final employeeData = await _client
+              .from(DatabaseConstants.tableEmployee)
+              .select()
+              .or('email.eq.$cleanEmail,user_id.eq.$userId')
+              .maybeSingle();
+
+          if (employeeData != null) {
+            idUsersRole =
+                int.tryParse(
+                  employeeData['id_users_role']?.toString() ?? '2',
+                ) ??
+                2;
+          }
+        } catch (_) {}
+      }
+
+      // Fallback berdasarkan nama role jika id_users_role belum terisi
+      if (idUsersRole == null) {
+        final roleString = response['role']?.toString().toLowerCase();
+        if (roleString == 'courier' || roleString == 'kurir') {
+          idUsersRole = 2;
+        } else {
+          idUsersRole = 3;
+        }
+      }
+
+      // Terapkan penyesuaian role ke payload
+      response['id_users_role'] = idUsersRole;
+      if (idUsersRole == 2) {
+        response['role'] = 'courier';
+      } else if (idUsersRole == 3) {
+        response['role'] = 'customer';
+      }
+
+      // 4. Perbarui lokasi pengguna terkini di database Supabase jika koordinat tersedia
+      if (latitude != null && longitude != null) {
+        try {
+          final targetTable = isFromEmployeeTable
+              ? DatabaseConstants.tableEmployee
+              : DatabaseConstants.tableUsers;
+          await _client
+              .from(targetTable)
+              .update({
+                'latitude': latitude,
+                'longitude': longitude,
+                'updated_at': DateTime.now().toUtc().toIso8601String(),
+              })
+              .eq('id', response['id']);
+
+          response['latitude'] = latitude;
+          response['longitude'] = longitude;
+        } catch (_) {}
+      }
+
+      return UserModel.fromDatabase(response);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Kesalahan basis data Supabase: ${e.message}');
+      }
+      rethrow;
     }
-
-    // Fallback simulasi jika berjalan di lingkungan tanpa Supabase (misal testing)
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    final isCourierEmail = cleanEmail.contains('courier') ||
-        cleanEmail.contains('kurir') ||
-        cleanEmail.contains('employee');
-    final roleId = isCourierEmail ? 2 : 3;
-
-    return UserModel(
-      id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
-      name: cleanEmail.split('@').first.toUpperCase(),
-      email: cleanEmail,
-      phone: '+6281234567890',
-      token: 'jwt_token_${DateTime.now().millisecondsSinceEpoch}',
-      role: isCourierEmail ? 'courier' : 'customer',
-      idUsersRole: roleId,
-      latitude: latitude,
-      longitude: longitude,
-    );
   }
 
   @override
@@ -277,6 +275,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? alamatLengkap,
     double? latitude,
     double? longitude,
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanPhone = phone.trim();
@@ -296,84 +298,115 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final passwordError = Validators.validatePassword(password);
     if (passwordError != null) throw Exception(passwordError);
 
-    if (_isSupabaseAvailable) {
-      try {
-        // 1. Cek apakah email sudah terdaftar
-        final existingUser = await _executeWithSessionRecovery(() async {
-          return await _client
-              .from(DatabaseConstants.tableUsers)
-              .select(UserTableColumns.id)
-              .eq(UserTableColumns.email, cleanEmail)
-              .maybeSingle();
-        });
+    _ensureSupabaseAvailable();
+    try {
+      // 1. Cek apakah email sudah terdaftar
+      final existingUser = await _executeWithSessionRecovery(() async {
+        return await _client
+            .from(DatabaseConstants.tableUsers)
+            .select(UserTableColumns.id)
+            .eq(UserTableColumns.email, cleanEmail)
+            .maybeSingle();
+      });
 
-        if (existingUser != null) {
-          throw Exception(
-            'Email sudah terdaftar. Silakan gunakan email lain atau masuk.',
-          );
-        }
-
-        // 2. Hash kata sandi untuk keamanan penyimpanan di basis data
-        final hashedPassword = PasswordHasher.hash(password);
-
-        // 3. Simpan data ke tabel m_users di Supabase
-        final newUserData = {
-          UserTableColumns.namaLengkap: cleanName,
-          UserTableColumns.email: cleanEmail,
-          UserTableColumns.noHp: cleanPhone,
-          UserTableColumns.password: hashedPassword,
-          UserTableColumns.alamatLengkap: cleanAlamat,
-          UserTableColumns.latitude: latitude,
-          UserTableColumns.longitude: longitude,
-          UserTableColumns.createdAt: DateTime.now().toUtc().toIso8601String(),
-          UserTableColumns.updatedAt: DateTime.now().toUtc().toIso8601String(),
-        };
-
-        final inserted = await _executeWithSessionRecovery(() async {
-          return await _client
-              .from(DatabaseConstants.tableUsers)
-              .insert(newUserData)
-              .select()
-              .single();
-        });
-
-        // Daftarkan juga akun ke Supabase Auth agar email terdaftar untuk menerima email pemulihan via Supabase
-        try {
-          await _client.auth.signUp(
-            email: cleanEmail,
-            password: password,
-            data: {
-              'nama_lengkap': cleanName,
-              'no_hp': cleanPhone,
-              'alamat_lengkap': cleanAlamat,
-              'latitude': latitude,
-              'longitude': longitude,
-            },
-          );
-        } catch (_) {}
-
-        return UserModel.fromDatabase(inserted);
-      } catch (e) {
-        if (e is PostgrestException) {
-          throw Exception('Gagal menyimpan pendaftaran: ${e.message}');
-        }
-        rethrow;
+      if (existingUser != null) {
+        throw Exception(
+          'Email sudah terdaftar. Silakan gunakan email lain atau masuk.',
+        );
       }
-    }
 
-    // Fallback simulasi
-    await Future.delayed(const Duration(milliseconds: 600));
-    return UserModel(
-      id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
-      name: cleanName,
-      email: cleanEmail,
-      phone: cleanPhone,
-      alamatLengkap: cleanAlamat,
-      latitude: latitude,
-      longitude: longitude,
-      token: 'jwt_token_${DateTime.now().millisecondsSinceEpoch}',
-      role: 'customer',
-    );
+      // 2. Hash kata sandi untuk keamanan penyimpanan di basis data
+      final hashedPassword = PasswordHasher.hash(password);
+
+      // 3. Simpan data ke tabel m_users di Supabase
+      final newUserData = <String, dynamic>{
+        UserTableColumns.namaLengkap: cleanName,
+        UserTableColumns.email: cleanEmail,
+        UserTableColumns.noHp: cleanPhone,
+        UserTableColumns.password: hashedPassword,
+        UserTableColumns.alamatLengkap: cleanAlamat,
+        UserTableColumns.latitude: latitude,
+        UserTableColumns.longitude: longitude,
+        UserTableColumns.emailVerified: false,
+        UserTableColumns.emailVerifiedAt: null,
+        if (idProvinsi != null && idProvinsi.trim().isNotEmpty)
+          UserTableColumns.idProvinsi: idProvinsi.trim(),
+        if (idKabkot != null && idKabkot.trim().isNotEmpty)
+          UserTableColumns.idKabkot: idKabkot.trim(),
+        if (idKecamatan != null && idKecamatan.trim().isNotEmpty)
+          UserTableColumns.idKecamatan: idKecamatan.trim(),
+        if (idKelurahan != null && idKelurahan.trim().isNotEmpty)
+          UserTableColumns.idKelurahan: idKelurahan.trim(),
+        UserTableColumns.createdAt: DateTime.now().toUtc().toIso8601String(),
+        UserTableColumns.updatedAt: DateTime.now().toUtc().toIso8601String(),
+      };
+
+      Map<String, dynamic> inserted = {};
+      bool insertSuccess = false;
+      int maxRetries = 3;
+
+      while (!insertSuccess && maxRetries > 0) {
+        maxRetries--;
+        try {
+          inserted = await _executeWithSessionRecovery(() async {
+            return await _client
+                .from(DatabaseConstants.tableUsers)
+                .insert(newUserData)
+                .select()
+                .single();
+          });
+          insertSuccess = true;
+        } catch (e) {
+          if (e is PostgrestException) {
+            final match = RegExp(r"Could not find the '([^']+)' column")
+                .firstMatch(e.message);
+            if (match != null) {
+              final missingCol = match.group(1);
+              if (missingCol != null && newUserData.containsKey(missingCol)) {
+                newUserData.remove(missingCol);
+                continue;
+              }
+            }
+
+            // Fallback toleransi jika kolom id_kelurahan pada schema database belum diubah menjadi varchar(13)
+            // atau terdapat kendala foreign key constraint fk_users_kelurahan
+            if (e.message.contains('fk_users_kelurahan') ||
+                e.message.contains('id_kelurahan') ||
+                (e.message.contains('value too long for type character varying') &&
+                    e.message.contains('12'))) {
+              if (newUserData.containsKey(UserTableColumns.idKelurahan)) {
+                newUserData.remove(UserTableColumns.idKelurahan);
+                continue;
+              }
+            }
+          }
+          rethrow;
+        }
+      }
+
+      // Daftarkan juga akun ke Supabase Auth agar email terdaftar untuk menerima email konfirmasi via Supabase
+      try {
+        await _client.auth.signUp(
+          email: cleanEmail,
+          password: password,
+          emailRedirectTo: 'io.supabase.satset://login-callback',
+          data: {
+            'nama_lengkap': cleanName,
+            'no_hp': cleanPhone,
+            'alamat_lengkap': cleanAlamat,
+            'latitude': latitude,
+            'longitude': longitude,
+          },
+        );
+      } catch (_) {}
+
+      return UserModel.fromDatabase(inserted);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal menyimpan pendaftaran: ${e.message}');
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -404,270 +437,237 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final passwordError = Validators.validatePassword(password);
     if (passwordError != null) throw Exception(passwordError);
 
-    if (_isSupabaseAvailable) {
+    _ensureSupabaseAvailable();
+    try {
+      // 1. Cek apakah email sudah terdaftar di tabel master pegawai / kurir m_employee
+      final existingEmployee = await _executeWithSessionRecovery(() async {
+        return await _client
+            .from(DatabaseConstants.tableEmployee)
+            .select(EmployeeTableColumns.id)
+            .eq(EmployeeTableColumns.email, cleanEmail)
+            .maybeSingle();
+      });
+
+      if (existingEmployee != null) {
+        throw Exception(
+          'Email kurir sudah terdaftar. Silakan masuk dengan akun Anda.',
+        );
+      }
+
+      // Cek juga di tabel m_users untuk memastikan email tidak bertabrakan
+      final existingUser = await _executeWithSessionRecovery(() async {
+        return await _client
+            .from(DatabaseConstants.tableUsers)
+            .select(UserTableColumns.id)
+            .eq(UserTableColumns.email, cleanEmail)
+            .maybeSingle();
+      });
+
+      if (existingUser != null) {
+        throw Exception(
+          'Email sudah terdaftar pada sistem SatSet sebagai pelanggan.',
+        );
+      }
+
+      // 2. Hash kata sandi untuk keamanan penyimpanan di basis data
+      final hashedPassword = PasswordHasher.hash(password);
+
+      // 3. Daftarkan juga akun ke Supabase Auth
+      String? authUserId;
       try {
-        // 1. Cek apakah email sudah terdaftar di tabel master pegawai / kurir m_employee
-        final existingEmployee = await _executeWithSessionRecovery(() async {
+        final authRes = await _client.auth.signUp(
+          email: cleanEmail,
+          password: password,
+          data: {
+            'nama_lengkap': cleanName,
+            'no_hp': cleanPhone,
+            'alamat_lengkap': cleanAlamat,
+            'role': 'courier',
+            'id_users_role': 2,
+          },
+        );
+        authUserId = authRes.user?.id;
+      } catch (_) {}
+
+      // 4. Buat kode kurir otomatis (employee_code) dengan format 001, 002, dst.
+      String nextEmployeeCode = '001';
+      int maxCodeNum = 0;
+      try {
+        final employees = await _executeWithSessionRecovery(() async {
           return await _client
               .from(DatabaseConstants.tableEmployee)
-              .select(EmployeeTableColumns.id)
-              .eq(EmployeeTableColumns.email, cleanEmail)
-              .maybeSingle();
+              .select('employee_code')
+              .order('id', ascending: false)
+              .limit(50);
         });
 
-        if (existingEmployee != null) {
-          throw Exception(
-            'Email kurir sudah terdaftar. Silakan masuk dengan akun Anda.',
-          );
+        if (employees.isNotEmpty) {
+          for (final emp in employees) {
+            final code = emp['employee_code']?.toString() ?? '';
+            final match = RegExp(r'\d+').firstMatch(code);
+            if (match != null) {
+              final parsed = int.tryParse(match.group(0)!);
+              if (parsed != null && parsed > maxCodeNum) {
+                maxCodeNum = parsed;
+              }
+            }
+          }
         }
 
-        // Cek juga di tabel m_users untuk memastikan email tidak bertabrakan
-        final existingUser = await _executeWithSessionRecovery(() async {
-          return await _client
-              .from(DatabaseConstants.tableUsers)
-              .select(UserTableColumns.id)
-              .eq(UserTableColumns.email, cleanEmail)
-              .maybeSingle();
-        });
-
-        if (existingUser != null) {
-          throw Exception(
-            'Email sudah terdaftar pada sistem SatSet sebagai pelanggan.',
-          );
+        if (maxCodeNum == 0) {
+          try {
+            final countRes = await _client
+                .from(DatabaseConstants.tableEmployee)
+                .count(CountOption.exact);
+            maxCodeNum = countRes;
+          } catch (_) {}
         }
 
-        // 2. Hash kata sandi untuk keamanan penyimpanan di basis data
-        final hashedPassword = PasswordHasher.hash(password);
+        nextEmployeeCode = (maxCodeNum + 1).toString().padLeft(3, '0');
+      } catch (_) {
+        nextEmployeeCode = '001';
+      }
 
-        // 3. Daftarkan juga akun ke Supabase Auth
-        String? authUserId;
-        try {
-          final authRes = await _client.auth.signUp(
-            email: cleanEmail,
-            password: password,
-            data: {
-              'nama_lengkap': cleanName,
-              'no_hp': cleanPhone,
-              'alamat_lengkap': cleanAlamat,
-              'role': 'courier',
-              'id_users_role': 2,
-            },
-          );
-          authUserId = authRes.user?.id;
-        } catch (_) {}
+      // 5. Simpan data kurir ke tabel m_employee di Supabase
+      // Menyertakan employee_code dengan format 001 dst untuk memenuhi not-null constraint
+      final newEmployeeData = <String, dynamic>{
+        'employee_code': nextEmployeeCode,
+        'email': cleanEmail,
+        'nama_lengkap': cleanName,
+        'no_hp': cleanPhone,
+        'password': hashedPassword,
+        'id_users_role': 2,
+        if (cleanAlamat != null && cleanAlamat.isNotEmpty)
+          'alamat_lengkap': cleanAlamat,
+        'user_id': ?authUserId,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
 
-        // 4. Buat kode kurir otomatis (employee_code) dengan format 001, 002, dst.
-        String nextEmployeeCode = '001';
-        int maxCodeNum = 0;
+      Map<String, dynamic> inserted = {};
+      bool insertSuccess = false;
+      int maxRetries = 6;
+      int currentCodeNum = int.tryParse(nextEmployeeCode) ?? 1;
+
+      while (!insertSuccess && maxRetries > 0) {
+        maxRetries--;
         try {
-          final employees = await _executeWithSessionRecovery(() async {
+          inserted = await _executeWithSessionRecovery(() async {
             return await _client
                 .from(DatabaseConstants.tableEmployee)
-                .select('employee_code')
-                .order('id', ascending: false)
-                .limit(50);
+                .insert(newEmployeeData)
+                .select()
+                .single();
           });
-
-          if (employees != null && employees is List && employees.isNotEmpty) {
-            for (final emp in employees) {
-              final code = emp['employee_code']?.toString() ?? '';
-              final match = RegExp(r'\d+').firstMatch(code);
-              if (match != null) {
-                final parsed = int.tryParse(match.group(0)!);
-                if (parsed != null && parsed > maxCodeNum) {
-                  maxCodeNum = parsed;
-                }
-              }
+          insertSuccess = true;
+        } catch (e) {
+          if (e is PostgrestException) {
+            // Jika terjadi konflik duplikasi kode kurir, naikkan angka berikutnya (002, 003, dst)
+            if (e.message.toLowerCase().contains('unique') ||
+                e.message.toLowerCase().contains('duplicate') ||
+                e.code == '23505') {
+              currentCodeNum++;
+              newEmployeeData['employee_code'] = currentCodeNum
+                  .toString()
+                  .padLeft(3, '0');
+              continue;
             }
-          }
 
-          if (maxCodeNum == 0) {
-            try {
-              final countRes = await _client
-                  .from(DatabaseConstants.tableEmployee)
-                  .count(CountOption.exact);
-              maxCodeNum = countRes;
-            } catch (_) {}
-          }
-
-          nextEmployeeCode = (maxCodeNum + 1).toString().padLeft(3, '0');
-        } catch (_) {
-          nextEmployeeCode = '001';
-        }
-
-        // 5. Simpan data kurir ke tabel m_employee di Supabase
-        // Menyertakan employee_code dengan format 001 dst untuk memenuhi not-null constraint
-        final newEmployeeData = <String, dynamic>{
-          'employee_code': nextEmployeeCode,
-          'email': cleanEmail,
-          'nama_lengkap': cleanName,
-          'no_hp': cleanPhone,
-          'password': hashedPassword,
-          'id_users_role': 2,
-          if (cleanAlamat != null && cleanAlamat.isNotEmpty)
-            'alamat_lengkap': cleanAlamat,
-          if (authUserId != null) 'user_id': authUserId,
-          'created_at': DateTime.now().toUtc().toIso8601String(),
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        };
-
-        Map<String, dynamic> inserted = {};
-        bool insertSuccess = false;
-        int maxRetries = 6;
-        int currentCodeNum = int.tryParse(nextEmployeeCode) ?? 1;
-
-        while (!insertSuccess && maxRetries > 0) {
-          maxRetries--;
-          try {
-            inserted = await _executeWithSessionRecovery(() async {
-              return await _client
-                  .from(DatabaseConstants.tableEmployee)
-                  .insert(newEmployeeData)
-                  .select()
-                  .single();
-            });
-            insertSuccess = true;
-          } catch (e) {
-            if (e is PostgrestException) {
-              // Jika terjadi konflik duplikasi kode kurir, naikkan angka berikutnya (002, 003, dst)
-              if (e.message.toLowerCase().contains('unique') ||
-                  e.message.toLowerCase().contains('duplicate') ||
-                  e.code == '23505') {
-                currentCodeNum++;
-                newEmployeeData['employee_code'] =
-                    currentCodeNum.toString().padLeft(3, '0');
+            final match = RegExp(r"Could not find the '([^']+)' column")
+                .firstMatch(e.message);
+            if (match != null) {
+              final missingCol = match.group(1);
+              if (missingCol != null &&
+                  newEmployeeData.containsKey(missingCol)) {
+                newEmployeeData.remove(missingCol);
                 continue;
               }
-
-              final match = RegExp(r"Could not find the '([^']+)' column")
-                  .firstMatch(e.message);
-              if (match != null) {
-                final missingCol = match.group(1);
-                if (missingCol != null &&
-                    newEmployeeData.containsKey(missingCol)) {
-                  newEmployeeData.remove(missingCol);
-                  continue;
-                }
-              }
             }
-            rethrow;
           }
+          rethrow;
         }
-
-        // Pastikan atribut id_users_role = 2 dan role = courier terpasang
-        inserted['email'] ??= cleanEmail;
-        inserted['nama_lengkap'] ??= cleanName;
-        inserted['no_hp'] ??= cleanPhone;
-        inserted['id_users_role'] = 2;
-        inserted['role'] = 'courier';
-
-        return UserModel.fromDatabase(inserted);
-      } catch (e) {
-        if (e is PostgrestException) {
-          throw Exception('Gagal menyimpan pendaftaran kurir: ${e.message}');
-        }
-        rethrow;
       }
-    }
 
-    // Fallback simulasi jika Supabase tidak tersedia (lingkungan testing)
-    await Future.delayed(const Duration(milliseconds: 600));
-    return UserModel(
-      id: 'emp_${DateTime.now().millisecondsSinceEpoch}',
-      name: cleanName,
-      email: cleanEmail,
-      phone: cleanPhone,
-      alamatLengkap: cleanAlamat,
-      latitude: latitude,
-      longitude: longitude,
-      token: 'jwt_courier_${DateTime.now().millisecondsSinceEpoch}',
-      role: 'courier',
-      idUsersRole: 2,
-    );
+      // Pastikan atribut id_users_role = 2 dan role = courier terpasang
+      inserted['email'] ??= cleanEmail;
+      inserted['nama_lengkap'] ??= cleanName;
+      inserted['no_hp'] ??= cleanPhone;
+      inserted['id_users_role'] = 2;
+      inserted['role'] = 'courier';
+
+      return UserModel.fromDatabase(inserted);
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal menyimpan pendaftaran kurir: ${e.message}');
+      }
+      rethrow;
+    }
   }
 
   @override
   Future<UserModel> loginWithGoogle() async {
-    if (_isSupabaseAvailable) {
+    _ensureSupabaseAvailable();
+
+    try {
+      // 1. Selalu bersihkan sesi aktif sebelumnya agar tidak langsung otomatis masuk
       try {
-        // Jika sudah ada sesi aktif dari provider Google di Supabase Auth, langsung sinkronkan
-        final currentUser = _client.auth.currentUser;
-        if (currentUser != null &&
-            currentUser.appMetadata['provider'] == 'google') {
-          return await _syncGoogleUserToDatabase(currentUser);
-        }
+        await _client.auth.signOut();
+      } catch (_) {}
 
-        // Siapkan listener respons autentikasi OAuth callback
-        final completer = Completer<UserModel>();
-        StreamSubscription<AuthState>? authSubscription;
+      // Web Client ID resmi Google Cloud Console
+      const webClientId =
+          '26653678785-i2mp4755sb45hg4eiqnac6h4bb3q98hs.apps.googleusercontent.com';
 
-        authSubscription = _client.auth.onAuthStateChange.listen((data) async {
-          final event = data.event;
-          final session = data.session;
-          if ((event == AuthChangeEvent.signedIn ||
-                  event == AuthChangeEvent.tokenRefreshed ||
-                  event == AuthChangeEvent.userUpdated) &&
-              session != null) {
-            try {
-              final userModel = await _syncGoogleUserToDatabase(session.user);
-              if (!completer.isCompleted) {
-                completer.complete(userModel);
-              }
-            } catch (e) {
-              if (!completer.isCompleted) {
-                completer.completeError(e);
-              }
+      // 2. Coba autentikasi Native Google Sign-In (modal Android Play Services tanpa browser Chrome)
+      try {
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          serverClientId: webClientId,
+        );
+        try {
+          await googleSignIn.signOut();
+        } catch (_) {}
+
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser != null) {
+          final GoogleSignInAuthentication googleAuth =
+              await googleUser.authentication;
+          final idToken = googleAuth.idToken;
+          final accessToken = googleAuth.accessToken;
+
+          if (idToken != null) {
+            final authResponse = await _client.auth.signInWithIdToken(
+              provider: OAuthProvider.google,
+              idToken: idToken,
+              accessToken: accessToken,
+            );
+            final user = authResponse.user;
+            if (user != null) {
+              return await _syncGoogleUserToDatabase(user);
             }
           }
-        });
-
-        // Buka halaman autentikasi Google OAuth Supabase
-        final launched = await _client.auth.signInWithOAuth(
-          OAuthProvider.google,
-          redirectTo: 'io.supabase.satset://login-callback',
-          authScreenLaunchMode: LaunchMode.externalApplication,
-        );
-
-        if (!launched) {
-          await authSubscription.cancel();
-          throw Exception('Gagal membuka halaman autentikasi Google.');
+        } else {
+          throw Exception('Masuk dengan Google dibatalkan.');
         }
-
-        // Tunggu penyelesaian login dari browser dengan batas waktu 3 menit
-        final userModel = await completer.future.timeout(
-          const Duration(minutes: 3),
-          onTimeout: () {
-            throw Exception(
-              'Waktu masuk dengan Google telah habis. Silakan coba lagi.',
-            );
-          },
-        );
-
-        await authSubscription.cancel();
-        return userModel;
-      } catch (e) {
-        if (e is PostgrestException) {
-          throw Exception('Kesalahan basis data Supabase: ${e.message}');
-        } else if (e is AuthException) {
-          throw Exception('Autentikasi Google gagal: ${e.message}');
+      } catch (nativeError) {
+        final errStr = nativeError.toString();
+        if (errStr.toLowerCase().contains('dibatalkan') ||
+            errStr.toLowerCase().contains('canceled')) {
+          throw Exception('Masuk dengan Google dibatalkan.');
         }
-        rethrow;
+        throw Exception(
+          'Gagal masuk dengan Google: $nativeError. '
+          'Jika baru menambahkan plugin Google Sign-In, hentikan terminal lalu jalankan ulang "flutter run".',
+        );
       }
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Kesalahan basis data Supabase: ${e.message}');
+      } else if (e is AuthException) {
+        throw Exception('Autentikasi Google gagal: ${e.message}');
+      }
+      rethrow;
     }
-
-    // Fallback simulasi jika di lingkungan testing / tanpa koneksi Supabase
-    await Future.delayed(const Duration(milliseconds: 600));
-    final testGid = 'gid_google_${DateTime.now().millisecondsSinceEpoch}';
-    return UserModel(
-      id: 'usr_google_${DateTime.now().millisecondsSinceEpoch}',
-      name: 'Google User',
-      email: 'user.satset@gmail.com',
-      phone: '+6289876543210',
-      googleId: testGid,
-      photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde',
-      token: 'jwt_google_token_${DateTime.now().millisecondsSinceEpoch}',
-      role: 'customer',
-    );
+    throw Exception('Gagal menyelesaikan proses autentikasi Google.');
   }
 
   /// Sinkronisasi profil pengguna Google ke tabel public.m_users berdasarkan google_id atau email
@@ -689,20 +689,23 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
     }
     if (googleId.isEmpty) {
-      googleId = supabaseUser.userMetadata?['sub']?.toString() ??
+      googleId =
+          supabaseUser.userMetadata?['sub']?.toString() ??
           supabaseUser.userMetadata?['provider_id']?.toString() ??
           supabaseUser.id;
     }
 
     // 2. Ekstrak data profil (nama lengkap dan foto profil)
-    final rawName = supabaseUser.userMetadata?['full_name'] as String? ??
+    final rawName =
+        supabaseUser.userMetadata?['full_name'] as String? ??
         supabaseUser.userMetadata?['name'] as String? ??
         supabaseUser.userMetadata?['user_name'] as String?;
     final cleanName = (rawName != null && rawName.trim().isNotEmpty)
         ? rawName.trim()
         : cleanEmail.split('@').first;
 
-    final photoUrl = supabaseUser.userMetadata?['avatar_url'] as String? ??
+    final photoUrl =
+        supabaseUser.userMetadata?['avatar_url'] as String? ??
         supabaseUser.userMetadata?['picture'] as String?;
 
     // 3. Cari di tabel public.m_users berdasarkan google_id
@@ -714,9 +717,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
     if (userByGoogleId != null) {
       // Pengguna sudah terdaftar & terhubung via google_id
-      return UserModel.fromDatabase(userByGoogleId).copyWith(
-        photoUrl: photoUrl ?? userByGoogleId['photo_url'] as String?,
-      );
+      return UserModel.fromDatabase(
+        userByGoogleId,
+      ).copyWith(photoUrl: photoUrl ?? userByGoogleId['photo_url'] as String?);
     }
 
     // 4. Jika belum ada google_id, cari berdasarkan email
@@ -732,15 +735,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           .from(DatabaseConstants.tableUsers)
           .update({
             UserTableColumns.googleId: googleId,
-            UserTableColumns.updatedAt: DateTime.now().toUtc().toIso8601String(),
+            UserTableColumns.updatedAt: DateTime.now()
+                .toUtc()
+                .toIso8601String(),
           })
           .eq(UserTableColumns.email, cleanEmail)
           .select()
           .single();
 
-      return UserModel.fromDatabase(updated).copyWith(
-        photoUrl: photoUrl ?? updated['photo_url'] as String?,
-      );
+      return UserModel.fromDatabase(updated)
+          .copyWith(photoUrl: photoUrl ?? updated['photo_url'] as String?);
     }
 
     // 5. Pengguna baru: Simpan baris data baru ke tabel public.m_users
@@ -750,6 +754,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       UserTableColumns.noHp: '',
       UserTableColumns.password: PasswordHasher.hash('GOOGLE_AUTH_$googleId'),
       UserTableColumns.googleId: googleId,
+      UserTableColumns.idUsersRole: 3,
+      UserTableColumns.role: 'customer',
       UserTableColumns.createdAt: DateTime.now().toUtc().toIso8601String(),
       UserTableColumns.updatedAt: DateTime.now().toUtc().toIso8601String(),
     };
@@ -760,9 +766,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         .select()
         .single();
 
-    return UserModel.fromDatabase(inserted).copyWith(
-      photoUrl: photoUrl,
-    );
+    return UserModel.fromDatabase(inserted).copyWith(photoUrl: photoUrl);
   }
 
   @override
@@ -773,61 +777,58 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final emailError = Validators.validateEmail(cleanEmail);
     if (emailError != null) throw Exception(emailError);
 
-    if (_isSupabaseAvailable) {
-      try {
-        // 1. Cek apakah email terdaftar di tabel m_users
-        final user = await _executeWithSessionRecovery(() async {
-          return await _client
-              .from(DatabaseConstants.tableUsers)
-              .select(UserTableColumns.id)
-              .eq(UserTableColumns.email, cleanEmail)
-              .maybeSingle();
-        });
+    _ensureSupabaseAvailable();
+    try {
+      // 1. Cek apakah email terdaftar di tabel m_users
+      final user = await _executeWithSessionRecovery(() async {
+        return await _client
+            .from(DatabaseConstants.tableUsers)
+            .select(UserTableColumns.id)
+            .eq(UserTableColumns.email, cleanEmail)
+            .maybeSingle();
+      });
 
-        if (user == null) {
-          throw Exception('Email tidak terdaftar pada akun SatSet.');
-        }
-
-        // 2. Hasilkan kode OTP 6 digit acak & waktu kedaluwarsa 3 menit
-        final otpCode = OtpGenerator.generate6DigitCode();
-        final expiration = OtpGenerator.getExpirationTime(minutes: 3);
-
-        // 3. Simpan reset_token & token_expired_at ke tabel m_users
-        await _executeWithSessionRecovery(() async {
-          return await _client
-              .from(DatabaseConstants.tableUsers)
-              .update({
-                UserTableColumns.resetToken: otpCode,
-                UserTableColumns.tokenExpiredAt: expiration.toIso8601String(),
-                UserTableColumns.updatedAt: DateTime.now()
-                    .toUtc()
-                    .toIso8601String(),
-              })
-              .eq(UserTableColumns.email, cleanEmail);
-        });
-
-        // 4. Kirim email pemulihan via Supabase Auth
-        try {
-          await _client.auth.resetPasswordForEmail(cleanEmail);
-        } catch (_) {
-          try {
-            await _client.auth.signInWithOtp(
-              email: cleanEmail,
-              shouldCreateUser: true,
-            );
-          } catch (_) {}
-        }
-
-        return;
-      } catch (e) {
-        if (e is PostgrestException) {
-          throw Exception('Gagal mengirim permintaan reset: ${e.message}');
-        }
-        rethrow;
+      if (user == null) {
+        throw Exception('Email tidak terdaftar pada akun SatSet.');
       }
-    }
 
-    await Future.delayed(const Duration(milliseconds: 600));
+      // 2. Hasilkan kode OTP 6 digit acak & waktu kedaluwarsa 3 menit
+      final otpCode = OtpGenerator.generate6DigitCode();
+      final expiration = OtpGenerator.getExpirationTime(minutes: 3);
+
+      // 3. Simpan reset_token & token_expired_at ke tabel m_users
+      await _executeWithSessionRecovery(() async {
+        return await _client
+            .from(DatabaseConstants.tableUsers)
+            .update({
+              UserTableColumns.resetToken: otpCode,
+              UserTableColumns.tokenExpiredAt: expiration.toIso8601String(),
+              UserTableColumns.updatedAt: DateTime.now()
+                  .toUtc()
+                  .toIso8601String(),
+            })
+            .eq(UserTableColumns.email, cleanEmail);
+      });
+
+      // 4. Kirim email pemulihan via Supabase Auth
+      try {
+        await _client.auth.resetPasswordForEmail(cleanEmail);
+      } catch (_) {
+        try {
+          await _client.auth.signInWithOtp(
+            email: cleanEmail,
+            shouldCreateUser: true,
+          );
+        } catch (_) {}
+      }
+
+      return;
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal mengirim permintaan reset: ${e.message}');
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -845,83 +846,77 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final codeError = Validators.validateOtpCode(cleanCode);
     if (codeError != null) throw Exception(codeError);
 
-    if (_isSupabaseAvailable) {
-      try {
-        bool isVerified = false;
+    _ensureSupabaseAvailable();
+    try {
+      bool isVerified = false;
 
-        // 1. Coba verifikasi kode unik via Supabase Auth (Recovery OTP - dari resetPasswordForEmail)
+      // 1. Coba verifikasi kode unik via Supabase Auth (Recovery OTP - dari resetPasswordForEmail)
+      try {
+        final res = await _client.auth.verifyOTP(
+          email: cleanEmail,
+          token: cleanCode,
+          type: OtpType.recovery,
+        );
+        if (res.session != null || res.user != null) {
+          isVerified = true;
+        }
+      } catch (_) {}
+
+      // 2. Coba verifikasi kode via Supabase Auth (Email OTP - dari signInWithOtp)
+      if (!isVerified) {
         try {
           final res = await _client.auth.verifyOTP(
             email: cleanEmail,
             token: cleanCode,
-            type: OtpType.recovery,
+            type: OtpType.email,
           );
           if (res.session != null || res.user != null) {
             isVerified = true;
           }
         } catch (_) {}
-
-        // 2. Coba verifikasi kode via Supabase Auth (Email OTP - dari signInWithOtp)
-        if (!isVerified) {
-          try {
-            final res = await _client.auth.verifyOTP(
-              email: cleanEmail,
-              token: cleanCode,
-              type: OtpType.email,
-            );
-            if (res.session != null || res.user != null) {
-              isVerified = true;
-            }
-          } catch (_) {}
-        }
-
-        // 3. Verifikasi dengan kode reset_token yang tersimpan di tabel m_users
-        if (!isVerified) {
-          final user = await _executeWithSessionRecovery(() async {
-            return await _client
-                .from(DatabaseConstants.tableUsers)
-                .select()
-                .eq(UserTableColumns.email, cleanEmail)
-                .maybeSingle();
-          });
-
-          if (user == null) {
-            throw Exception('Akun dengan email ini tidak ditemukan.');
-          }
-
-          final storedToken = user[UserTableColumns.resetToken]?.toString();
-          if (storedToken == cleanCode) {
-            final expiredAtRaw = user[UserTableColumns.tokenExpiredAt];
-            if (expiredAtRaw != null) {
-              final expiredAt = DateTime.tryParse(expiredAtRaw.toString());
-              if (OtpGenerator.isExpired(expiredAt)) {
-                throw Exception(
-                  'Kode verifikasi telah kedaluwarsa. Silakan minta kode baru.',
-                );
-              }
-            }
-            isVerified = true;
-          }
-        }
-
-        if (!isVerified) {
-          throw Exception(
-            'Kode verifikasi yang Anda masukkan salah atau telah kedaluwarsa.',
-          );
-        }
-
-        return;
-      } catch (e) {
-        if (e is PostgrestException) {
-          throw Exception('Gagal memverifikasi kode: ${e.message}');
-        }
-        rethrow;
       }
-    }
 
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (cleanCode == '000000') {
-      throw Exception('Kode verifikasi salah atau telah kedaluwarsa.');
+      // 3. Verifikasi dengan kode reset_token yang tersimpan di tabel m_users
+      if (!isVerified) {
+        final user = await _executeWithSessionRecovery(() async {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select()
+              .eq(UserTableColumns.email, cleanEmail)
+              .maybeSingle();
+        });
+
+        if (user == null) {
+          throw Exception('Akun dengan email ini tidak ditemukan.');
+        }
+
+        final storedToken = user[UserTableColumns.resetToken]?.toString();
+        if (storedToken == cleanCode) {
+          final expiredAtRaw = user[UserTableColumns.tokenExpiredAt];
+          if (expiredAtRaw != null) {
+            final expiredAt = DateTime.tryParse(expiredAtRaw.toString());
+            if (OtpGenerator.isExpired(expiredAt)) {
+              throw Exception(
+                'Kode verifikasi telah kedaluwarsa. Silakan minta kode baru.',
+              );
+            }
+          }
+          isVerified = true;
+        }
+      }
+
+      if (!isVerified) {
+        throw Exception(
+          'Kode verifikasi yang Anda masukkan salah atau telah kedaluwarsa.',
+        );
+      }
+
+      return;
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal memverifikasi kode: ${e.message}');
+      }
+      rethrow;
     }
   }
 
@@ -944,41 +939,38 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final passwordError = Validators.validatePassword(newPassword);
     if (passwordError != null) throw Exception(passwordError);
 
-    if (_isSupabaseAvailable) {
+    _ensureSupabaseAvailable();
+    try {
+      // 1. Update kata sandi pengguna di Supabase Auth (jika ada sesi aktif)
       try {
-        // 1. Update kata sandi pengguna di Supabase Auth (jika ada sesi aktif)
-        try {
-          await _client.auth.updateUser(UserAttributes(password: newPassword));
-        } catch (_) {}
+        await _client.auth.updateUser(UserAttributes(password: newPassword));
+      } catch (_) {}
 
-        // 2. Hash kata sandi baru untuk disimpan di basis data m_users
-        final hashedPassword = PasswordHasher.hash(newPassword);
+      // 2. Hash kata sandi baru untuk disimpan di basis data m_users
+      final hashedPassword = PasswordHasher.hash(newPassword);
 
-        // 3. Update kata sandi baru dan bersihkan reset_token di tabel m_users
-        await _executeWithSessionRecovery(() async {
-          return await _client
-              .from(DatabaseConstants.tableUsers)
-              .update({
-                UserTableColumns.password: hashedPassword,
-                UserTableColumns.resetToken: null,
-                UserTableColumns.tokenExpiredAt: null,
-                UserTableColumns.updatedAt: DateTime.now()
-                    .toUtc()
-                    .toIso8601String(),
-              })
-              .eq(UserTableColumns.email, cleanEmail);
-        });
+      // 3. Update kata sandi baru dan bersihkan reset_token di tabel m_users
+      await _executeWithSessionRecovery(() async {
+        return await _client
+            .from(DatabaseConstants.tableUsers)
+            .update({
+              UserTableColumns.password: hashedPassword,
+              UserTableColumns.resetToken: null,
+              UserTableColumns.tokenExpiredAt: null,
+              UserTableColumns.updatedAt: DateTime.now()
+                  .toUtc()
+                  .toIso8601String(),
+            })
+            .eq(UserTableColumns.email, cleanEmail);
+      });
 
-        return;
-      } catch (e) {
-        if (e is PostgrestException) {
-          throw Exception('Gagal memperbarui kata sandi: ${e.message}');
-        }
-        rethrow;
+      return;
+    } catch (e) {
+      if (e is PostgrestException) {
+        throw Exception('Gagal memperbarui kata sandi: ${e.message}');
       }
+      rethrow;
     }
-
-    await Future.delayed(const Duration(milliseconds: 600));
   }
 
   @override
@@ -992,11 +984,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> logout() async {
-    if (_isSupabaseAvailable) {
-      try {
-        await _client.auth.signOut();
-      } catch (_) {}
-    }
-    await Future.delayed(const Duration(milliseconds: 300));
+    _ensureSupabaseAvailable();
+    try {
+      await _client.auth.signOut();
+    } catch (_) {}
   }
 }
