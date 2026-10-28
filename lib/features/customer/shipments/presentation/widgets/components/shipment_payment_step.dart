@@ -82,7 +82,8 @@ class ShipmentPaymentStep extends StatelessWidget {
   }
 
   Widget _buildBankCard(BankAccount bank) {
-    final isSelected = selectedBank?.id == bank.id ||
+    final isSelected =
+        selectedBank?.id == bank.id ||
         (selectedBank == null && paymentChannel == bank.bankName);
     return InkWell(
       onTap: () {
@@ -141,7 +142,9 @@ class ShipmentPaymentStep extends StatelessWidget {
                       const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
@@ -264,11 +267,18 @@ class ShipmentPaymentStep extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Row(
                   children: [
-                    Icon(Icons.account_balance_rounded, size: 16, color: AppColors.primary),
+                    Icon(
+                      Icons.account_balance_rounded,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Pilih Rekening Bank Transfer:',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -317,10 +327,7 @@ class ShipmentPaymentStep extends StatelessWidget {
             children: [
               _buildSummaryLine('Asal', senderLocation),
               _buildSummaryLine('Tujuan', receiverLocation),
-              _buildSummaryLine(
-                'Layanan',
-                selectedService?.name ?? 'Reguler',
-              ),
+              _buildSummaryLine('Layanan', selectedService?.name ?? 'Reguler'),
               _buildSummaryLine(
                 'Nilai / Harga Asli Barang',
                 formatRupiah(goodsVal),
@@ -330,10 +337,7 @@ class ShipmentPaymentStep extends StatelessWidget {
                 '$billedKg kg ($weightGramText gr)',
               ),
               const Divider(height: 20),
-              _buildSummaryLine(
-                'Biaya Pengiriman',
-                formatRupiah(shippingFee),
-              ),
+              _buildSummaryLine('Biaya Pengiriman', formatRupiah(shippingFee)),
               if (useInsurance && insuranceFee > 0)
                 _buildSummaryLine(
                   'Asuransi Barang (${selectedService?.insuranceRatePercentLabel ?? '0.2%'})',

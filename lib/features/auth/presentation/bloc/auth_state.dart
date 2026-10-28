@@ -38,6 +38,20 @@ class AuthSuccess extends AuthState {
   List<Object?> get props => [user, message];
 }
 
+/// State ketika pendaftaran akun baru berhasil (menunggu verifikasi email)
+class AuthRegisterSuccess extends AuthState {
+  final User user;
+  final String message;
+
+  const AuthRegisterSuccess({
+    required this.user,
+    this.message = 'Pendaftaran akun SatSet berhasil! Silakan verifikasi email Anda.',
+  });
+
+  @override
+  List<Object?> get props => [user, message];
+}
+
 /// State ketika autentikasi gagal
 class AuthFailure extends AuthState {
   final String errorMessage;

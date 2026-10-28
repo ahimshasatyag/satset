@@ -100,9 +100,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           idKelurahan: event.idKelurahan,
         ),
       );
-      emit(AuthSuccess(
+      emit(AuthRegisterSuccess(
         user: user,
-        message: 'Pendaftaran akun SatSet berhasil!',
+        message: 'Pendaftaran akun SatSet berhasil! Silakan verifikasi email Anda.',
       ));
     } catch (e) {
       final cleanMessage = e.toString().replaceAll('Exception: ', '');

@@ -123,11 +123,10 @@ class _RegisterPageState extends State<RegisterPage> {
   void _validatePasswordRules() {
     final password = _passwordController.text;
     setState(() {
-      _hasMinLength = password.length >= 8;
-      _hasMixedCase =
-          password.contains(RegExp(r'[a-z]')) && password.contains(RegExp(r'[A-Z]'));
-      _hasDigits = password.contains(RegExp(r'[0-9]'));
-      _hasSpecialChars = password.contains(RegExp(r'[!@#\$&*~_.,\-]'));
+      _hasMinLength = Validators.hasMinLength(password);
+      _hasMixedCase = Validators.hasMixedCase(password);
+      _hasDigits = Validators.hasDigit(password);
+      _hasSpecialChars = Validators.hasSpecialChar(password);
     });
   }
 
@@ -426,7 +425,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _handleSubmit() {
     if (_formKey.currentState?.validate() ?? false) {
-      if (_passwordController.text != _confirmPasswordController.text) {
+      if (Validators.validateConfirmPassword(
+            _confirmPasswordController.text,
+            _passwordController.text,
+          ) !=
+          null) {
         CustomDialog.showWarning(
           context: context,
           title: 'Kata Sandi Tidak Cocok',
@@ -657,11 +660,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                     _buildRegionDropdown<Regency>(
                                       label: 'Kabupaten / Kota',
                                       hintText: 'Pilih Kabupaten/Kota',
-                                      disabledHint: 'Pilih provinsi terlebih dahulu',
+                                      disabledHint:
+                                          'Pilih provinsi terlebih dahulu',
                                       value: _selectedRegency,
                                       items: _regencies,
                                       itemLabel: (r) => r.name,
-                                      enabled: !isLoading && _selectedProvince != null,
+                                      enabled:
+                                          !isLoading &&
+                                          _selectedProvince != null,
                                       isLoading: _isLoadingRegencies,
                                       isDark: isDark,
                                       onChanged: (r) {
@@ -691,7 +697,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                       value: _selectedDistrict,
                                       items: _districts,
                                       itemLabel: (d) => d.name,
-                                      enabled: !isLoading && _selectedRegency != null,
+                                      enabled:
+                                          !isLoading &&
+                                          _selectedRegency != null,
                                       isLoading: _isLoadingDistricts,
                                       isDark: isDark,
                                       onChanged: (d) {
@@ -715,11 +723,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                     _buildRegionDropdown<Village>(
                                       label: 'Kelurahan',
                                       hintText: 'Pilih Kelurahan',
-                                      disabledHint: 'Pilih kecamatan terlebih dahulu',
+                                      disabledHint:
+                                          'Pilih kecamatan terlebih dahulu',
                                       value: _selectedVillage,
                                       items: _villages,
                                       itemLabel: (v) => v.name,
-                                      enabled: !isLoading && _selectedDistrict != null,
+                                      enabled:
+                                          !isLoading &&
+                                          _selectedDistrict != null,
                                       isLoading: _isLoadingVillages,
                                       isDark: isDark,
                                       onChanged: (v) {
@@ -743,15 +754,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                       prefixIcon: const Icon(
                                         Icons.home_outlined,
                                       ),
-                                      validator: (val) {
-                                        if (val == null || val.trim().isEmpty) {
-                                          return 'Alamat lengkap wajib diisi';
-                                        }
-                                        if (val.trim().length < 5) {
-                                          return 'Alamat minimal 5 karakter';
-                                        }
-                                        return null;
-                                      },
+                                      validator: Validators.validateAddress,
                                     ),
                                     const SizedBox(height: 16),
 
@@ -1344,20 +1347,24 @@ class _RegisterPageState extends State<RegisterPage> {
                                     const SizedBox(height: 12),
 
                                     // Indikator Meter Kekuatan Kata Sandi
-                                    if (_passwordController.text.isNotEmpty) ...[
+                                    if (_passwordController
+                                        .text
+                                        .isNotEmpty) ...[
                                       Row(
                                         children: [
                                           Expanded(
                                             child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                               child: LinearProgressIndicator(
                                                 value: _strengthScore / 4,
                                                 backgroundColor: isDark
                                                     ? AppColors.borderDark
                                                     : AppColors.borderLight,
-                                                valueColor: AlwaysStoppedAnimation<Color>(
-                                                  _getStrengthColor(),
-                                                ),
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                      Color
+                                                    >(_getStrengthColor()),
                                                 minHeight: 6,
                                               ),
                                             ),
@@ -1365,10 +1372,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                           const SizedBox(width: 12),
                                           Text(
                                             _getStrengthLabel(),
-                                            style: AppTextStyles.labelSmall.copyWith(
-                                              color: _getStrengthColor(),
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                                            style: AppTextStyles.labelSmall
+                                                .copyWith(
+                                                  color: _getStrengthColor(),
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -1384,27 +1392,51 @@ class _RegisterPageState extends State<RegisterPage> {
                                             : AppColors.backgroundLight,
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                          color: isDark
+                                              ? AppColors.borderDark
+                                              : AppColors.borderLight,
                                         ),
                                       ),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Kriteria Keamanan Sandi:',
-                                            style: AppTextStyles.labelSmall.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                            ),
+                                            style: AppTextStyles.labelSmall
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isDark
+                                                      ? AppColors
+                                                            .textPrimaryDark
+                                                      : AppColors
+                                                            .textPrimaryLight,
+                                                ),
                                           ),
                                           const SizedBox(height: 8),
-                                          _buildRuleItem('Minimal 8 karakter', _hasMinLength, isDark),
+                                          _buildRuleItem(
+                                            'Minimal 8 karakter',
+                                            _hasMinLength,
+                                            isDark,
+                                          ),
                                           const SizedBox(height: 4),
-                                          _buildRuleItem('Kombinasi huruf besar & kecil (A-z)', _hasMixedCase, isDark),
+                                          _buildRuleItem(
+                                            'Kombinasi huruf besar & kecil (A-z)',
+                                            _hasMixedCase,
+                                            isDark,
+                                          ),
                                           const SizedBox(height: 4),
-                                          _buildRuleItem('Mengandung angka (0-9)', _hasDigits, isDark),
+                                          _buildRuleItem(
+                                            'Mengandung angka (0-9)',
+                                            _hasDigits,
+                                            isDark,
+                                          ),
                                           const SizedBox(height: 4),
-                                          _buildRuleItem('Mengandung simbol/karakter khusus (!@#\$)', _hasSpecialChars, isDark),
+                                          _buildRuleItem(
+                                            'Mengandung simbol/karakter khusus (!@#\$)',
+                                            _hasSpecialChars,
+                                            isDark,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -1423,15 +1455,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                         Icons.lock_reset_rounded,
                                       ),
                                       onSubmitted: (_) => _handleSubmit(),
-                                      validator: (val) {
-                                        if (val == null || val.isEmpty) {
-                                          return 'Konfirmasi kata sandi wajib diisi';
-                                        }
-                                        if (val != _passwordController.text) {
-                                          return 'Konfirmasi kata sandi tidak cocok';
-                                        }
-                                        return null;
-                                      },
+                                      validator: (val) =>
+                                          Validators.validateConfirmPassword(
+                                            val,
+                                            _passwordController.text,
+                                          ),
                                     ),
                                     const SizedBox(height: 24),
 
@@ -1516,7 +1544,9 @@ class _RegisterPageState extends State<RegisterPage> {
             size: isSatisfied ? 12 : 6,
             color: isSatisfied
                 ? AppColors.white
-                : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                : (isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight),
           ),
         ),
         const SizedBox(width: 8),
@@ -1525,8 +1555,12 @@ class _RegisterPageState extends State<RegisterPage> {
             text,
             style: AppTextStyles.bodySmall.copyWith(
               color: isSatisfied
-                  ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                  ? (isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight)
+                  : (isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight),
               fontWeight: isSatisfied ? FontWeight.w600 : FontWeight.normal,
             ),
           ),

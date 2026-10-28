@@ -13,23 +13,28 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "openEmailApp") {
                 try {
-                    val intent = Intent(Intent.ACTION_MAIN).apply {
+                    // 1. Coba buka aplikasi Gmail
+                    val gmailIntent = packageManager.getLaunchIntentForPackage("com.google.android.gm")
+                    if (gmailIntent != null) {
+                        gmailIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(gmailIntent)
+                        result.success(true)
+                        return@setMethodCallHandler
+                    }
+
+                    // 2. Coba aplikasi email bawaan sistem (tanpa membuka web browser)
+                    val emailIntent = Intent(Intent.ACTION_MAIN).apply {
                         addCategory(Intent.CATEGORY_APP_EMAIL)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    startActivity(intent)
-                    result.success(true)
-                } catch (e: Exception) {
-                    try {
-                        val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
-                            data = android.net.Uri.parse("mailto:")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        startActivity(fallbackIntent)
+                    if (emailIntent.resolveActivity(packageManager) != null) {
+                        startActivity(emailIntent)
                         result.success(true)
-                    } catch (e2: Exception) {
+                    } else {
                         result.success(false)
                     }
+                } catch (e: Exception) {
+                    result.success(false)
                 }
             } else {
                 result.notImplemented()

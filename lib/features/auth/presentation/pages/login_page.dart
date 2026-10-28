@@ -132,7 +132,7 @@ class _LoginViewState extends State<LoginView> {
 
           BlocConsumer<AuthBloc, AuthState>(
             listener: (context, state) {
-              if (state is AuthSuccess) {
+              if (state is AuthSuccess && _userInitiatedLogin) {
                 _userInitiatedLogin = false;
                 bool hasNavigated = false;
                 void go() {
@@ -283,6 +283,7 @@ class _LoginViewState extends State<LoginView> {
                                 ),
                                 InkWell(
                                   onTap: () {
+                                    _userInitiatedLogin = false;
                                     Navigator.push(
                                       context,
                                       SmoothPageRoute(
@@ -308,6 +309,7 @@ class _LoginViewState extends State<LoginView> {
                           Center(
                             child: InkWell(
                               onTap: () {
+                                _userInitiatedLogin = false;
                                 Navigator.push(
                                   context,
                                   SmoothPageRoute(

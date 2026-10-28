@@ -329,6 +329,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         UserTableColumns.longitude: longitude,
         UserTableColumns.emailVerified: false,
         UserTableColumns.emailVerifiedAt: null,
+        UserTableColumns.idUsersRole: 3,
+        UserTableColumns.role: 'customer',
         if (idProvinsi != null && idProvinsi.trim().isNotEmpty)
           UserTableColumns.idProvinsi: idProvinsi.trim(),
         if (idKabkot != null && idKabkot.trim().isNotEmpty)
@@ -368,11 +370,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
               }
             }
 
-            // Fallback toleransi jika kolom id_kelurahan pada schema database belum diubah menjadi varchar(13)
+            // Fallback toleransi jika kolom id_kelurahan pada schema database belum diubah menjadi varchar(13) atau varchar(20)
             // atau terdapat kendala foreign key constraint fk_users_kelurahan
             if (e.message.contains('fk_users_kelurahan') ||
                 e.message.contains('id_kelurahan') ||
-                (e.message.contains('value too long for type character varying') &&
+                (e.message.contains(
+                      'value too long for type character varying',
+                    ) &&
                     e.message.contains('12'))) {
               if (newUserData.containsKey(UserTableColumns.idKelurahan)) {
                 newUserData.remove(UserTableColumns.idKelurahan);
@@ -396,6 +400,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             'alamat_lengkap': cleanAlamat,
             'latitude': latitude,
             'longitude': longitude,
+            'id_users_role': 3,
+            'role': 'customer',
           },
         );
       } catch (_) {}

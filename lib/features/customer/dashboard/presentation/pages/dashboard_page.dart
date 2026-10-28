@@ -286,10 +286,6 @@ class _DashboardPageState extends State<DashboardPage> {
             SmartTrackingBar(
               onTrack: _onTrackSubmitted,
               isLoading: state.isSearching,
-              searchHistory: state.searchHistory,
-              onClearHistory: () {
-                _dashboardBloc.add(const DashboardClearHistoryRequested());
-              },
             ),
 
             // 3. Carousel Slider Otomatis Promo SatSet

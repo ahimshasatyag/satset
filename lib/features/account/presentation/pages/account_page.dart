@@ -380,7 +380,8 @@ class _AccountPageState extends State<AccountPage> {
                                 'Peringatan status kurir real-time & promosi',
                             trailing: Switch(
                               value: account.isNotificationsEnabled,
-                              activeColor: AppColors.primary,
+                              activeThumbColor: AppColors.primary,
+                              activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
                               onChanged: (val) {
                                 bloc.add(AccountNotificationsToggled(val));
                               },
@@ -406,7 +407,8 @@ class _AccountPageState extends State<AccountPage> {
                               children: [
                                 Switch(
                                   value: isDark,
-                                  activeColor: AppColors.primary,
+                                  activeThumbColor: AppColors.primary,
+                                  activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
                                   onChanged: (_) => _toggleTheme(context),
                                 ),
                                 const Icon(

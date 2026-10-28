@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -19,12 +20,16 @@ import 'login_page.dart';
 class EmailVerificationWaitingPage extends StatefulWidget {
   final String email;
   final String? name;
+  final String? password;
+  final DateTime? registeredAt;
   final bool isAlreadyVerified;
 
   const EmailVerificationWaitingPage({
     super.key,
     required this.email,
     this.name,
+    this.password,
+    this.registeredAt,
     this.isAlreadyVerified = false,
   });
 
@@ -118,45 +123,54 @@ class _EmailVerificationWaitingPageState
     });
   }
 
-  /// Inisialisasi pendengar perubahan verifikasi email (Realtime + Polling 3 detik + Auth Listener)
+  /// Memastikan bahwa waktu verifikasi benar-benar baru terjadi (setelah atau saat pendaftaran)
+  /// untuk mencegah akun lama dengan emailConfirmedAt kemarin dianggap sudah terverifikasi otomatis.
+  bool _isFreshVerification(DateTime? verifiedAt) {
+    if (widget.registeredAt == null || verifiedAt == null) return true;
+    return !verifiedAt.isBefore(
+      widget.registeredAt!.subtract(const Duration(seconds: 30)),
+    );
+  }
+
+  /// Inisialisasi pendengar perubahan verifikasi email (Realtime + Polling + Auth Listener)
   void _initVerificationWatcher() {
     final cleanEmail = widget.email.trim().toLowerCase();
 
-    // 1. Cek langsung status pertama kali
-    _checkVerificationStatus();
-
-    // 2. Polling periodik setiap 3 detik ke tabel m_users di Supabase
-    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!_isVerified && mounted) {
-        _checkVerificationStatus();
-      }
+    // Polling periodik dimulai setelah jeda (6 detik) untuk memberi waktu user membuka aplikasi email
+    Future.delayed(const Duration(seconds: 6), () {
+      if (!mounted || _isVerified) return;
+      _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (!_isVerified && mounted) {
+          _checkVerificationStatus();
+        }
+      });
     });
 
-    // 3. Supabase Auth listener untuk mendeteksi event konfirmasi email dari tautan browser/deep-link
+    // Supabase Auth listener untuk mendeteksi event konfirmasi email dari tautan browser/deep-link
     try {
-      _authSubscription = SupabaseConfig.client.auth.onAuthStateChange.listen((data) async {
-        final user = data.session?.user ?? SupabaseConfig.client.auth.currentUser;
+      _authSubscription = SupabaseConfig.client.auth.onAuthStateChange.listen((
+        data,
+      ) async {
+        final user =
+            data.session?.user ?? SupabaseConfig.client.auth.currentUser;
         if (user != null && user.email?.trim().toLowerCase() == cleanEmail) {
           if (user.emailConfirmedAt != null) {
-            try {
-              await SupabaseConfig.client
-                  .from(DatabaseConstants.tableUsers)
-                  .update({
-                    UserTableColumns.emailVerified: true,
-                    UserTableColumns.emailVerifiedAt:
-                        DateTime.now().toUtc().toIso8601String(),
-                  })
-                  .eq(UserTableColumns.email, cleanEmail);
-            } catch (_) {}
+            final verifiedIso = user.emailConfirmedAt!;
+            final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
 
-            final verifiedAt = DateTime.tryParse(user.emailConfirmedAt!) ?? DateTime.now();
+            // Cegah verifikasi otomatis jika timestamp konfirmasi adalah sesi lama
+            if (!_isFreshVerification(verifiedAt)) {
+              return;
+            }
+
+            await _updateUserTableVerified(cleanEmail, verifiedIso);
             _handleVerifiedSuccess(verifiedAt);
           }
         }
       });
     } catch (_) {}
 
-    // 4. Supabase Realtime channel pada tabel public.m_users
+    // Supabase Realtime channel pada tabel public.m_users
     try {
       _realtimeChannel = SupabaseConfig.client
           .channel('public:m_users:email=$cleanEmail')
@@ -187,6 +201,11 @@ class _EmailVerificationWaitingPageState
                 if (rawAt != null) {
                   verifiedAt = DateTime.tryParse(rawAt.toString());
                 }
+
+                if (!_isFreshVerification(verifiedAt)) {
+                  return;
+                }
+
                 _handleVerifiedSuccess(verifiedAt);
               }
             },
@@ -195,44 +214,117 @@ class _EmailVerificationWaitingPageState
     } catch (_) {}
   }
 
-  /// Memeriksa status verifikasi ke tabel PostgreSQL `m_users` dan Supabase Auth
-  Future<void> _checkVerificationStatus() async {
-    if (_isChecking || _isVerified) return;
+  /// Memperbarui kolom email_verified dan email_verified_at pada tabel m_users di Supabase
+  Future<void> _updateUserTableVerified(
+    String email,
+    String verifiedIso,
+  ) async {
+    final cleanEmail = email.trim().toLowerCase();
+    try {
+      await SupabaseConfig.client
+          .from(DatabaseConstants.tableUsers)
+          .update({
+            UserTableColumns.emailVerified: true,
+            UserTableColumns.emailVerifiedAt: verifiedIso,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .ilike(UserTableColumns.email, cleanEmail);
+      debugPrint(
+        'Berhasil memperbarui m_users: email_verified=true untuk $cleanEmail',
+      );
+    } catch (e) {
+      debugPrint('Peringatan: Gagal memperbarui m_users: $e');
+    }
+  }
 
-    _isChecking = true;
+  /// Memeriksa status verifikasi ke Supabase Auth & tabel PostgreSQL `m_users`
+  Future<bool> _checkVerificationStatus({
+    bool showFeedbackOnFailure = false,
+  }) async {
+    if (_isChecking || _isVerified) return _isVerified;
+
+    if (mounted) {
+      setState(() {
+        _isChecking = true;
+      });
+    }
+
     try {
       final cleanEmail = widget.email.trim().toLowerCase();
 
-      // Periksa status di Supabase Auth terlebih dahulu
+      // 1. Jika kata sandi tersedia dari pendaftaran, periksa ke Supabase Auth
+      // Jika email SUDAH diverifikasi di email pengguna, signInWithPassword akan BERHASIL
+      // Jika email BELUM diverifikasi, Supabase Auth akan melempar: 'Email not confirmed'
+      if (widget.password != null && widget.password!.isNotEmpty) {
+        try {
+          final authResponse = await SupabaseConfig.client.auth
+              .signInWithPassword(
+                email: cleanEmail,
+                password: widget.password!,
+              );
+          final authUser = authResponse.user;
+          if (authUser != null && authUser.emailConfirmedAt != null) {
+            final verifiedIso = authUser.emailConfirmedAt!;
+            final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
+
+            if (_isFreshVerification(verifiedAt)) {
+              await _updateUserTableVerified(cleanEmail, verifiedIso);
+              _handleVerifiedSuccess(verifiedAt);
+              return true;
+            } else {
+              debugPrint(
+                'Konfirmasi Supabase ($verifiedAt) lebih lama dari pendaftaran (${widget.registeredAt}). Mengabaikan.',
+              );
+            }
+          }
+        } on AuthException catch (e) {
+          // Normal jika email belum dikonfirmasi: 'Email not confirmed'
+          debugPrint('Status email Supabase: ${e.message}');
+        } catch (e) {
+          debugPrint('Pengecekan signIn error: $e');
+        }
+      }
+
+      // 2. Coba perbarui user langsung dari server Supabase Auth (jika ada sesi aktif / deep-link)
+      try {
+        final userResponse = await SupabaseConfig.client.auth.getUser();
+        final authUser = userResponse.user;
+        if (authUser != null &&
+            authUser.email?.trim().toLowerCase() == cleanEmail &&
+            authUser.emailConfirmedAt != null) {
+          final verifiedIso = authUser.emailConfirmedAt!;
+          final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
+
+          if (_isFreshVerification(verifiedAt)) {
+            await _updateUserTableVerified(cleanEmail, verifiedIso);
+            _handleVerifiedSuccess(verifiedAt);
+            return true;
+          }
+        }
+      } catch (_) {}
+
+      // 3. Periksa status di Supabase Auth currentUser lokal
       final currentAuthUser = SupabaseConfig.client.auth.currentUser;
       if (currentAuthUser != null &&
           currentAuthUser.email?.trim().toLowerCase() == cleanEmail &&
           currentAuthUser.emailConfirmedAt != null) {
-        try {
-          await SupabaseConfig.client
-              .from(DatabaseConstants.tableUsers)
-              .update({
-                UserTableColumns.emailVerified: true,
-                UserTableColumns.emailVerifiedAt:
-                    DateTime.now().toUtc().toIso8601String(),
-              })
-              .eq(UserTableColumns.email, cleanEmail);
-        } catch (_) {}
+        final verifiedIso = currentAuthUser.emailConfirmedAt!;
+        final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
 
-        final verifiedAt =
-            DateTime.tryParse(currentAuthUser.emailConfirmedAt!) ??
-            DateTime.now();
-        _handleVerifiedSuccess(verifiedAt);
-        return;
+        if (_isFreshVerification(verifiedAt)) {
+          await _updateUserTableVerified(cleanEmail, verifiedIso);
+          _handleVerifiedSuccess(verifiedAt);
+          return true;
+        }
       }
 
-      // Periksa status di tabel public.m_users
+      // 4. Periksa langsung apakah kolom email_verified pada tabel public.m_users sudah bernilai true
       final data = await SupabaseConfig.client
           .from(DatabaseConstants.tableUsers)
           .select(
             '${UserTableColumns.id}, ${UserTableColumns.emailVerified}, ${UserTableColumns.emailVerifiedAt}',
           )
-          .eq(UserTableColumns.email, cleanEmail)
+          .ilike(UserTableColumns.email, cleanEmail)
           .maybeSingle();
 
       if (data != null && mounted) {
@@ -251,16 +343,41 @@ class _EmailVerificationWaitingPageState
           if (rawAt != null) {
             verifiedAt = DateTime.tryParse(rawAt.toString());
           }
-          _handleVerifiedSuccess(verifiedAt);
-          return;
+
+          if (_isFreshVerification(verifiedAt)) {
+            _handleVerifiedSuccess(verifiedAt);
+            return true;
+          }
         }
       }
+
+      if (showFeedbackOnFailure && mounted && !_isVerified) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Email belum terkonfirmasi. Silakan buka aplikasi email dan klik tautan verifikasi akun terlebih dahulu.',
+            ),
+            backgroundColor: AppColors.warning,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return false;
     } catch (_) {
+      return false;
     } finally {
       if (mounted) {
-        _isChecking = false;
+        setState(() {
+          _isChecking = false;
+        });
       }
     }
+  }
+
+  /// Pengecekan manual status verifikasi ketika pengguna menekan tombol cek status
+  Future<void> _handleManualCheck() async {
+    await _checkVerificationStatus(showFeedbackOnFailure: true);
   }
 
   /// Dipanggil saat email berhasil terverifikasi pada tabel m_users
@@ -352,11 +469,17 @@ class _EmailVerificationWaitingPageState
     }
   }
 
-  void _navigateToLogin() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (route) => false,
-    );
+  Future<void> _navigateToLogin() async {
+    try {
+      await SupabaseConfig.client.auth.signOut();
+    } catch (_) {}
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -485,9 +608,7 @@ class _EmailVerificationWaitingPageState
           decoration: BoxDecoration(
             color: isDark ? AppColors.surfaceDark : AppColors.primary50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -582,18 +703,29 @@ class _EmailVerificationWaitingPageState
         ),
         const SizedBox(height: 12),
 
+        // Tombol Cek Status Verifikasi
+        CustomButton(
+          text: _isChecking
+              ? 'Memeriksa Verifikasi...'
+              : 'Cek Status Verifikasi',
+          variant: ButtonVariant.outlined,
+          size: ButtonSize.medium,
+          isFullWidth: true,
+          isLoading: _isChecking,
+          prefixIcon: const Icon(Icons.refresh_rounded, size: 18),
+          onPressed: _isChecking ? null : _handleManualCheck,
+        ),
+        const SizedBox(height: 12),
+
         // Tombol Kirim Ulang Email dengan Cooldown
         CustomButton(
           text: _canResend
               ? 'Kirim Ulang Email Verifikasi'
               : 'Kirim Ulang Email ($_cooldownSeconds s)',
-          variant: ButtonVariant.outlined,
+          variant: ButtonVariant.ghost,
           size: ButtonSize.medium,
           isFullWidth: true,
-          prefixIcon: const Icon(
-            Icons.send_rounded,
-            size: 18,
-          ),
+          prefixIcon: const Icon(Icons.send_rounded, size: 16),
           onPressed: _canResend ? _handleResendEmail : null,
         ),
         const SizedBox(height: 12),

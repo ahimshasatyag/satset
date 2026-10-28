@@ -151,10 +151,10 @@ class UserAccount extends Equatable {
   /// Mengambil alamat utama jika ada
   UserAddress? get primaryAddress {
     if (addresses.isEmpty) return null;
-    return addresses.firstWhere(
-      (a) => a.isPrimary,
-      orElse: () => addresses.first,
-    );
+    for (final a in addresses) {
+      if (a.isPrimary) return a;
+    }
+    return addresses.first;
   }
 
   UserAccount copyWith({

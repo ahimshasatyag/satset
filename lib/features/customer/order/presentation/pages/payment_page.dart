@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:satset/shared/theme/theme.dart';
 import 'package:satset/shared/utils/utils.dart';
+
 import '../../data/datasources/order_local_datasource.dart';
 import '../../data/datasources/order_remote_datasource.dart';
 import '../../data/repositories/order_repository_impl.dart';
@@ -60,7 +62,8 @@ class _PaymentPageState extends State<PaymentPage> {
     }
 
     try {
-      final repo = widget.repository ??
+      final repo =
+          widget.repository ??
           OrderRepositoryImpl(
             remoteDataSource: OrderRemoteDataSourceImpl(),
             localDataSource: OrderLocalDataSourceImpl(),
@@ -80,7 +83,9 @@ class _PaymentPageState extends State<PaymentPage> {
         }
       }
 
-      if (match == null && p?.providerReference != null && p!.providerReference!.isNotEmpty) {
+      if (match == null &&
+          p?.providerReference != null &&
+          p!.providerReference!.isNotEmpty) {
         for (final b in banks) {
           if (b.nomorRekening == p.providerReference) {
             match = b;
@@ -93,7 +98,8 @@ class _PaymentPageState extends State<PaymentPage> {
         final provUpper = p!.provider!.toUpperCase();
         for (final b in banks) {
           final bNameUpper = b.bankName.toUpperCase();
-          if (provUpper.contains(bNameUpper) || bNameUpper.contains(provUpper)) {
+          if (provUpper.contains(bNameUpper) ||
+              bNameUpper.contains(provUpper)) {
             match = b;
             break;
           }
@@ -113,7 +119,8 @@ class _PaymentPageState extends State<PaymentPage> {
   void _initCountdown() {
     if (!widget.enableCountdown) return;
 
-    final expiredAt = _currentOrder.payment?.expiredAt ??
+    final expiredAt =
+        _currentOrder.payment?.expiredAt ??
         DateTime.now().add(const Duration(hours: 24));
     final diff = expiredAt.difference(DateTime.now());
     if (diff.isNegative) {
@@ -143,7 +150,8 @@ class _PaymentPageState extends State<PaymentPage> {
       return BlocProvider.of<OrderBloc>(context);
     } catch (_) {
       if (_internalBloc == null) {
-        final repo = widget.repository ??
+        final repo =
+            widget.repository ??
             OrderRepositoryImpl(
               remoteDataSource: OrderRemoteDataSourceImpl(),
               localDataSource: OrderLocalDataSourceImpl(),
@@ -235,163 +243,191 @@ class _PaymentPageState extends State<PaymentPage> {
       value: bloc,
       child: PopScope(
         canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (widget.isLoading) {
-          Navigator.of(context).pop();
-          return;
-        }
-        final shouldPop = await _onWillPop();
-        if (shouldPop && context.mounted) {
-          Navigator.of(context).pop();
-        }
-      },
-      child: BlocConsumer<OrderBloc, OrderState>(
-        listener: (context, state) {
-          if (state.activePayment != null) {
-            setState(() {
-              _currentOrder = _currentOrder.copyWith(
-                payment: state.activePayment,
-                statusCode: state.activePayment!.isPaid ? 'CONFIRMED' : _currentOrder.statusCode,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop) return;
+          if (widget.isLoading) {
+            Navigator.of(context).pop();
+            return;
+          }
+          final shouldPop = await _onWillPop();
+          if (shouldPop && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: BlocConsumer<OrderBloc, OrderState>(
+          listener: (context, state) {
+            if (state.activePayment != null) {
+              setState(() {
+                _currentOrder = _currentOrder.copyWith(
+                  payment: state.activePayment,
+                  statusCode: state.activePayment!.isPaid
+                      ? 'CONFIRMED'
+                      : _currentOrder.statusCode,
+                );
+              });
+            }
+            if (state.message != null &&
+                (_userTappedCheck || state.activePayment?.isPaid == true)) {
+              _userTappedCheck = false;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message!),
+                  backgroundColor: state.activePayment?.isPaid == true
+                      ? AppColors.success
+                      : AppColors.primary,
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
-            });
-          }
-          if (state.message != null && (_userTappedCheck || state.activePayment?.isPaid == true)) {
-            _userTappedCheck = false;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message!),
-                backgroundColor: state.activePayment?.isPaid == true
-                    ? AppColors.success
-                    : AppColors.primary,
-                behavior: SnackBarBehavior.floating,
+            }
+          },
+          builder: (context, state) {
+            final isCod = _currentOrder.paymentMethod == 'COD';
+            final isPaid = _currentOrder.payment?.isPaid == true;
+            final paymentNumber =
+                _currentOrder.payment?.paymentNumber ??
+                'PAY-${_currentOrder.trackingNumber}';
+            final providerRef =
+                _currentOrder.payment?.providerReference ??
+                (isCod ? 'BAYAR-TUNAI-KURIR' : '8801928374618293');
+
+            return Scaffold(
+              backgroundColor: isDark
+                  ? AppColors.backgroundDark
+                  : AppColors.backgroundLight,
+              appBar: AppBar(
+                title: const Text(
+                  'Pembayaran Pesanan',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                centerTitle: true,
+                elevation: 0,
+                backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () async {
+                    if (widget.isLoading) {
+                      Navigator.of(context).pop();
+                      return;
+                    }
+                    final shouldPop = await _onWillPop();
+                    if (shouldPop && context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                ),
               ),
-            );
-          }
-        },
-        builder: (context, state) {
-          final isCod = _currentOrder.paymentMethod == 'COD';
-          final isPaid = _currentOrder.payment?.isPaid == true;
-          final paymentNumber = _currentOrder.payment?.paymentNumber ?? 'PAY-${_currentOrder.trackingNumber}';
-          final providerRef = _currentOrder.payment?.providerReference ??
-              (isCod ? 'BAYAR-TUNAI-KURIR' : '8801928374618293');
+              body: widget.isLoading
+                  ? const PaymentSkeleton()
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // 1. Status Banner Card
+                          _buildStatusBanner(isDark, isPaid, isCod),
+                          const SizedBox(height: 16),
 
-          return Scaffold(
-            backgroundColor:
-                isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-            appBar: AppBar(
-              title: const Text(
-                'Pembayaran Pesanan',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              centerTitle: true,
-              elevation: 0,
-              backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () async {
-                  if (widget.isLoading) {
-                    Navigator.of(context).pop();
-                    return;
-                  }
-                  final shouldPop = await _onWillPop();
-                  if (shouldPop && context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                },
-              ),
-            ),
-            body: widget.isLoading
-                ? const PaymentSkeleton()
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // 1. Status Banner Card
-                        _buildStatusBanner(isDark, isPaid, isCod),
-                        const SizedBox(height: 16),
+                          // 2. Barcode & No. Resi Pengiriman
+                          _buildResiBarcodeCard(isDark),
+                          const SizedBox(height: 16),
 
-                  // 2. Barcode & No. Resi Pengiriman
-                  _buildResiBarcodeCard(isDark),
-                  const SizedBox(height: 16),
+                          // 3. Detail Tagihan & Rincian Biaya
+                          _buildBillSummaryCard(isDark),
+                          const SizedBox(height: 16),
 
-                  // 3. Detail Tagihan & Rincian Biaya
-                  _buildBillSummaryCard(isDark),
-                  const SizedBox(height: 16),
+                          // 4. Instruksi Pembayaran (Transfer VA / QRIS / COD)
+                          if (!isPaid)
+                            isCod
+                                ? _buildCodInstructions(isDark)
+                                : _buildTransferInstructions(
+                                    isDark,
+                                    providerRef,
+                                    paymentNumber,
+                                  ),
+                          const SizedBox(height: 24),
 
-                  // 4. Instruksi Pembayaran (Transfer VA / QRIS / COD)
-                  if (!isPaid)
-                    isCod
-                        ? _buildCodInstructions(isDark)
-                        : _buildTransferInstructions(isDark, providerRef, paymentNumber),
-                  const SizedBox(height: 24),
-
-                  // 5. Tombol Aksi Verifikasi / Selesai
-                  if (!isPaid && !isCod)
-                    ElevatedButton.icon(
-                      onPressed: state.isVerifyingPayment
-                          ? null
-                          : () {
-                              setState(() => _userTappedCheck = true);
-                              context.read<OrderBloc>().add(
-                                    OrderPaymentVerifyRequested(_currentOrder.id),
-                                  );
-                            },
-                      icon: state.isVerifyingPayment
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                          // 5. Tombol Aksi Verifikasi / Selesai
+                          if (!isPaid && !isCod)
+                            ElevatedButton.icon(
+                              onPressed: state.isVerifyingPayment
+                                  ? null
+                                  : () {
+                                      setState(() => _userTappedCheck = true);
+                                      context.read<OrderBloc>().add(
+                                        OrderPaymentVerifyRequested(
+                                          _currentOrder.id,
+                                        ),
+                                      );
+                                    },
+                              icon: state.isVerifyingPayment
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : const Icon(Icons.verified_outlined),
+                              label: Text(
+                                state.isVerifyingPayment
+                                    ? 'Memeriksa ke Gateway...'
+                                    : 'Periksa Status Pembayaran',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            )
-                          : const Icon(Icons.verified_outlined),
-                      label: Text(
-                        state.isVerifyingPayment
-                            ? 'Memeriksa ke Gateway...'
-                            : 'Periksa Status Pembayaran',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                          if (isPaid || isCod)
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              icon: const Icon(
+                                Icons.check_circle_outline_rounded,
+                              ),
+                              label: Text(
+                                isPaid
+                                    ? 'Selesai & Lihat Pesanan'
+                                    : 'Saya Mengerti, Kembali',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isPaid
+                                    ? AppColors.success
+                                    : AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                        ],
                       ),
                     ),
-                  if (isPaid || isCod)
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: Text(
-                        isPaid ? 'Selesai & Lihat Pesanan' : 'Saya Mengerti, Kembali',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isPaid ? AppColors.success : AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
-    ),
     );
   }
 
@@ -406,7 +442,11 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
         child: const Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: AppColors.success, size: 36),
+            Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.success,
+              size: 36,
+            ),
             SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -443,7 +483,11 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
         child: const Row(
           children: [
-            Icon(Icons.handshake_outlined, color: AppColors.secondary, size: 36),
+            Icon(
+              Icons.handshake_outlined,
+              color: AppColors.secondary,
+              size: 36,
+            ),
             SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -481,7 +525,11 @@ class _PaymentPageState extends State<PaymentPage> {
         children: [
           Row(
             children: [
-              const Icon(Icons.timer_outlined, color: AppColors.warning, size: 28),
+              const Icon(
+                Icons.timer_outlined,
+                color: AppColors.warning,
+                size: 28,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -638,15 +686,40 @@ class _PaymentPageState extends State<PaymentPage> {
             '${(_currentOrder.weightGram / 1000).toStringAsFixed(1)} kg (${_currentOrder.lengthCm}x${_currentOrder.widthCm}x${_currentOrder.heightCm} cm)',
             isDark,
           ),
-          _buildSummaryRow('Rute', '${_currentOrder.originCity} ➔ ${_currentOrder.destinationCity}', isDark),
+          _buildSummaryRow(
+            'Rute',
+            '${_currentOrder.originCity} ➔ ${_currentOrder.destinationCity}',
+            isDark,
+          ),
           const Divider(height: 20),
-          _buildSummaryRow('Biaya Pengiriman', _formatCurrency(_currentOrder.shippingFee > 0 ? _currentOrder.shippingFee : _currentOrder.totalPrice), isDark),
+          _buildSummaryRow(
+            'Biaya Pengiriman',
+            _formatCurrency(
+              _currentOrder.shippingFee > 0
+                  ? _currentOrder.shippingFee
+                  : _currentOrder.totalPrice,
+            ),
+            isDark,
+          ),
           if (_currentOrder.insuranceFee > 0)
-            _buildSummaryRow('Asuransi Barang', _formatCurrency(_currentOrder.insuranceFee), isDark),
+            _buildSummaryRow(
+              'Asuransi Barang',
+              _formatCurrency(_currentOrder.insuranceFee),
+              isDark,
+            ),
           if (_currentOrder.additionalFee > 0)
-            _buildSummaryRow('Biaya Layanan', _formatCurrency(_currentOrder.additionalFee), isDark),
+            _buildSummaryRow(
+              'Biaya Layanan',
+              _formatCurrency(_currentOrder.additionalFee),
+              isDark,
+            ),
           if (_currentOrder.discount > 0)
-            _buildSummaryRow('Diskon', '-${_formatCurrency(_currentOrder.discount)}', isDark, isHighlight: true),
+            _buildSummaryRow(
+              'Diskon',
+              '-${_formatCurrency(_currentOrder.discount)}',
+              isDark,
+              isHighlight: true,
+            ),
           const Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -656,7 +729,11 @@ class _PaymentPageState extends State<PaymentPage> {
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               Text(
-                _formatCurrency(_currentOrder.totalPrice > 0 ? _currentOrder.totalPrice : _currentOrder.price),
+                _formatCurrency(
+                  _currentOrder.totalPrice > 0
+                      ? _currentOrder.totalPrice
+                      : _currentOrder.price,
+                ),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -670,7 +747,12 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, bool isDark, {bool isHighlight = false}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value,
+    bool isDark, {
+    bool isHighlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -698,16 +780,21 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  Widget _buildTransferInstructions(bool isDark, String providerRef, String paymentNumber) {
+  Widget _buildTransferInstructions(
+    bool isDark,
+    String providerRef,
+    String paymentNumber,
+  ) {
     final bank = _matchedBank ?? _currentOrder.payment?.bankAccount;
-    final bankName = bank?.bankName ??
-        (_currentOrder.payment?.provider ?? 'Bank Transfer');
+    final bankName =
+        bank?.bankName ?? (_currentOrder.payment?.provider ?? 'Bank Transfer');
     final accountNumber = providerRef.isNotEmpty
         ? providerRef
         : ((bank != null && bank.nomorRekening.isNotEmpty)
-            ? bank.nomorRekening
-            : '-');
-    final accountOwner = bank?.namaPemilik ??
+              ? bank.nomorRekening
+              : '-');
+    final accountOwner =
+        bank?.namaPemilik ??
         (_currentOrder.payment?.bankAccount?.namaPemilik ?? '');
     final totalNominal = _currentOrder.totalPrice > 0
         ? _currentOrder.totalPrice
@@ -738,7 +825,10 @@ class _PaymentPageState extends State<PaymentPage> {
                   const SizedBox(width: 8),
                   Text(
                     'Transfer Bank $bankName',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -801,13 +891,20 @@ class _PaymentPageState extends State<PaymentPage> {
                       ],
                     ),
                     ElevatedButton.icon(
-                      onPressed: () => _copyToClipboard(accountNumber, 'Nomor Rekening'),
+                      onPressed: () =>
+                          _copyToClipboard(accountNumber, 'Nomor Rekening'),
                       icon: const Icon(Icons.copy_rounded, size: 14),
-                      label: const Text('Salin', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'Salin',
+                        style: TextStyle(fontSize: 12),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         minimumSize: Size.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -888,11 +985,17 @@ class _PaymentPageState extends State<PaymentPage> {
                     'Nominal Transfer',
                   ),
                   icon: const Icon(Icons.copy_rounded, size: 14),
-                  label: const Text('Salin Jumlah', style: TextStyle(fontSize: 11)),
+                  label: const Text(
+                    'Salin Jumlah',
+                    style: TextStyle(fontSize: 11),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     minimumSize: Size.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -910,11 +1013,23 @@ class _PaymentPageState extends State<PaymentPage> {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          _buildStepRow(1, 'Buka aplikasi Mobile Banking atau ATM Bank $bankName pilihan Anda.'),
+          _buildStepRow(
+            1,
+            'Buka aplikasi Mobile Banking atau ATM Bank $bankName pilihan Anda.',
+          ),
           _buildStepRow(2, 'Pilih menu Transfer > Ke Rekening Bank $bankName.'),
-          _buildStepRow(3, 'Masukkan nomor rekening $accountNumber ${accountOwner.isNotEmpty ? '(a.n. $accountOwner)' : ''}.'),
-          _buildStepRow(4, 'Masukkan nominal transfer tepat ${_formatCurrency(totalNominal)} dan selesaikan pembayaran.'),
-          _buildStepRow(5, 'Tekan tombol "Periksa Status Pembayaran" di bawah setelah transfer berhasil.'),
+          _buildStepRow(
+            3,
+            'Masukkan nomor rekening $accountNumber ${accountOwner.isNotEmpty ? '(a.n. $accountOwner)' : ''}.',
+          ),
+          _buildStepRow(
+            4,
+            'Masukkan nominal transfer tepat ${_formatCurrency(totalNominal)} dan selesaikan pembayaran.',
+          ),
+          _buildStepRow(
+            5,
+            'Tekan tombol "Periksa Status Pembayaran" di bawah setelah transfer berhasil.',
+          ),
         ],
       ),
     );
@@ -935,7 +1050,11 @@ class _PaymentPageState extends State<PaymentPage> {
         children: [
           const Row(
             children: [
-              Icon(Icons.info_outline_rounded, size: 18, color: AppColors.secondary),
+              Icon(
+                Icons.info_outline_rounded,
+                size: 18,
+                color: AppColors.secondary,
+              ),
               SizedBox(width: 8),
               Text(
                 'Ketentuan Pembayaran COD (Tunai)',
@@ -944,10 +1063,22 @@ class _PaymentPageState extends State<PaymentPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildStepRow(1, 'Siapkan uang pas sejumlah ${_formatCurrency(_currentOrder.totalPrice > 0 ? _currentOrder.totalPrice : _currentOrder.price)} saat kurir tiba.'),
-          _buildStepRow(2, 'Serahkan uang tunai kepada kurir resmi SatSet yang bertugas.'),
-          _buildStepRow(3, 'Kurir akan memverifikasi penerimaan uang melalui aplikasi kurir.'),
-          _buildStepRow(4, 'Status transaksi Anda akan otomatis tercatat lunas setelah rekonsiliasi operasional.'),
+          _buildStepRow(
+            1,
+            'Siapkan uang pas sejumlah ${_formatCurrency(_currentOrder.totalPrice > 0 ? _currentOrder.totalPrice : _currentOrder.price)} saat kurir tiba.',
+          ),
+          _buildStepRow(
+            2,
+            'Serahkan uang tunai kepada kurir resmi SatSet yang bertugas.',
+          ),
+          _buildStepRow(
+            3,
+            'Kurir akan memverifikasi penerimaan uang melalui aplikasi kurir.',
+          ),
+          _buildStepRow(
+            4,
+            'Status transaksi Anda akan otomatis tercatat lunas setelah rekonsiliasi operasional.',
+          ),
         ],
       ),
     );

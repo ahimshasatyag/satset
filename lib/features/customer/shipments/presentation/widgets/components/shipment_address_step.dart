@@ -56,6 +56,14 @@ class ShipmentAddressStep extends StatelessWidget {
   final ValueChanged<District> onReceiverDistrictSelected;
   final ValueChanged<Village> onReceiverVillageSelected;
 
+  // Koordinat Peta (Latitude & Longitude)
+  final double? senderLatitude;
+  final double? senderLongitude;
+  final double? receiverLatitude;
+  final double? receiverLongitude;
+  final VoidCallback? onPickSenderLocation;
+  final VoidCallback? onPickReceiverLocation;
+
   const ShipmentAddressStep({
     super.key,
     required this.isDark,
@@ -63,10 +71,16 @@ class ShipmentAddressStep extends StatelessWidget {
     required this.senderPhoneController,
     required this.senderAddressController,
     required this.senderPostalController,
+    this.senderLatitude,
+    this.senderLongitude,
+    this.onPickSenderLocation,
     required this.receiverNameController,
     required this.receiverPhoneController,
     required this.receiverAddressController,
     required this.receiverPostalController,
+    this.receiverLatitude,
+    this.receiverLongitude,
+    this.onPickReceiverLocation,
     required this.provinces,
     required this.senderProvince,
     required this.senderRegencies,
@@ -258,6 +272,14 @@ class ShipmentAddressStep extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _buildLocationPickerBadge(
+                label: 'Titik Lokasi Pengirim (GPS)',
+                latitude: senderLatitude,
+                longitude: senderLongitude,
+                onTap: onPickSenderLocation,
+                isSender: true,
+              ),
             ],
           ),
         ),
@@ -377,10 +399,139 @@ class ShipmentAddressStep extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _buildLocationPickerBadge(
+                label: 'Titik Lokasi Penerima (GPS)',
+                latitude: receiverLatitude,
+                longitude: receiverLongitude,
+                onTap: onPickReceiverLocation,
+                isSender: false,
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLocationPickerBadge({
+    required String label,
+    required double? latitude,
+    required double? longitude,
+    required VoidCallback? onTap,
+    required bool isSender,
+  }) {
+    final hasCoord = latitude != null &&
+        longitude != null &&
+        latitude != 0.0 &&
+        longitude != 0.0;
+    final accentColor = isSender ? AppColors.primary : AppColors.secondary;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: hasCoord
+            ? accentColor.withValues(alpha: 0.07)
+            : (isDark ? const Color(0xFF1B2A3D) : const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasCoord
+              ? accentColor.withValues(alpha: 0.35)
+              : (isDark ? Colors.white10 : Colors.black12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: hasCoord
+                  ? accentColor.withValues(alpha: 0.15)
+                  : Colors.grey.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              hasCoord
+                  ? Icons.pin_drop_rounded
+                  : Icons.add_location_alt_outlined,
+              size: 20,
+              color: hasCoord ? accentColor : Colors.grey,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (hasCoord) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'GPS TERPASANG',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  (latitude != null && longitude != null)
+                      ? 'Lat: ${latitude.toStringAsFixed(8)}, Lng: ${longitude.toStringAsFixed(8)}'
+                      : 'Buka Google Maps untuk menentukan titik koordinat presisi',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: hasCoord ? 'monospace' : null,
+                    color: hasCoord
+                        ? (isDark ? Colors.white70 : Colors.black87)
+                        : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: onTap,
+            icon: Icon(
+              hasCoord ? Icons.edit_location_alt_rounded : Icons.map_rounded,
+              size: 14,
+            ),
+            label: Text(
+              hasCoord ? 'Ubah' : 'Buka Peta',
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: accentColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

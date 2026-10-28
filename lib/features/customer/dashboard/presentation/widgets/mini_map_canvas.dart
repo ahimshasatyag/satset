@@ -1,6 +1,11 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:satset/shared/theme/theme.dart';
+
 import '../../domain/entities/shipment.dart';
 
 class MiniMapCanvas extends StatefulWidget {
@@ -21,46 +26,208 @@ class MiniMapCanvas extends StatefulWidget {
 
 class _MiniMapCanvasState extends State<MiniMapCanvas>
     with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  double _zoomScale = 1.0;
-  final bool _isNightMode = false;
+  late final MapController _mapController;
+  late final AnimationController _pulseController;
+  Position? _devicePosition;
+  double _currentZoom = 13.5;
 
   @override
   void initState() {
     super.initState();
+    _mapController = MapController();
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat();
+    _initDeviceLocation();
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _mapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initDeviceLocation() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 3),
+          ),
+        );
+        if (mounted) {
+          setState(() => _devicePosition = pos);
+        }
+      }
+    } catch (_) {
+      // Abaikan jika GPS izin belum diberikan atau timeout
+    }
+  }
+
+  /// Menentukan koordinat tujuan (Penerima)
+  LatLng _getDestinationLatLng() {
+    if (widget.shipment.penerimaLatitude != null &&
+        widget.shipment.penerimaLongitude != null &&
+        widget.shipment.penerimaLatitude != 0.0) {
+      return LatLng(
+        widget.shipment.penerimaLatitude!,
+        widget.shipment.penerimaLongitude!,
+      );
+    }
+    return _cityToLatLng(widget.shipment.penerimaKota);
+  }
+
+  /// Menentukan koordinat awal (Pengirim)
+  LatLng _getOriginLatLng() {
+    if (widget.shipment.pengirimLatitude != null &&
+        widget.shipment.pengirimLongitude != null &&
+        widget.shipment.pengirimLatitude != 0.0) {
+      return LatLng(
+        widget.shipment.pengirimLatitude!,
+        widget.shipment.pengirimLongitude!,
+      );
+    }
+    return _cityToLatLng(widget.shipment.pengirimKota);
+  }
+
+  /// Menentukan posisi GPS kurir terkini
+  LatLng _getCourierLatLng(LatLng origin, LatLng destination) {
+    if (widget.shipment.courierPosition != null &&
+        widget.shipment.courierPosition!.latitude != 0.0) {
+      return LatLng(
+        widget.shipment.courierPosition!.latitude,
+        widget.shipment.courierPosition!.longitude,
+      );
+    }
+
+    if (widget.shipment.courier != null &&
+        widget.shipment.courier!.latitude != 0.0) {
+      return LatLng(
+        widget.shipment.courier!.latitude,
+        widget.shipment.courier!.longitude,
+      );
+    }
+
+    // Jika timeline memiliki titik koordinat terbaru
+    if (widget.shipment.timeline.isNotEmpty) {
+      for (final step in widget.shipment.timeline.reversed) {
+        if (step.latitude != null &&
+            step.longitude != null &&
+            step.latitude != 0.0) {
+          return LatLng(step.latitude!, step.longitude!);
+        }
+      }
+    }
+
+    // Jika kurir sedang aktif dan ada koordinat GPS perangkat
+    if (_devicePosition != null &&
+        widget.shipment.status == ShipmentStatus.outForDelivery) {
+      return LatLng(_devicePosition!.latitude, _devicePosition!.longitude);
+    }
+
+    // Interpolasi posisi realistis sepanjang rute berdasarkan progres tahapan
+    final progress = widget.shipment.progressPercentage.clamp(0.15, 0.85);
+    final lat =
+        origin.latitude + (destination.latitude - origin.latitude) * progress;
+    final lng =
+        origin.longitude +
+        (destination.longitude - origin.longitude) * progress;
+    return LatLng(lat, lng);
+  }
+
+  /// Pemetaan kota-kota besar Indonesia ke koordinat geografis nyata
+  LatLng _cityToLatLng(String? city) {
+    final c = (city ?? '').toLowerCase();
+    if (c.contains('aceh')) {
+      return const LatLng(5.5483, 95.3238); // Banda Aceh
+    } else if (c.contains('medan') || c.contains('sumatera utara')) {
+      return const LatLng(3.5952, 98.6722);
+    } else if (c.contains('padang') || c.contains('sumatera barat')) {
+      return const LatLng(-0.9471, 100.4172);
+    } else if (c.contains('pekanbaru') || c.contains('riau')) {
+      return const LatLng(0.5071, 101.4478);
+    } else if (c.contains('palembang') || c.contains('sumatera selatan')) {
+      return const LatLng(-2.9761, 104.7754);
+    } else if (c.contains('lampung')) {
+      return const LatLng(-5.4297, 105.2625);
+    } else if (c.contains('bandung') || c.contains('jawa barat')) {
+      return const LatLng(-6.9175, 107.6191);
+    } else if (c.contains('semarang') || c.contains('jawa tengah')) {
+      return const LatLng(-6.9667, 110.4167);
+    } else if (c.contains('yogyakarta') || c.contains('jogja')) {
+      return const LatLng(-7.7956, 110.3695);
+    } else if (c.contains('surabaya') || c.contains('jawa timur')) {
+      return const LatLng(-7.2575, 112.7521);
+    } else if (c.contains('denpasar') || c.contains('bali')) {
+      return const LatLng(-8.6705, 115.2126);
+    } else if (c.contains('makassar') || c.contains('sulawesi')) {
+      return const LatLng(-5.1477, 119.4327);
+    } else if (c.contains('balikpapan') ||
+        c.contains('samarinda') ||
+        c.contains('kalimantan')) {
+      return const LatLng(-1.2379, 116.8529);
+    }
+    // Default: Jakarta Pusat
+    return const LatLng(-6.2088, 106.8456);
   }
 
   void _zoomIn() {
     setState(() {
-      _zoomScale = (_zoomScale + 0.15).clamp(0.8, 1.6);
+      _currentZoom = (_currentZoom + 1).clamp(4.0, 18.0);
     });
+    try {
+      _mapController.move(_mapController.camera.center, _currentZoom);
+    } catch (_) {}
   }
 
   void _zoomOut() {
     setState(() {
-      _zoomScale = (_zoomScale - 0.15).clamp(0.8, 1.6);
+      _currentZoom = (_currentZoom - 1).clamp(4.0, 18.0);
     });
+    try {
+      _mapController.move(_mapController.camera.center, _currentZoom);
+    } catch (_) {}
   }
 
-  void _resetZoom() {
-    setState(() {
-      _zoomScale = 1.0;
-    });
+  void _recenterToCourier(LatLng courierLatLng) {
+    setState(() => _currentZoom = 14.5);
+    try {
+      _mapController.move(courierLatLng, 14.5);
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark || _isNightMode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final origin = _getOriginLatLng();
+    final destination = _getDestinationLatLng();
+    final courier = _getCourierLatLng(origin, destination);
+
+    final distanceKm = widget.shipment.distanceKm > 0
+        ? widget.shipment.distanceKm
+        : (Geolocator.distanceBetween(
+                    courier.latitude,
+                    courier.longitude,
+                    destination.latitude,
+                    destination.longitude,
+                  ) /
+                  1000.0)
+              .toStringAsFixed(1);
+
+    final etaMin = widget.shipment.etaMinutes > 0
+        ? widget.shipment.etaMinutes
+        : (math.max(
+            1,
+            (double.tryParse(distanceKm.toString()) ?? 2.5) * 3,
+          )).toInt();
+
+    final routePoints = [origin, courier, destination];
 
     return Container(
       height: widget.height,
@@ -76,37 +243,241 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // Peta Vektor Kustom Berbasis CustomPainter
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, _) {
-              return Transform.scale(
-                scale: _zoomScale,
-                child: CustomPaint(
-                  size: Size(double.infinity, widget.height),
-                  painter: _MapGridPainter(
-                    isDark: isDark,
-                    pulseValue: _pulseController.value,
-                    progress: widget.shipment.progressPercentage,
-                    courierEtaMinutes: widget.shipment.etaMinutes,
-                  ),
+          // Peta Nyata Berbasis OpenStreetMap (FlutterMap)
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: courier,
+              initialZoom: _currentZoom,
+              minZoom: 3.0,
+              maxZoom: 18.0,
+              interactionOptions: const InteractionOptions(
+                flags:
+                    InteractiveFlag.drag |
+                    InteractiveFlag.pinchZoom |
+                    InteractiveFlag.doubleTapZoom,
+              ),
+            ),
+            children: [
+              // Tile Layer OpenStreetMap
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                fallbackUrl: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+                userAgentPackageName: 'id.satset.delivery',
+                tileProvider: NetworkTileProvider(
+                  cachingProvider: const DisabledMapCachingProvider(),
+                  silenceExceptions: true,
                 ),
-              );
-            },
+              ),
+
+              // Garis Rute Pengiriman Nyata (Polyline)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: routePoints,
+                    color: AppColors.primary,
+                    strokeWidth: 4.0,
+                    borderColor: Colors.white,
+                    borderStrokeWidth: 1.5,
+                  ),
+                ],
+              ),
+
+              // Marker Layer (Titik Asal, Kurir Live, dan Tujuan)
+              MarkerLayer(
+                markers: [
+                  // 1. Titik Pengirim (Asal)
+                  Marker(
+                    point: origin,
+                    width: 32,
+                    height: 32,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF2C3E50)
+                            : const Color(0xFF475569),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.warehouse_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 2. Titik Tujuan (Penerima)
+                  Marker(
+                    point: destination,
+                    width: 38,
+                    height: 38,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.45),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.location_on_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 3. Titik Kurir Real-Time dengan Denyut Animasi
+                  Marker(
+                    point: courier,
+                    width: 60,
+                    height: 60,
+                    child: AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, _) {
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Efek Radar Berdenyut
+                            Container(
+                              width: 36 + (_pulseController.value * 20),
+                              height: 36 + (_pulseController.value * 20),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.secondary.withValues(
+                                  alpha: (1.0 - _pulseController.value) * 0.4,
+                                ),
+                              ),
+                            ),
+                            // Avatar Icon Kurir Pengantar
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.secondary.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.delivery_dining_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
 
-          // Overlay Kontrol Mini-Map (Kanan Atas)
+          // Badge Real-Time GPS (Kiri Atas)
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFF1B2A3D) : Colors.white)
+                    .withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : Colors.black12,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, _) {
+                      return Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: AppColors.success,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.success.withValues(
+                                alpha: 1.0 - _pulseController.value,
+                              ),
+                              blurRadius: 6 * _pulseController.value,
+                              spreadRadius: 2 * _pulseController.value,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'GPS REAL-TIME',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                      color: isDark ? AppColors.white : AppColors.tertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Kontrol Navigasi Mini-Map (Kanan Atas)
           Positioned(
             top: 10,
             right: 10,
             child: Container(
               decoration: BoxDecoration(
-                color: (isDark ? Colors.black87 : Colors.white)
-                    .withValues(alpha: 0.85),
+                color: (isDark ? Colors.black87 : Colors.white).withValues(
+                  alpha: 0.9,
+                ),
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 6,
                   ),
                 ],
@@ -139,69 +510,9 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
                   _buildMapIconButton(
                     icon: Icons.my_location_rounded,
                     tooltip: 'Pusatkan ke Kurir',
-                    onTap: _resetZoom,
+                    onTap: () => _recenterToCourier(courier),
                     isDark: isDark,
                     iconColor: AppColors.primary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Badge Real-Time GPS (Kiri Atas)
-          Positioned(
-            top: 10,
-            left: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: (isDark ? const Color(0xFF1B2A3D) : Colors.white)
-                    .withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isDark ? Colors.white10 : Colors.black12,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Pulsing green dot
-                  AnimatedBuilder(
-                    animation: _pulseController,
-                    builder: (context, _) {
-                      return Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: AppColors.success,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.success
-                                  .withValues(alpha: 1.0 - _pulseController.value),
-                              blurRadius: 6 * _pulseController.value,
-                              spreadRadius: 2 * _pulseController.value,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'GPS REAL-TIME',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                      color: isDark ? AppColors.white : AppColors.tertiary,
-                    ),
                   ),
                 ],
               ),
@@ -215,9 +526,16 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: (isDark ? Colors.black87 : Colors.white)
-                    .withValues(alpha: 0.9),
+                color: (isDark ? Colors.black87 : Colors.white).withValues(
+                  alpha: 0.92,
+                ),
                 borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -229,11 +547,13 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '38 km/jam • ${widget.shipment.distanceKm} km ke tujuan',
+                    '~$etaMin mnt • $distanceKm km ke tujuan',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                      color: isDark
+                          ? Colors.white70
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                 ],
@@ -241,7 +561,7 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
             ),
           ),
 
-          // Tombol Buka Peta Penuh / Live Track (Kanan Bawah)
+          // Tombol Peta Penuh (Kanan Bawah)
           if (widget.onFullScreenTap != null)
             Positioned(
               bottom: 10,
@@ -250,7 +570,10 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
                 onTap: widget.onFullScreenTap,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(8),
@@ -265,7 +588,11 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.fullscreen_rounded, size: 14, color: Colors.white),
+                      Icon(
+                        Icons.fullscreen_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'Peta Penuh',
@@ -307,226 +634,5 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
         ),
       ),
     );
-  }
-}
-
-class _MapGridPainter extends CustomPainter {
-  final bool isDark;
-  final double pulseValue;
-  final double progress;
-  final int courierEtaMinutes;
-
-  _MapGridPainter({
-    required this.isDark,
-    required this.pulseValue,
-    required this.progress,
-    required this.courierEtaMinutes,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final width = size.width;
-    final height = size.height;
-
-    // 1. Gambar Blok Taman Hijau Kota
-    final parkPaint = Paint()
-      ..color = (isDark ? const Color(0xFF172922) : const Color(0xFFD6EADA))
-      ..style = PaintingStyle.fill;
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(width * 0.05, height * 0.1, width * 0.25, height * 0.35),
-        const Radius.circular(12),
-      ),
-      parkPaint,
-    );
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(width * 0.65, height * 0.55, width * 0.3, height * 0.35),
-        const Radius.circular(12),
-      ),
-      parkPaint,
-    );
-
-    // 2. Gambar Jaringan Jalan Utama & Sekunder
-    final roadSecondary = Paint()
-      ..color = (isDark ? const Color(0xFF1E2D40) : const Color(0xFFDDE3EB))
-      ..strokeWidth = 6.0
-      ..style = PaintingStyle.stroke;
-
-    final roadPrimary = Paint()
-      ..color = (isDark ? const Color(0xFF25374D) : const Color(0xFFD0D9E4))
-      ..strokeWidth = 10.0
-      ..style = PaintingStyle.stroke;
-
-    // Grid jalan
-    canvas.drawLine(Offset(0, height * 0.3), Offset(width, height * 0.3), roadSecondary);
-    canvas.drawLine(Offset(0, height * 0.7), Offset(width, height * 0.7), roadSecondary);
-    canvas.drawLine(Offset(width * 0.3, 0), Offset(width * 0.3, height), roadSecondary);
-    canvas.drawLine(Offset(width * 0.75, 0), Offset(width * 0.75, height), roadSecondary);
-
-    // Jalan diagonal utama
-    final diagonalPath = Path()
-      ..moveTo(0, height * 0.9)
-      ..cubicTo(
-        width * 0.35,
-        height * 0.85,
-        width * 0.65,
-        height * 0.15,
-        width,
-        height * 0.1,
-      );
-    canvas.drawPath(diagonalPath, roadPrimary);
-
-    // 3. Jalur Rute Pengiriman (Delivery Route)
-    final origin = Offset(width * 0.15, height * 0.75);
-    final destination = Offset(width * 0.82, height * 0.25);
-
-    final routePath = Path()
-      ..moveTo(origin.dx, origin.dy)
-      ..cubicTo(
-        width * 0.35,
-        height * 0.70,
-        width * 0.45,
-        height * 0.35,
-        destination.dx,
-        destination.dy,
-      );
-
-    // Garis Glow rute
-    final glowPaint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.25)
-      ..strokeWidth = 8.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(routePath, glowPaint);
-
-    // Garis Inti Rute Pengiriman (Gradient Merah ke Oranye)
-    final routePaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [AppColors.tertiary, AppColors.primary, AppColors.secondary],
-      ).createShader(Rect.fromPoints(origin, destination))
-      ..strokeWidth = 4.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(routePath, routePaint);
-
-    // 4. Hitung Posisi Kurir di sepanjang Kurva Rute
-    // Menggunakan progress faktor dinamis (e.g. 0.65)
-    final courierFactor = progress.clamp(0.15, 0.95);
-    final courierX = _bezierValue(origin.dx, width * 0.35, width * 0.45, destination.dx, courierFactor);
-    final courierY = _bezierValue(origin.dy, height * 0.70, height * 0.35, destination.dy, courierFactor);
-    final courierPos = Offset(courierX, courierY);
-
-    // 5. Marker Origin (Warehouse SatSet)
-    final originBg = Paint()
-      ..color = AppColors.tertiary
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(origin, 9, originBg);
-    canvas.drawCircle(
-      origin,
-      9,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-
-    // 6. Marker Destination (Rumah Penerima)
-    final destBg = Paint()
-      ..color = AppColors.primary
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(destination, 11, destBg);
-    canvas.drawCircle(
-      destination,
-      11,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5,
-    );
-
-    // Titik tengah rumah
-    canvas.drawCircle(destination, 4, Paint()..color = Colors.white);
-
-    // 7. Marker Kurir Aktif (Real-Time Pulsing Radar)
-    final radarRadius = 14.0 + (pulseValue * 16.0);
-    final radarOpacity = (1.0 - pulseValue).clamp(0.0, 1.0);
-    final radarPaint = Paint()
-      ..color = AppColors.secondary.withValues(alpha: radarOpacity * 0.6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-    canvas.drawCircle(courierPos, radarRadius, radarPaint);
-
-    // Badan Pin Kurir
-    final courierBg = Paint()
-      ..shader = const LinearGradient(
-        colors: [AppColors.primary, AppColors.secondary],
-      ).createShader(Rect.fromCircle(center: courierPos, radius: 14))
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(courierPos, 13, courierBg);
-
-    canvas.drawCircle(
-      courierPos,
-      13,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5,
-    );
-
-    // Titik pusat motor kurir
-    canvas.drawCircle(courierPos, 4.5, Paint()..color = Colors.white);
-
-    // 8. Tooltip Mengambang di atas Kurir (ETA)
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: '⚡ $courierEtaMinutes Min',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final tooltipRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(courierPos.dx, courierPos.dy - 24),
-        width: textPainter.width + 12,
-        height: textPainter.height + 6,
-      ),
-      const Radius.circular(6),
-    );
-
-    final tooltipPaint = Paint()
-      ..color = const Color(0xFF1E2D40)
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(tooltipRect, tooltipPaint);
-    textPainter.paint(
-      canvas,
-      Offset(
-        courierPos.dx - (textPainter.width / 2),
-        courierPos.dy - 24 - (textPainter.height / 2),
-      ),
-    );
-  }
-
-  double _bezierValue(double p0, double p1, double p2, double p3, double t) {
-    final oneMinusT = 1.0 - t;
-    return (math.pow(oneMinusT, 3) * p0) +
-        (3 * math.pow(oneMinusT, 2) * t * p1) +
-        (3 * oneMinusT * math.pow(t, 2) * p2) +
-        (math.pow(t, 3) * p3);
-  }
-
-  @override
-  bool shouldRepaint(covariant _MapGridPainter oldDelegate) {
-    return oldDelegate.pulseValue != pulseValue ||
-        oldDelegate.progress != progress ||
-        oldDelegate.isDark != isDark ||
-        oldDelegate.courierEtaMinutes != courierEtaMinutes;
   }
 }

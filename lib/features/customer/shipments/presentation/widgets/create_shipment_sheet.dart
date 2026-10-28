@@ -9,10 +9,15 @@ import '../../data/datasources/shipment_remote_datasource.dart';
 import '../../data/repositories/shipment_repository_impl.dart';
 import '../../domain/entities/shipment.dart';
 import '../pages/create_shipment_page.dart';
+
 import 'package:satset/shared/utils/utils.dart';
+
+import 'package:latlong2/latlong.dart';
+
 import 'components/shipment_address_step.dart';
 import 'components/shipment_package_step.dart';
 import 'components/shipment_payment_step.dart';
+import 'location_picker_map_dialog.dart';
 
 class CreateShipmentSheet extends StatefulWidget {
   final Function(Map<String, dynamic> data)? onOrderCreated;
@@ -94,6 +99,12 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       TextEditingController();
   final TextEditingController _receiverPostalController =
       TextEditingController();
+
+  // Koordinat GPS Titik Lokasi Peta (t_shipments)
+  double? _senderLatitude;
+  double? _senderLongitude;
+  double? _receiverLatitude;
+  double? _receiverLongitude;
 
   // Text Controllers: Paket
   final TextEditingController _itemDescController = TextEditingController();
@@ -230,6 +241,13 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
             userProfile['alamat_lengkap']?.toString() ??
             userProfile['address']?.toString() ??
             '';
+
+        final lat = (userProfile['latitude'] as num?)?.toDouble();
+        final lng = (userProfile['longitude'] as num?)?.toDouble();
+        if (lat != null && lng != null && lat != 0.0) {
+          _senderLatitude = lat;
+          _senderLongitude = lng;
+        }
       }
 
       // Pastikan dropdown wilayah tidak otomatis terpilih (tetap null sampai dipilih pengguna)
@@ -406,6 +424,44 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     });
   }
 
+  /// Membuka peta interaktif untuk menentukan titik koordinat GPS pengirim
+  Future<void> _pickSenderLocation() async {
+    final result = await LocationPickerMapDialog.show(
+      context,
+      title: 'Pilih Titik Lokasi Pengirim (GPS)',
+      initialLocation: (_senderLatitude != null && _senderLongitude != null)
+          ? LatLng(_senderLatitude!, _senderLongitude!)
+          : null,
+      initialCityName: _senderRegency?.name ?? _senderProvince?.name,
+    );
+
+    if (result != null) {
+      setState(() {
+        _senderLatitude = result.latitude;
+        _senderLongitude = result.longitude;
+      });
+    }
+  }
+
+  /// Membuka peta interaktif untuk menentukan titik koordinat GPS penerima
+  Future<void> _pickReceiverLocation() async {
+    final result = await LocationPickerMapDialog.show(
+      context,
+      title: 'Pilih Titik Lokasi Penerima (GPS)',
+      initialLocation: (_receiverLatitude != null && _receiverLongitude != null)
+          ? LatLng(_receiverLatitude!, _receiverLongitude!)
+          : null,
+      initialCityName: _receiverRegency?.name ?? _receiverProvince?.name,
+    );
+
+    if (result != null) {
+      setState(() {
+        _receiverLatitude = result.latitude;
+        _receiverLongitude = result.longitude;
+      });
+    }
+  }
+
   // Perhitungan Biaya Realistis Sesuai Rumus Ekspedisi
   Map<String, double> _calculateCost() {
     final weightGram = int.tryParse(_weightController.text) ?? 1000;
@@ -519,8 +575,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
         return;
       }
       // Pastikan nilai/harga asli barang selalu valid dan terisi otomatis jika kosong
-      final rawVal =
-          CurrencyFormatter.parseNominal(_goodsValueController.text);
+      final rawVal = CurrencyFormatter.parseNominal(_goodsValueController.text);
       if (rawVal <= 0) {
         _syncAutoGoodsValueIfNeeded();
       }
@@ -581,11 +636,15 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       'pengirim_alamat': _senderAddressController.text.trim(),
       'pengirim_kota': senderCity,
       'pengirim_kode_pos': senderPostal,
+      'pengirim_latitude': _senderLatitude,
+      'pengirim_longitude': _senderLongitude,
       'penerima_nama': _receiverNameController.text.trim(),
       'penerima_no_hp': _receiverPhoneController.text.trim(),
       'penerima_alamat': _receiverAddressController.text.trim(),
       'penerima_kota': receiverCity,
       'penerima_kode_pos': receiverPostal,
+      'penerima_latitude': _receiverLatitude,
+      'penerima_longitude': _receiverLongitude,
       'catatan_pengiriman': _itemDescController.text.trim(),
       'itemName': _itemDescController.text.trim(),
       'total_berat_gram': int.tryParse(_weightController.text) ?? 1000,
@@ -604,7 +663,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       'service_type_id': _selectedService?.id ?? 1,
       'serviceType': _selectedService?.name ?? 'Reguler',
       'metode_pembayaran': _paymentMethod,
-      'payment_channel': _paymentMethod == 'COD' ? 'COD' : (_selectedBank?.bankName ?? _paymentChannel),
+      'payment_channel': _paymentMethod == 'COD'
+          ? 'COD'
+          : (_selectedBank?.bankName ?? _paymentChannel),
       'selected_bank': _selectedBank,
       'bank_name': _selectedBank?.bankName,
       'nomor_rekening': _selectedBank?.nomorRekening,
@@ -832,6 +893,12 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
           onReceiverRegencySelected: _onReceiverRegencySelected,
           onReceiverDistrictSelected: _onReceiverDistrictSelected,
           onReceiverVillageSelected: _onReceiverVillageSelected,
+          senderLatitude: _senderLatitude,
+          senderLongitude: _senderLongitude,
+          onPickSenderLocation: _pickSenderLocation,
+          receiverLatitude: _receiverLatitude,
+          receiverLongitude: _receiverLongitude,
+          onPickReceiverLocation: _pickReceiverLocation,
         );
       case 1:
         return ShipmentPackageStep(
