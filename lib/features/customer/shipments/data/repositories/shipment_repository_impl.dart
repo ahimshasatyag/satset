@@ -68,4 +68,29 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
   Future<List<BankAccount>> getBanks() {
     return remoteDataSource.getBanks();
   }
+
+  @override
+  Future<void> updateUserMainAddress({
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+    String? namaLengkap,
+    String? noHp,
+  }) {
+    return remoteDataSource.updateUserMainAddress(
+      idProvinsi: idProvinsi,
+      idKabkot: idKabkot,
+      idKecamatan: idKecamatan,
+      idKelurahan: idKelurahan,
+      alamatLengkap: alamatLengkap,
+      latitude: latitude,
+      longitude: longitude,
+      namaLengkap: namaLengkap,
+      noHp: noHp,
+    );
+  }
 }

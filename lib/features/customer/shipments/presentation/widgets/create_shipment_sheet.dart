@@ -84,6 +84,11 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
   bool _isLoadingReceiverDistricts = false;
   bool _isLoadingReceiverVillages = false;
 
+  // Data Profil Pengguna (m_users) & Switch Alamat Utama
+  Map<String, dynamic>? _userProfile;
+  bool _useMainAddress = false;
+  bool _isLoadingMainAddress = false;
+
   // Text Controllers: Pengirim
   final TextEditingController _senderNameController = TextEditingController();
   final TextEditingController _senderPhoneController = TextEditingController();
@@ -214,7 +219,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
 
       _provinces = results[0] as List<Province>;
       _serviceTypes = results[1] as List<OrderServiceType>;
-      final userProfile = results[2] as Map<String, dynamic>?;
+      _userProfile = results[2] as Map<String, dynamic>?;
       _banks = results[3] as List<BankAccount>;
 
       if (_banks.isNotEmpty) {
@@ -227,30 +232,23 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
         _syncAutoGoodsValueIfNeeded();
       }
 
-      // Prefill Pengirim dari profil pengguna
-      if (userProfile != null) {
-        _senderNameController.text =
-            userProfile['nama_lengkap']?.toString() ??
-            userProfile['name']?.toString() ??
-            '';
-        _senderPhoneController.text =
-            userProfile['no_hp']?.toString() ??
-            userProfile['phone']?.toString() ??
-            '';
-        _senderAddressController.text =
-            userProfile['alamat_lengkap']?.toString() ??
-            userProfile['address']?.toString() ??
-            '';
-
-        final lat = (userProfile['latitude'] as num?)?.toDouble();
-        final lng = (userProfile['longitude'] as num?)?.toDouble();
-        if (lat != null && lng != null && lat != 0.0) {
-          _senderLatitude = lat;
-          _senderLongitude = lng;
+      // Prefill Nama & No Telepon Pengirim dari profil m_users jika ada
+      if (_userProfile != null) {
+        if (_senderNameController.text.isEmpty) {
+          _senderNameController.text =
+              _userProfile!['nama_lengkap']?.toString() ??
+              _userProfile!['name']?.toString() ??
+              '';
+        }
+        if (_senderPhoneController.text.isEmpty) {
+          _senderPhoneController.text =
+              _userProfile!['no_hp']?.toString() ??
+              _userProfile!['phone']?.toString() ??
+              '';
         }
       }
 
-      // Pastikan dropdown wilayah tidak otomatis terpilih (tetap null sampai dipilih pengguna)
+      // Pastikan dropdown wilayah tidak otomatis terpilih (tetap null sampai dipilih pengguna / diaktifkan Alamat Utama)
       _senderProvince = null;
       _receiverProvince = null;
     } catch (e) {
@@ -273,6 +271,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _senderVillage = null;
       _isLoadingSenderRegencies = true;
     });
+    if (_useMainAddress) {
+      _saveSenderAddressToUsersDatabase();
+    }
     try {
       final regs = await _repository.getRegencies(prov.code);
       if (mounted) {
@@ -297,6 +298,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _senderVillage = null;
       _isLoadingSenderDistricts = true;
     });
+    if (_useMainAddress) {
+      _saveSenderAddressToUsersDatabase();
+    }
     try {
       final dists = await _repository.getDistricts(reg.code);
       if (mounted) {
@@ -319,6 +323,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       _senderVillage = null;
       _isLoadingSenderVillages = true;
     });
+    if (_useMainAddress) {
+      _saveSenderAddressToUsersDatabase();
+    }
     try {
       final vills = await _repository.getVillages(dist.code);
       if (mounted) {
@@ -341,6 +348,280 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
         _senderPostalController.text = vill.postalCode!;
       }
     });
+    if (_useMainAddress) {
+      _saveSenderAddressToUsersDatabase();
+    }
+  }
+
+  /// Menyimpan alamat pengirim ke database tabel m_users jika switch aktif
+  Future<void> _saveSenderAddressToUsersDatabase({bool showToast = false}) async {
+    if (!_useMainAddress) return;
+
+    try {
+      final nama = _senderNameController.text.trim();
+      final noHp = _senderPhoneController.text.trim();
+      final alamat = _senderAddressController.text.trim();
+      final provCode = _senderProvince?.code.trim();
+      final kabkotCode = _senderRegency?.code.trim();
+      final kecCode = _senderDistrict?.code.trim();
+      final kelCode = _senderVillage?.code.trim();
+
+      await _repository.updateUserMainAddress(
+        namaLengkap: nama.isNotEmpty ? nama : null,
+        noHp: noHp.isNotEmpty ? noHp : null,
+        alamatLengkap: alamat.isNotEmpty ? alamat : null,
+        latitude: _senderLatitude,
+        longitude: _senderLongitude,
+        idProvinsi: provCode,
+        idKabkot: kabkotCode,
+        idKecamatan: kecCode,
+        idKelurahan: kelCode,
+      );
+
+      // Perbarui cache lokal _userProfile di memori
+      _userProfile ??= {};
+      if (nama.isNotEmpty) _userProfile!['nama_lengkap'] = nama;
+      if (noHp.isNotEmpty) _userProfile!['no_hp'] = noHp;
+      if (alamat.isNotEmpty) _userProfile!['alamat_lengkap'] = alamat;
+      if (_senderLatitude != null) _userProfile!['latitude'] = _senderLatitude;
+      if (_senderLongitude != null) _userProfile!['longitude'] = _senderLongitude;
+      if (provCode != null) _userProfile!['id_provinsi'] = provCode;
+      if (kabkotCode != null) _userProfile!['id_kabkot'] = kabkotCode;
+      if (kecCode != null) _userProfile!['id_kecamatan'] = kecCode;
+      if (kelCode != null) _userProfile!['id_kelurahan'] = kelCode;
+
+      if (showToast && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.cloud_done_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Alamat berhasil tersimpan.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Peringatan: Gagal menyimpan alamat ke m_users: $e');
+    }
+  }
+
+  /// Handler toggle switch "Tambah / Gunakan Alamat Utama" (m_users)
+  Future<void> _onToggleUseMainAddress(bool value) async {
+    setState(() {
+      _useMainAddress = value;
+    });
+
+    if (!value) {
+      // Jika switch dimatikan, kosongkan bagian alamat pengirim agar bisa diisi manual
+      setState(() {
+        _senderProvince = null;
+        _senderRegency = null;
+        _senderDistrict = null;
+        _senderVillage = null;
+        _senderRegencies = [];
+        _senderDistricts = [];
+        _senderVillages = [];
+        _senderAddressController.clear();
+        _senderPostalController.clear();
+        _senderLatitude = null;
+        _senderLongitude = null;
+      });
+      return;
+    }
+
+    // Jika form saat ini sudah diisi oleh pengguna, simpan langsung ke database m_users
+    final formHasData = _senderProvince != null ||
+        _senderAddressController.text.trim().isNotEmpty ||
+        _senderLatitude != null;
+
+    if (formHasData) {
+      await _saveSenderAddressToUsersDatabase(showToast: true);
+      return;
+    }
+
+    // Jika form belum diisi, isi otomatis dari database Supabase tabel m_users
+    setState(() {
+      _isLoadingMainAddress = true;
+    });
+
+    try {
+      _userProfile ??= await _repository.getCurrentUserProfile();
+
+      final profile = _userProfile;
+      if (profile == null) {
+        if (mounted) {
+          _showErrorToast('Data profil pengguna tidak ditemukan di tabel m_users.');
+          setState(() {
+            _useMainAddress = false;
+            _isLoadingMainAddress = false;
+          });
+        }
+        return;
+      }
+
+      // 1. Isi Nama Lengkap & No HP Pengirim
+      final nama = profile['nama_lengkap']?.toString() ?? profile['name']?.toString();
+      final phone = profile['no_hp']?.toString() ?? profile['phone']?.toString();
+      if (nama != null && nama.isNotEmpty) {
+        _senderNameController.text = nama;
+      }
+      if (phone != null && phone.isNotEmpty) {
+        _senderPhoneController.text = phone;
+      }
+
+      // 2. Isi Alamat Lengkap
+      final alamat = profile['alamat_lengkap']?.toString() ?? profile['address']?.toString();
+      if (alamat != null && alamat.isNotEmpty) {
+        _senderAddressController.text = alamat;
+      }
+
+      // 3. Isi Titik Lokasi Pengiriman (latitude & longitude)
+      final latRaw = profile['latitude'];
+      final lngRaw = profile['longitude'];
+      if (latRaw != null && lngRaw != null) {
+        final lat = double.tryParse(latRaw.toString());
+        final lng = double.tryParse(lngRaw.toString());
+        if (lat != null && lng != null && (lat != 0.0 || lng != 0.0)) {
+          _senderLatitude = lat;
+          _senderLongitude = lng;
+        }
+      }
+
+      // 4. Kolom relasi wilayah m_users: id_provinsi, id_kabkot, id_kecamatan, id_kelurahan
+      final idProvinsi = profile['id_provinsi']?.toString().trim();
+      final idKabkot = profile['id_kabkot']?.toString().trim();
+      final idKecamatan = profile['id_kecamatan']?.toString().trim();
+      final idKelurahan = profile['id_kelurahan']?.toString().trim();
+
+      // Pastikan master data provinsi tersedia
+      if (_provinces.isEmpty) {
+        _provinces = await _repository.getProvinces();
+      }
+
+      Province? matchedProv;
+      if (idProvinsi != null && idProvinsi.isNotEmpty) {
+        for (final p in _provinces) {
+          if (p.code.trim() == idProvinsi ||
+              p.code.replaceAll('.', '') == idProvinsi.replaceAll('.', '')) {
+            matchedProv = p;
+            break;
+          }
+        }
+      }
+
+      if (matchedProv != null) {
+        _senderProvince = matchedProv;
+        _isLoadingSenderRegencies = true;
+        if (mounted) setState(() {});
+
+        final regencies = await _repository.getRegencies(matchedProv.code);
+        _senderRegencies = regencies;
+        _isLoadingSenderRegencies = false;
+
+        Regency? matchedReg;
+        if (idKabkot != null && idKabkot.isNotEmpty) {
+          for (final r in regencies) {
+            if (r.code.trim() == idKabkot ||
+                r.code.replaceAll('.', '') == idKabkot.replaceAll('.', '')) {
+              matchedReg = r;
+              break;
+            }
+          }
+        }
+
+        if (matchedReg != null) {
+          _senderRegency = matchedReg;
+          _isLoadingSenderDistricts = true;
+          if (mounted) setState(() {});
+
+          final districts = await _repository.getDistricts(matchedReg.code);
+          _senderDistricts = districts;
+          _isLoadingSenderDistricts = false;
+
+          District? matchedDist;
+          if (idKecamatan != null && idKecamatan.isNotEmpty) {
+            for (final d in districts) {
+              if (d.code.trim() == idKecamatan ||
+                  d.code.replaceAll('.', '') == idKecamatan.replaceAll('.', '')) {
+                matchedDist = d;
+                break;
+              }
+            }
+          }
+
+          if (matchedDist != null) {
+            _senderDistrict = matchedDist;
+            _isLoadingSenderVillages = true;
+            if (mounted) setState(() {});
+
+            final villages = await _repository.getVillages(matchedDist.code);
+            _senderVillages = villages;
+            _isLoadingSenderVillages = false;
+
+            Village? matchedVill;
+            if (idKelurahan != null && idKelurahan.isNotEmpty) {
+              for (final v in villages) {
+                if (v.code.trim() == idKelurahan ||
+                    v.code.replaceAll('.', '') == idKelurahan.replaceAll('.', '')) {
+                  matchedVill = v;
+                  break;
+                }
+              }
+            }
+
+            if (matchedVill != null) {
+              _senderVillage = matchedVill;
+              if (matchedVill.postalCode != null &&
+                  matchedVill.postalCode!.isNotEmpty) {
+                _senderPostalController.text = matchedVill.postalCode!;
+              }
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Alamat berhasil dimuat.'),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorToast('Gagal memuat alamat: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMainAddress = false;
+          _isLoadingSenderRegencies = false;
+          _isLoadingSenderDistricts = false;
+          _isLoadingSenderVillages = false;
+        });
+      }
+    }
   }
 
   Future<void> _onReceiverProvinceSelected(Province prov) async {
@@ -440,6 +721,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
         _senderLatitude = result.latitude;
         _senderLongitude = result.longitude;
       });
+      if (_useMainAddress) {
+        _saveSenderAddressToUsersDatabase(showToast: true);
+      }
     }
   }
 
@@ -563,6 +847,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
         );
         return;
       }
+      if (_useMainAddress) {
+        _saveSenderAddressToUsersDatabase(showToast: true);
+      }
       setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
       // Validasi Step 2: Paket
@@ -677,6 +964,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
     };
 
     try {
+      if (_useMainAddress) {
+        await _saveSenderAddressToUsersDatabase();
+      }
       final createdOrder = await _repository.createShipmentOrder(orderPayload);
 
       if (mounted) {
@@ -856,6 +1146,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       case 0:
         return ShipmentAddressStep(
           isDark: isDark,
+          useMainAddress: _useMainAddress,
+          onToggleUseMainAddress: _onToggleUseMainAddress,
+          isLoadingMainAddress: _isLoadingMainAddress,
           senderNameController: _senderNameController,
           senderPhoneController: _senderPhoneController,
           senderAddressController: _senderAddressController,

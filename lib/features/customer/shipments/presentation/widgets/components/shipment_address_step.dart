@@ -64,6 +64,11 @@ class ShipmentAddressStep extends StatelessWidget {
   final VoidCallback? onPickSenderLocation;
   final VoidCallback? onPickReceiverLocation;
 
+  // Switch Alamat Utama (m_users)
+  final bool useMainAddress;
+  final ValueChanged<bool>? onToggleUseMainAddress;
+  final bool isLoadingMainAddress;
+
   const ShipmentAddressStep({
     super.key,
     required this.isDark,
@@ -74,6 +79,9 @@ class ShipmentAddressStep extends StatelessWidget {
     this.senderLatitude,
     this.senderLongitude,
     this.onPickSenderLocation,
+    this.useMainAddress = false,
+    this.onToggleUseMainAddress,
+    this.isLoadingMainAddress = false,
     required this.receiverNameController,
     required this.receiverPhoneController,
     required this.receiverAddressController,
@@ -181,6 +189,136 @@ class ShipmentAddressStep extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Switch Gunakan Alamat Utama (m_users)
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: useMainAddress
+                      ? AppColors.primary.withValues(alpha: 0.08)
+                      : (isDark
+                          ? const Color(0xFF1B2A3D)
+                          : const Color(0xFFF8FAFC)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: useMainAddress
+                        ? AppColors.primary.withValues(alpha: 0.35)
+                        : (isDark ? Colors.white12 : Colors.black12),
+                  ),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: isLoadingMainAddress
+                        ? null
+                        : () => onToggleUseMainAddress?.call(!useMainAddress),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: useMainAddress
+                                  ? AppColors.primary.withValues(alpha: 0.15)
+                                  : (isDark
+                                      ? Colors.white10
+                                      : Colors.black.withValues(alpha: 0.06)),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.home_work_rounded,
+                              size: 20,
+                              color: useMainAddress
+                                  ? AppColors.primary
+                                  : (isDark ? Colors.white70 : Colors.black54),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                 Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 6,
+                                  runSpacing: 2,
+                                  children: [
+                                    const Text(
+                                      'Tambah Alamat Utama',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (useMainAddress)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 1.5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.success
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'SINKRON',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.success,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isLoadingMainAddress
+                                      ? 'Menghubungkan...'
+                                      : (useMainAddress
+                                          ? 'Alamat & GPS tersinkron otomatis'
+                                          : 'Simpan otomatis provinsi, kota, alamat & GPS'),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? Colors.white60
+                                        : Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (isLoadingMainAddress)
+                            const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.primary,
+                                ),
+                              ),
+                            )
+                          else
+                            Switch.adaptive(
+                              value: useMainAddress,
+                              onChanged: onToggleUseMainAddress,
+                              activeTrackColor: AppColors.primary,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               CustomTextField(
                 label: 'Nama Lengkap Pengirim',
                 hintText: 'Nama pengirim paket',
@@ -274,7 +412,7 @@ class ShipmentAddressStep extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _buildLocationPickerBadge(
-                label: 'Titik Lokasi Pengirim (GPS)',
+                label: 'Titik Lokasi Pengirim',
                 latitude: senderLatitude,
                 longitude: senderLongitude,
                 onTap: onPickSenderLocation,
@@ -401,7 +539,7 @@ class ShipmentAddressStep extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _buildLocationPickerBadge(
-                label: 'Titik Lokasi Penerima (GPS)',
+                label: 'Titik Lokasi Penerima',
                 latitude: receiverLatitude,
                 longitude: receiverLongitude,
                 onTap: onPickReceiverLocation,
@@ -463,7 +601,10 @@ class ShipmentAddressStep extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
                     Text(
                       label,
@@ -472,8 +613,7 @@ class ShipmentAddressStep extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (hasCoord) ...[
-                      const SizedBox(width: 6),
+                    if (hasCoord)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 5, vertical: 1.5),
@@ -490,13 +630,12 @@ class ShipmentAddressStep extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   (latitude != null && longitude != null)
-                      ? 'Lat: ${latitude.toStringAsFixed(8)}, Lng: ${longitude.toStringAsFixed(8)}'
+                      ? 'Lat: ${latitude.toStringAsFixed(6)}, Lng: ${longitude.toStringAsFixed(6)}'
                       : 'Buka Google Maps untuk menentukan titik koordinat presisi',
                   style: TextStyle(
                     fontSize: 11,
