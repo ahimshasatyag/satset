@@ -158,9 +158,15 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _onNotificationTap() {
     _dashboardBloc.add(const DashboardNotificationTapped());
+    final currentUserId = widget.user?.id ??
+        (_dashboardBloc.state is DashboardLoaded
+            ? (_dashboardBloc.state as DashboardLoaded).userProfile.id
+            : null);
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const NotificationsPage(),
+        builder: (_) => NotificationsPage(
+          userId: currentUserId,
+        ),
       ),
     );
   }
@@ -543,12 +549,13 @@ class _DashboardPageState extends State<DashboardPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.location_on_rounded, size: 14, color: AppColors.secondary),
+                  const Icon(Icons.my_location_rounded, size: 14, color: AppColors.primary),
                   const SizedBox(width: 4),
                   Text(
-                    profile.locationDisplay,
+                    'Lokasi: ${profile.currentLocationDisplay}',
                     style: TextStyle(
                       fontSize: 12,
+                      fontWeight: FontWeight.w600,
                       color: isDark
                           ? AppColors.textSecondaryDark
                           : AppColors.textSecondaryLight,
@@ -556,6 +563,34 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
               ),
+              if (profile.alamatLengkap != null &&
+                  profile.alamatLengkap!.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.home_outlined, size: 13, color: AppColors.secondary),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          profile.alamatLengkap!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.textMutedDark
+                                : AppColors.textMutedLight,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               if (widget.onToggleTheme != null)
                 ListTile(

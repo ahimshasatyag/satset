@@ -13,14 +13,15 @@ import '../../domain/usecases/logout_account_usecase.dart';
 import '../bloc/account_bloc.dart';
 import '../bloc/account_event.dart';
 import '../bloc/account_state.dart';
-import '../widgets/account_address_sheet.dart';
+import '../../../customer/address/presentation/pages/address_list_page.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/pages/forgot_password_page.dart';
 import '../widgets/account_edit_profile_dialog.dart';
 import '../widgets/account_legal_dialog.dart';
 import '../widgets/account_logout_dialog.dart';
 import '../widgets/account_menu_card.dart';
 import '../widgets/account_menu_item.dart';
 import '../widgets/account_profile_header.dart';
-import '../widgets/account_security_dialog.dart';
 import '../widgets/account_skeleton.dart';
 import '../widgets/account_theme_dialog.dart';
 
@@ -95,37 +96,33 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
-  void _showAddressManagement(BuildContext context, UserAccount account, AccountBloc bloc) {
-    final repo = _getOrCreateRepository();
-    AccountAddressSheet.show(
-      context,
-      addresses: account.addresses,
-      repository: repo,
-      defaultReceiverName: account.name,
-      defaultPhone: account.phone,
-      onSaveAddress: (address) {
-        bloc.add(AccountAddressSaved(address));
-      },
-      onDeleteAddress: (addressId) {
-        bloc.add(AccountAddressDeleted(addressId));
-      },
-      onSetPrimaryAddress: (addressId) {
-        bloc.add(AccountPrimaryAddressSet(addressId));
-      },
+  Future<void> _showAddressManagement(BuildContext context, UserAccount account, AccountBloc bloc) async {
+    await Navigator.of(context).push(
+      AddressListPage.route(),
     );
+    // Refresh profil akun setelah kembali untuk memuat perubahan alamat terbaru (m_users & m_address)
+    bloc.add(const AccountProfileLoaded());
   }
 
-  void _showSecurityManagement(BuildContext context, UserAccount account, AccountBloc bloc) {
-    AccountSecurityDialog.show(
-      context,
-      email: account.email,
-      isEmailVerified: account.isEmailVerified,
-      onResendVerification: () {
-        bloc.add(const AccountEmailVerificationResent());
-      },
-      onChangePassword: (newPassword) {
-        bloc.add(AccountPasswordChanged(newPassword));
-      },
+  void _navigateToForgotPassword(BuildContext context, UserAccount account) {
+    AuthBloc? authBloc;
+    try {
+      authBloc = context.read<AuthBloc>();
+    } catch (_) {}
+
+    final page = ForgotPasswordPage(
+      initialEmail: account.email.isNotEmpty ? account.email : null,
+    );
+
+    Navigator.of(context).push(
+      SmoothPageRoute(
+        child: authBloc != null
+            ? BlocProvider.value(
+                value: authBloc,
+                child: page,
+              )
+            : page,
+      ),
     );
   }
 
@@ -224,10 +221,10 @@ class _AccountPageState extends State<AccountPage> {
                           widget.user!.alamatLengkap != null ? 1 : 0,
                     )
                   : const UserAccount(
-                      id: 'usr-01',
-                      name: 'Satria Perkasa',
-                      email: 'satria@satset.id',
-                      phone: '+62 812-3456-7890',
+                      id: '',
+                      name: 'Pengguna SatSet',
+                      email: '',
+                      phone: '',
                     ));
 
           final isCourier = account.isCourierAccount ||
@@ -340,10 +337,10 @@ class _AccountPageState extends State<AccountPage> {
                             color: AppColors.primary,
                             title: 'Kredensial & Kata Sandi',
                             subtitle: account.isEmailVerified
-                                ? 'Kata Sandi • Email Terverifikasi Supabase Auth'
-                                : 'Kata Sandi • Belum Terverifikasi (Kirim Ulang)',
+                                ? 'Ubah Kata Sandi • Email Terverifikasi Supabase Auth'
+                                : 'Ubah Kata Sandi • Verifikasi Email Akun',
                             onTap: () =>
-                                _showSecurityManagement(context, account, bloc),
+                                _navigateToForgotPassword(context, account),
                           ),
                           const Divider(height: 1),
                           AccountMenuItem(

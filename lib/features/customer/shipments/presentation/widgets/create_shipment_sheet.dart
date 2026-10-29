@@ -19,6 +19,12 @@ import 'components/shipment_package_step.dart';
 import 'components/shipment_payment_step.dart';
 import 'location_picker_map_dialog.dart';
 
+import 'package:satset/app/config/supabase_config.dart';
+import 'package:satset/features/customer/address/domain/entities/customer_address.dart';
+import 'package:satset/features/customer/address/domain/repositories/address_repository.dart';
+import 'package:satset/features/customer/address/data/datasources/address_remote_datasource.dart';
+import 'package:satset/features/customer/address/data/repositories/address_repository_impl.dart';
+
 class CreateShipmentSheet extends StatefulWidget {
   final Function(Map<String, dynamic> data)? onOrderCreated;
   final dynamic repository;
@@ -46,13 +52,30 @@ class CreateShipmentSheet extends StatefulWidget {
 }
 
 class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
-  late final dynamic _repository;
+  dynamic _repo;
+  dynamic get _repository =>
+      _repo ??= widget.repository ??
+          ShipmentRepositoryImpl(
+            remoteDataSource: ShipmentRemoteDataSourceImpl(),
+            localDataSource: ShipmentLocalDataSourceImpl(),
+          );
 
   int _currentStep =
       0; // 0: Alamat, 1: Paket & Layanan, 2: Pembayaran & Ringkasan
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  // Kontrol Alamat Utama
+  AddressRepository? _addressRepo;
+  AddressRepository get _addressRepository =>
+      _addressRepo ??= AddressRepositoryImpl(
+        remoteDataSource: AddressRemoteDataSourceImpl(
+          client: SupabaseConfig.client,
+        ),
+      );
+  bool _isUsePrimaryAddress = false;
+  bool _isLoadingPrimaryAddress = false;
 
   // Master data
   List<Province> _provinces = [];
@@ -160,12 +183,17 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
   void initState() {
     super.initState();
     _syncAutoGoodsValueIfNeeded();
-    _repository =
+    _repo =
         widget.repository ??
         ShipmentRepositoryImpl(
           remoteDataSource: ShipmentRemoteDataSourceImpl(),
           localDataSource: ShipmentLocalDataSourceImpl(),
         );
+    _addressRepo = AddressRepositoryImpl(
+      remoteDataSource: AddressRemoteDataSourceImpl(
+        client: SupabaseConfig.client,
+      ),
+    );
     _loadInitialData();
   }
 
@@ -197,13 +225,16 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
 
     try {
       final Future<List<Province>> provFuture =
-          _repository.getProvinces() as Future<List<Province>>;
+          (_repository.getProvinces() as Future)
+              .then((v) => List<Province>.from(v as Iterable));
       final Future<List<OrderServiceType>> typesFuture =
-          _repository.getServiceTypes() as Future<List<OrderServiceType>>;
+          (_repository.getServiceTypes() as Future)
+              .then((v) => List<OrderServiceType>.from(v as Iterable));
       final Future<Map<String, dynamic>?> profileFuture =
           _repository.getCurrentUserProfile() as Future<Map<String, dynamic>?>;
       final Future<List<BankAccount>> banksFuture =
-          _repository.getBanks() as Future<List<BankAccount>>;
+          (_repository.getBanks() as Future)
+              .then((v) => List<BankAccount>.from(v as Iterable));
 
       final results = await Future.wait<dynamic>([
         provFuture,
@@ -227,7 +258,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
         _syncAutoGoodsValueIfNeeded();
       }
 
-      // Prefill Pengirim dari profil pengguna
+      // Prefill data kontak Pengirim dari profil pengguna (nama & no hp)
       if (userProfile != null) {
         _senderNameController.text =
             userProfile['nama_lengkap']?.toString() ??
@@ -237,22 +268,33 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
             userProfile['no_hp']?.toString() ??
             userProfile['phone']?.toString() ??
             '';
-        _senderAddressController.text =
-            userProfile['alamat_lengkap']?.toString() ??
-            userProfile['address']?.toString() ??
-            '';
-
-        final lat = (userProfile['latitude'] as num?)?.toDouble();
-        final lng = (userProfile['longitude'] as num?)?.toDouble();
-        if (lat != null && lng != null && lat != 0.0) {
-          _senderLatitude = lat;
-          _senderLongitude = lng;
-        }
       }
 
-      // Pastikan dropdown wilayah tidak otomatis terpilih (tetap null sampai dipilih pengguna)
+      // Pastikan Switch Alamat Utama tidak aktif dan form wilayah/alamat/kode pos dalam keadaan kosong
+      _isUsePrimaryAddress = false;
+      _senderAddressController.clear();
+      _senderPostalController.clear();
       _senderProvince = null;
+      _senderRegency = null;
+      _senderDistrict = null;
+      _senderVillage = null;
+      _senderRegencies = [];
+      _senderDistricts = [];
+      _senderVillages = [];
+      _senderLatitude = null;
+      _senderLongitude = null;
+
+      _receiverAddressController.clear();
+      _receiverPostalController.clear();
       _receiverProvince = null;
+      _receiverRegency = null;
+      _receiverDistrict = null;
+      _receiverVillage = null;
+      _receiverRegencies = [];
+      _receiverDistricts = [];
+      _receiverVillages = [];
+      _receiverLatitude = null;
+      _receiverLongitude = null;
     } catch (e) {
       _errorMessage = 'Gagal memuat master data: $e';
     } finally {
@@ -261,6 +303,249 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       }
     }
   }
+
+  /// Helper pencarian item pertama yang aman dari dynamic dispatch & missing extension
+  T? _findFirstOrNull<T>(Iterable<T> list, bool Function(T item) predicate) {
+    for (final item in list) {
+      if (predicate(item)) return item;
+    }
+    return null;
+  }
+
+  /// Mengisi data pengirim secara otomatis dari data [CustomerAddress]
+  Future<void> _applyPrimaryAddress(CustomerAddress address) async {
+    setState(() {
+      _isLoadingPrimaryAddress = true;
+      _isUsePrimaryAddress = true;
+    });
+
+    try {
+      // 1. Text controllers nama, nomor telepon, alamat, dan kode pos
+      if (address.receiverName.trim().isNotEmpty) {
+        _senderNameController.text = address.receiverName.trim();
+      }
+      if (address.phoneNumber.trim().isNotEmpty) {
+        _senderPhoneController.text = address.phoneNumber.trim();
+      }
+      if (address.fullAddress.trim().isNotEmpty) {
+        _senderAddressController.text = address.fullAddress.trim();
+      }
+      if (address.postalCode != null && address.postalCode!.trim().isNotEmpty) {
+        _senderPostalController.text = address.postalCode!.trim();
+      }
+      if (address.latitude != null &&
+          address.longitude != null &&
+          address.latitude != 0.0) {
+        _senderLatitude = address.latitude;
+        _senderLongitude = address.longitude;
+      }
+
+      // 2. Pastikan daftar provinsi tersedia
+      if (_provinces.isEmpty) {
+        _provinces = List<Province>.from(
+          await (_repository.getProvinces() as Future) as Iterable,
+        );
+      }
+
+      // 3. Cocokkan dan set Provinsi
+      Province? targetProv;
+      if (address.provinceCode != null && address.provinceCode!.isNotEmpty) {
+        targetProv = _findFirstOrNull(
+          _provinces,
+          (p) => p.code == address.provinceCode,
+        );
+      }
+      if (targetProv == null &&
+          address.provinceName != null &&
+          address.provinceName!.isNotEmpty) {
+        final pName = address.provinceName!.trim().toLowerCase();
+        targetProv = _findFirstOrNull(
+          _provinces,
+          (p) => p.name.trim().toLowerCase() == pName,
+        );
+      }
+
+      if (targetProv != null) {
+        _senderProvince = targetProv;
+        _isLoadingSenderRegencies = true;
+        if (mounted) setState(() {});
+
+        // 4. Muat dan cocokkan Kabupaten/Kota
+        final List<Regency> regList = List<Regency>.from(
+          await (_repository.getRegencies(targetProv.code) as Future)
+              as Iterable,
+        );
+        _senderRegencies = regList;
+        _isLoadingSenderRegencies = false;
+
+        Regency? targetReg;
+        if (address.regencyCode != null && address.regencyCode!.isNotEmpty) {
+          targetReg = _findFirstOrNull(
+            regList,
+            (r) => r.code == address.regencyCode,
+          );
+        }
+        if (targetReg == null &&
+            address.regencyName != null &&
+            address.regencyName!.isNotEmpty) {
+          final rName = address.regencyName!.trim().toLowerCase();
+          targetReg = _findFirstOrNull(
+            regList,
+            (r) => r.name.trim().toLowerCase() == rName,
+          );
+        }
+
+        if (targetReg != null) {
+          _senderRegency = targetReg;
+          _isLoadingSenderDistricts = true;
+          if (mounted) setState(() {});
+
+          // 5. Muat dan cocokkan Kecamatan
+          final List<District> distList = List<District>.from(
+            await (_repository.getDistricts(targetReg.code) as Future)
+                as Iterable,
+          );
+          _senderDistricts = distList;
+          _isLoadingSenderDistricts = false;
+
+          District? targetDist;
+          if (address.districtCode != null &&
+              address.districtCode!.isNotEmpty) {
+            targetDist = _findFirstOrNull(
+              distList,
+              (d) => d.code == address.districtCode,
+            );
+          }
+          if (targetDist == null &&
+              address.districtName != null &&
+              address.districtName!.isNotEmpty) {
+            final dName = address.districtName!.trim().toLowerCase();
+            targetDist = _findFirstOrNull(
+              distList,
+              (d) => d.name.trim().toLowerCase() == dName,
+            );
+          }
+
+          if (targetDist != null) {
+            _senderDistrict = targetDist;
+            _isLoadingSenderVillages = true;
+            if (mounted) setState(() {});
+
+            // 6. Muat dan cocokkan Kelurahan
+            final List<Village> villList = List<Village>.from(
+              await (_repository.getVillages(targetDist.code) as Future)
+                  as Iterable,
+            );
+            _senderVillages = villList;
+            _isLoadingSenderVillages = false;
+
+            Village? targetVill;
+            if (address.villageCode != null &&
+                address.villageCode!.isNotEmpty) {
+              targetVill = _findFirstOrNull(
+                villList,
+                (v) => v.code == address.villageCode,
+              );
+            }
+            if (targetVill == null &&
+                address.villageName != null &&
+                address.villageName!.isNotEmpty) {
+              final vName = address.villageName!.trim().toLowerCase();
+              targetVill = _findFirstOrNull(
+                villList,
+                (v) => v.name.trim().toLowerCase() == vName,
+              );
+            }
+
+            if (targetVill != null) {
+              _senderVillage = targetVill;
+              if (_senderPostalController.text.trim().isEmpty &&
+                  targetVill.postalCode != null &&
+                  targetVill.postalCode!.isNotEmpty) {
+                _senderPostalController.text = targetVill.postalCode!;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengisi data wilayah alamat utama: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPrimaryAddress = false;
+          _isLoadingSenderRegencies = false;
+          _isLoadingSenderDistricts = false;
+          _isLoadingSenderVillages = false;
+        });
+      }
+    }
+  }
+
+  /// Menangani perubahan switch "Gunakan Alamat Utama"
+  Future<void> _onToggleUsePrimaryAddress(bool value) async {
+    if (!value) {
+      setState(() {
+        _isUsePrimaryAddress = false;
+        _senderProvince = null;
+        _senderRegency = null;
+        _senderDistrict = null;
+        _senderVillage = null;
+        _senderRegencies = [];
+        _senderDistricts = [];
+        _senderVillages = [];
+        _senderAddressController.clear();
+        _senderPostalController.clear();
+      });
+      return;
+    }
+
+    setState(() => _isLoadingPrimaryAddress = true);
+    try {
+      final primary = await _addressRepository.getPrimaryAddress();
+      if (primary != null) {
+        await _applyPrimaryAddress(primary);
+      } else {
+        if (mounted) {
+          setState(() {
+            _isUsePrimaryAddress = false;
+            _isLoadingPrimaryAddress = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Belum ada Alamat Utama yang tersimpan pada akun Anda.'),
+              backgroundColor: AppColors.secondary,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUsePrimaryAddress = false;
+          _isLoadingPrimaryAddress = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat alamat utama: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
 
   Future<void> _onSenderProvinceSelected(Province prov) async {
     setState(() {
@@ -277,7 +562,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       final regs = await _repository.getRegencies(prov.code);
       if (mounted) {
         setState(() {
-          _senderRegencies = regs;
+          _senderRegencies = List<Regency>.from(regs as Iterable);
           _isLoadingSenderRegencies = false;
         });
       }
@@ -301,7 +586,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       final dists = await _repository.getDistricts(reg.code);
       if (mounted) {
         setState(() {
-          _senderDistricts = dists;
+          _senderDistricts = List<District>.from(dists as Iterable);
           _isLoadingSenderDistricts = false;
         });
       }
@@ -323,7 +608,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       final vills = await _repository.getVillages(dist.code);
       if (mounted) {
         setState(() {
-          _senderVillages = vills;
+          _senderVillages = List<Village>.from(vills as Iterable);
           _isLoadingSenderVillages = false;
         });
       }
@@ -358,7 +643,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       final regs = await _repository.getRegencies(prov.code);
       if (mounted) {
         setState(() {
-          _receiverRegencies = regs;
+          _receiverRegencies = List<Regency>.from(regs as Iterable);
           _isLoadingReceiverRegencies = false;
         });
       }
@@ -382,7 +667,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       final dists = await _repository.getDistricts(reg.code);
       if (mounted) {
         setState(() {
-          _receiverDistricts = dists;
+          _receiverDistricts = List<District>.from(dists as Iterable);
           _isLoadingReceiverDistricts = false;
         });
       }
@@ -404,7 +689,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       final vills = await _repository.getVillages(dist.code);
       if (mounted) {
         setState(() {
-          _receiverVillages = vills;
+          _receiverVillages = List<Village>.from(vills as Iterable);
           _isLoadingReceiverVillages = false;
         });
       }
@@ -856,6 +1141,9 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
       case 0:
         return ShipmentAddressStep(
           isDark: isDark,
+          isUsePrimaryAddress: _isUsePrimaryAddress,
+          isLoadingPrimaryAddress: _isLoadingPrimaryAddress,
+          onToggleUsePrimaryAddress: _onToggleUsePrimaryAddress,
           senderNameController: _senderNameController,
           senderPhoneController: _senderPhoneController,
           senderAddressController: _senderAddressController,

@@ -9,6 +9,7 @@ import '../../data/datasources/notification_remote_datasource.dart';
 import '../../data/repositories/notification_repository_impl.dart';
 import '../../domain/entities/notification_item.dart';
 import '../../domain/repositories/notification_repository.dart';
+import '../../domain/usecases/create_notification_usecase.dart';
 import '../../domain/usecases/delete_notification_usecase.dart';
 import '../../domain/usecases/get_notifications_usecase.dart';
 import '../../domain/usecases/mark_all_notifications_as_read_usecase.dart';
@@ -25,12 +26,14 @@ class NotificationsPage extends StatefulWidget {
   final NotificationRepository? repository;
   final bool isCourier;
   final String? courierId;
+  final String? userId;
 
   const NotificationsPage({
     super.key,
     this.repository,
     this.isCourier = false,
     this.courierId,
+    this.userId,
   });
 
   @override
@@ -65,9 +68,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
           markAllNotificationsAsReadUseCase:
               MarkAllNotificationsAsReadUseCase(repo),
           deleteNotificationUseCase: DeleteNotificationUseCase(repo),
+          createNotificationUseCase: CreateNotificationUseCase(repo),
           repository: repo,
           isCourier: widget.isCourier,
           courierId: widget.courierId,
+          userId: widget.userId,
         );
       }
       return _internalBloc!;

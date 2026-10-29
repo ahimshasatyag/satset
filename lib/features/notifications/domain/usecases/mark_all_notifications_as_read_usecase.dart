@@ -5,7 +5,15 @@ class MarkAllNotificationsAsReadUseCase {
 
   MarkAllNotificationsAsReadUseCase(this.repository);
 
-  Future<void> call({bool isCourier = false, String? courierId}) {
-    return repository.markAllAsRead(isCourier: isCourier, courierId: courierId);
+  Future<void> call({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) {
+    return repository.markAllAsRead(
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    );
   }
 }

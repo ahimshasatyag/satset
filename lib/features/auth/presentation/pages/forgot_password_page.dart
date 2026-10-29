@@ -11,7 +11,12 @@ import 'verification_code_page.dart';
 
 /// Halaman Lupa Kata Sandi aplikasi SatSet
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  final String? initialEmail;
+
+  const ForgotPasswordPage({
+    super.key,
+    this.initialEmail,
+  });
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -19,15 +24,22 @@ class ForgotPasswordPage extends StatefulWidget {
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  late final TextEditingController _emailController;
   bool _hasPrecached = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail ?? '');
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_hasPrecached) {
       _hasPrecached = true;
-      precacheImage(const AssetImage('assets/images/Background.png'), context);
+      precacheImage(const AssetImage('assets/images/Background.png'), context)
+          .catchError((_) {});
     }
   }
 
@@ -64,7 +76,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
-                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox(),
               ),
             ),
 

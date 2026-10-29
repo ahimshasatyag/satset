@@ -48,6 +48,9 @@ class DatabaseConstants {
   /// Nama tabel bukti serah terima / pengiriman kurir
   static const String tableShipmentProofs = 't_shipment_proofs';
 
+  /// Nama tabel master alamat tambahan
+  static const String tableAddress = 'm_address';
+
   /// Kolom umum
   static const String colId = 'id';
   static const String colEmail = 'email';
@@ -78,6 +81,7 @@ class UserTableColumns {
   static const String idKabkot = 'id_kabkot';
   static const String idKecamatan = 'id_kecamatan';
   static const String idKelurahan = 'id_kelurahan';
+  static const String isUtama = 'is_utama';
   static const String createdAt = 'created_at';
   static const String updatedAt = 'updated_at';
 }
@@ -267,15 +271,19 @@ class NotificationTableColumns {
 
   static const String id = 'id';
   static const String userId = 'user_id';
-  static const String title = 'title';
-  static const String message = 'message';
-  static const String type = 'type';
+  static const String employeeId = 'employee_id';
+  static const String shipmentId = 'shipment_id';
+  static const String judul = 'judul';
+  static const String title = 'judul';
+  static const String pesan = 'pesan';
+  static const String message = 'pesan';
+  static const String tipe = 'tipe';
+  static const String type = 'tipe';
   static const String isRead = 'is_read';
   static const String readAt = 'read_at';
-  static const String shipmentId = 'shipment_id';
+  static const String createdAt = 'created_at';
   static const String paymentId = 'payment_id';
   static const String data = 'data';
-  static const String createdAt = 'created_at';
 }
 
 /// Kolom-kolom tabel m_jenis_bank di Supabase
@@ -349,5 +357,21 @@ class ShipmentProofTableColumns {
   static const String latitude = 'latitude';
   static const String longitude = 'longitude';
   static const String createdAt = 'created_at';
+}
+
+/// Kolom-kolom tabel m_address di Supabase
+class AddressTableColumns {
+  AddressTableColumns._();
+
+  static const String id = 'id';
+  static const String idUsers = 'id_users';
+  static const String alamatLengkap = 'alamat_lengkap';
+  static const String idProvinsi = 'id_provinsi';
+  static const String idKabkot = 'id_kabkot';
+  static const String idKelurahan = 'id_kelurahan';
+  static const String kodePos = 'kode_pos';
+  static const String isUtama = 'is_utama';
+  static const String createdAt = 'created_at';
+  static const String updatedAt = 'updated_at';
 }
 

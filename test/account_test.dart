@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:satset/features/account/data/datasources/account_local_datasource.dart';
 import 'package:satset/features/account/data/datasources/account_remote_datasource.dart';
@@ -13,7 +14,19 @@ import 'package:satset/features/account/presentation/bloc/account_state.dart';
 import 'package:satset/features/account/presentation/pages/account_page.dart';
 import 'package:satset/features/account/presentation/widgets/account_skeleton.dart';
 import 'package:satset/features/auth/domain/entities/user.dart';
+import 'package:satset/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:satset/features/auth/presentation/bloc/auth_event.dart';
+import 'package:satset/features/auth/presentation/bloc/auth_state.dart';
+import 'package:satset/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakeAuthBloc extends Fake implements AuthBloc {
+  @override
+  Stream<AuthState> get stream => const Stream<AuthState>.empty();
+
+  @override
+  AuthState get state => const AuthInitial();
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -283,6 +296,40 @@ void main() {
       expect(find.text('Pengiriman & Alamat'), findsNothing);
       expect(find.text('Keamanan Akun'), findsOneWidget);
       expect(find.text('Pengaturan dan Bantuan'), findsOneWidget);
+    });
+
+    testWidgets('Tapping Kredensial & Kata Sandi opens ForgotPasswordPage with prefilled email', (tester) async {
+      const customerUser = User(
+        id: 'usr-001',
+        name: 'Satria Customer',
+        email: 'satria@satset.id',
+        phone: '08123456789',
+        role: 'customer',
+        idUsersRole: 1,
+      );
+
+      final fakeAuthBloc = FakeAuthBloc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<AuthBloc>.value(
+            value: fakeAuthBloc,
+            child: const AccountPage(user: customerUser),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final kredensialItem = find.text('Kredensial & Kata Sandi');
+      expect(kredensialItem, findsOneWidget);
+
+      await tester.ensureVisible(kredensialItem);
+      await tester.tap(kredensialItem);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ForgotPasswordPage), findsOneWidget);
+      expect(find.text('satria@satset.id'), findsOneWidget);
     });
 
     testWidgets('AccountSkeleton renders customer and courier variants properly', (tester) async {

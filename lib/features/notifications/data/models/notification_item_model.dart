@@ -18,10 +18,17 @@ class NotificationItemModel extends NotificationItem {
 
   factory NotificationItemModel.fromDatabase(Map<String, dynamic> row) {
     final id = row[NotificationTableColumns.id]?.toString() ?? '';
-    final userId = row[NotificationTableColumns.userId]?.toString() ?? '';
-    final title = row[NotificationTableColumns.title] as String? ?? '';
-    final message = row[NotificationTableColumns.message] as String? ?? '';
-    final typeStr = row[NotificationTableColumns.type] as String?;
+    final userId = row[NotificationTableColumns.userId]?.toString() ??
+        row[NotificationTableColumns.employeeId]?.toString() ??
+        '';
+    final title = row[NotificationTableColumns.judul] as String? ??
+        row['title'] as String? ??
+        '';
+    final message = row[NotificationTableColumns.pesan] as String? ??
+        row['message'] as String? ??
+        '';
+    final typeStr = row[NotificationTableColumns.tipe] as String? ??
+        row['type'] as String?;
     final isReadVal = row[NotificationTableColumns.isRead];
     final isRead = isReadVal == true || isReadVal == 1;
 
@@ -111,19 +118,89 @@ class NotificationItemModel extends NotificationItem {
     };
   }
 
-  Map<String, dynamic> toDatabase() {
-    return {
-      NotificationTableColumns.id: id,
-      NotificationTableColumns.userId: userId,
-      NotificationTableColumns.title: title,
-      NotificationTableColumns.message: message,
-      NotificationTableColumns.type: type.name,
+  @override
+  NotificationItemModel copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? message,
+    NotificationType? type,
+    bool? isRead,
+    DateTime? createdAt,
+    DateTime? readAt,
+    String? shipmentId,
+    String? paymentId,
+    Map<String, dynamic>? metadata,
+  }) {
+    return NotificationItemModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      type: type ?? this.type,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+      readAt: readAt ?? this.readAt,
+      shipmentId: shipmentId ?? this.shipmentId,
+      paymentId: paymentId ?? this.paymentId,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  Map<String, dynamic> toDatabase({bool isCourier = false}) {
+    final int? numId = int.tryParse(id);
+    final int? numUserId = int.tryParse(userId);
+    final int? numShipmentId =
+        shipmentId != null ? int.tryParse(shipmentId!) : null;
+
+    // Nilai valid check constraint tipe pada PostgreSQL: STATUS, PAYMENT, INFO, WARNING, ASSIGNMENT
+    String dbType;
+    switch (type) {
+      case NotificationType.shipment:
+        dbType = 'STATUS';
+        break;
+      case NotificationType.payment:
+        dbType = 'PAYMENT';
+        break;
+      case NotificationType.taskAssignment:
+        dbType = 'ASSIGNMENT';
+        break;
+      case NotificationType.urgentTask:
+        dbType = 'WARNING';
+        break;
+      case NotificationType.system:
+      case NotificationType.account:
+      case NotificationType.promo:
+        dbType = 'INFO';
+        break;
+    }
+
+    final map = <String, dynamic>{
+      NotificationTableColumns.judul: title,
+      NotificationTableColumns.pesan: message,
+      NotificationTableColumns.tipe: dbType,
       NotificationTableColumns.isRead: isRead,
-      NotificationTableColumns.readAt: readAt?.toIso8601String(),
-      NotificationTableColumns.shipmentId: shipmentId,
-      NotificationTableColumns.paymentId: paymentId,
-      NotificationTableColumns.data: metadata,
+      if (readAt != null)
+        NotificationTableColumns.readAt: readAt!.toIso8601String(),
       NotificationTableColumns.createdAt: createdAt.toIso8601String(),
     };
+
+    if (numId != null) {
+      map[NotificationTableColumns.id] = numId;
+    }
+
+    if (numUserId != null) {
+      if (isCourier) {
+        map[NotificationTableColumns.employeeId] = numUserId;
+      } else {
+        map[NotificationTableColumns.userId] = numUserId;
+      }
+    }
+
+    if (numShipmentId != null) {
+      map[NotificationTableColumns.shipmentId] = numShipmentId;
+    }
+
+    return map;
   }
 }

@@ -20,6 +20,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
     String? searchQuery,
     bool isCourier = false,
     String? courierId,
+    String? userId,
   }) async {
     try {
       final remoteList = await remoteDataSource.getNotifications(
@@ -29,6 +30,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
         searchQuery: searchQuery,
         isCourier: isCourier,
         courierId: courierId,
+        userId: userId,
       );
 
       // Simpan ke cache lokal jika halaman pertama tanpa filter/query pencarian
@@ -70,11 +72,16 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
-  Future<int> getUnreadCount({bool isCourier = false, String? courierId}) async {
+  Future<int> getUnreadCount({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
     try {
       return await remoteDataSource.getUnreadCount(
         isCourier: isCourier,
         courierId: courierId,
+        userId: userId,
       );
     } catch (_) {
       final cached = await localDataSource.getCachedNotifications(isCourier: isCourier);
@@ -91,10 +98,18 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
-  Future<void> markAllAsRead({bool isCourier = false, String? courierId}) async {
+  Future<void> markAllAsRead({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
     await localDataSource.markAllAsRead(isCourier: isCourier);
     try {
-      await remoteDataSource.markAllAsRead(isCourier: isCourier, courierId: courierId);
+      await remoteDataSource.markAllAsRead(
+        isCourier: isCourier,
+        courierId: courierId,
+        userId: userId,
+      );
     } catch (_) {}
   }
 
@@ -107,20 +122,61 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
-  Future<void> clearAllNotifications({bool isCourier = false, String? courierId}) async {
+  Future<void> clearAllNotifications({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
     await localDataSource.clearCache(isCourier: isCourier);
     try {
-      await remoteDataSource.clearAllNotifications(isCourier: isCourier, courierId: courierId);
+      await remoteDataSource.clearAllNotifications(
+        isCourier: isCourier,
+        courierId: courierId,
+        userId: userId,
+      );
     } catch (_) {}
+  }
+
+  @override
+  Future<NotificationItem> createNotification({
+    required String title,
+    required String message,
+    NotificationType type = NotificationType.system,
+    String? shipmentId,
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
+    final created = await remoteDataSource.createNotification(
+      title: title,
+      message: message,
+      type: type,
+      shipmentId: shipmentId,
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    );
+
+    try {
+      final current = await localDataSource.getCachedNotifications(isCourier: isCourier);
+      await localDataSource.cacheNotifications([created, ...current], isCourier: isCourier);
+    } catch (_) {}
+
+    return created;
   }
 
   @override
   Stream<List<NotificationItem>> subscribeNotifications({
     bool isCourier = false,
     String? courierId,
+    String? userId,
   }) {
     return remoteDataSource
-        .subscribeNotifications(isCourier: isCourier, courierId: courierId)
+        .subscribeNotifications(
+          isCourier: isCourier,
+          courierId: courierId,
+          userId: userId,
+        )
         .map((models) => models.map((m) => m as NotificationItem).toList());
   }
 }

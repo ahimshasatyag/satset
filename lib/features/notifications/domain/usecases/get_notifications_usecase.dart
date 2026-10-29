@@ -13,6 +13,7 @@ class GetNotificationsUseCase {
     String? searchQuery,
     bool isCourier = false,
     String? courierId,
+    String? userId,
   }) {
     return repository.getNotifications(
       limit: limit,
@@ -21,14 +22,31 @@ class GetNotificationsUseCase {
       searchQuery: searchQuery,
       isCourier: isCourier,
       courierId: courierId,
+      userId: userId,
     );
   }
 
-  Future<int> getUnreadCount({bool isCourier = false, String? courierId}) {
-    return repository.getUnreadCount(isCourier: isCourier, courierId: courierId);
+  Future<int> getUnreadCount({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) {
+    return repository.getUnreadCount(
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    );
   }
 
-  Stream<List<NotificationItem>> subscribe({bool isCourier = false, String? courierId}) {
-    return repository.subscribeNotifications(isCourier: isCourier, courierId: courierId);
+  Stream<List<NotificationItem>> subscribe({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) {
+    return repository.subscribeNotifications(
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    );
   }
 }

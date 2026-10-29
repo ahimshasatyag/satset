@@ -30,10 +30,7 @@ class UserProfile extends Equatable {
     this.unreadCount = 0,
   });
 
-  static const empty = UserProfile(
-    id: '',
-    name: 'Pelanggan',
-  );
+  static const empty = UserProfile(id: '', name: 'Pelanggan');
 
   /// Sapaan waktu kontekstual dinamis (Pagi, Siang, Sore, Malam)
   String get timeGreeting {
@@ -52,12 +49,20 @@ class UserProfile extends Equatable {
   /// Teks sapaan lengkap untuk pelanggan
   String get greetingDisplay => '$timeGreeting, $name! 👋';
 
-  String get locationDisplay {
-    if (alamatLengkap != null && alamatLengkap!.trim().isNotEmpty) {
-      return alamatLengkap!;
+  /// Tampilan lokasi sekarang pengguna (bukan alamat rumah/jalan statis)
+  String get currentLocationDisplay {
+    if (currentSubdistrict.isNotEmpty && currentCity.isNotEmpty) {
+      if (currentSubdistrict.toLowerCase() == currentCity.toLowerCase()) {
+        return currentCity;
+      }
+      return '$currentSubdistrict, $currentCity';
     }
-    return '$currentSubdistrict, $currentCity';
+    if (currentCity.isNotEmpty) return currentCity;
+    return '';
   }
+
+  /// Teks lokasi pengguna di header/dashboard (mengarah ke lokasi sekarang, bukan alamat rumah)
+  String get locationDisplay => currentLocationDisplay;
 
   UserProfile copyWith({
     String? id,
@@ -92,17 +97,17 @@ class UserProfile extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        email,
-        phone,
-        avatarUrl,
-        alamatLengkap,
-        currentCity,
-        currentSubdistrict,
-        currentLatitude,
-        currentLongitude,
-        hasUnreadCourierUpdates,
-        unreadCount,
-      ];
+    id,
+    name,
+    email,
+    phone,
+    avatarUrl,
+    alamatLengkap,
+    currentCity,
+    currentSubdistrict,
+    currentLatitude,
+    currentLongitude,
+    hasUnreadCourierUpdates,
+    unreadCount,
+  ];
 }

@@ -14,6 +14,7 @@ class NotificationState extends Equatable {
   final String? actionMessage;
   final bool isCourier;
   final String? courierId;
+  final String? userId;
 
   const NotificationState({
     this.status = NotificationStatus.initial,
@@ -26,6 +27,7 @@ class NotificationState extends Equatable {
     this.actionMessage,
     this.isCourier = false,
     this.courierId,
+    this.userId,
   });
 
   bool get isLoading => status == NotificationStatus.loading;
@@ -68,6 +70,7 @@ class NotificationState extends Equatable {
     bool clearAction = false,
     bool? isCourier,
     String? courierId,
+    String? userId,
   }) {
     return NotificationState(
       status: status ?? this.status,
@@ -82,6 +85,7 @@ class NotificationState extends Equatable {
           clearAction ? null : (actionMessage ?? this.actionMessage),
       isCourier: isCourier ?? this.isCourier,
       courierId: courierId ?? this.courierId,
+      userId: userId ?? this.userId,
     );
   }
 
@@ -97,5 +101,6 @@ class NotificationState extends Equatable {
         actionMessage,
         isCourier,
         courierId,
+        userId,
       ];
 }

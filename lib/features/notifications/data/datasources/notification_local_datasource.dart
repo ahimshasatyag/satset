@@ -35,6 +35,10 @@ class NotificationLocalDataSourceImpl implements NotificationLocalDataSource {
       return list
           .whereType<Map<String, dynamic>>()
           .map((m) => NotificationItemModel.fromJson(m))
+          .where((n) =>
+              !n.id.startsWith('notif-demo-') &&
+              !n.id.startsWith('courier-notif-') &&
+              !n.title.contains('SatSet Pay sebesar Rp 45.000'))
           .toList();
     } catch (_) {
       return [];

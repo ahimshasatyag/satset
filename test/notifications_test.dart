@@ -15,6 +15,136 @@ import 'package:satset/features/notifications/presentation/bloc/notification_sta
 import 'package:satset/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class FakeNotificationRemoteDataSource implements NotificationRemoteDataSource {
+  final List<NotificationItemModel> _items;
+
+  FakeNotificationRemoteDataSource([List<NotificationItemModel>? items])
+      : _items = items ??
+            [
+              NotificationItemModel(
+                id: 'fake-notif-1',
+                userId: 'usr-01',
+                title: 'Paket Sedang Diantar',
+                message: 'Kurir SatSet sedang menuju ke alamat tujuan Anda.',
+                type: NotificationType.shipment,
+                isRead: false,
+                createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
+                shipmentId: 'ship-123',
+              ),
+              NotificationItemModel(
+                id: 'fake-notif-2',
+                userId: 'usr-01',
+                title: 'Tagihan Pembayaran Terverifikasi',
+                message: 'Pembayaran ongkir paket Anda telah berhasil.',
+                type: NotificationType.payment,
+                isRead: true,
+                createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+                paymentId: 'pay-456',
+              ),
+            ];
+
+  @override
+  Future<List<NotificationItemModel>> getNotifications({
+    int limit = 30,
+    int offset = 0,
+    NotificationFilter filter = NotificationFilter.all,
+    String? searchQuery,
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
+    return _items.where((n) {
+      if (filter == NotificationFilter.unread && n.isRead) return false;
+      if (filter == NotificationFilter.shipment && !n.isShipment) return false;
+      if (filter == NotificationFilter.payment && !n.isPayment) return false;
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        final q = searchQuery.toLowerCase();
+        if (!n.title.toLowerCase().contains(q) &&
+            !n.message.toLowerCase().contains(q)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  @override
+  Future<int> getUnreadCount({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
+    return _items.where((n) => !n.isRead).length;
+  }
+
+  @override
+  Future<void> markAsRead(String notificationId) async {
+    final idx = _items.indexWhere((n) => n.id == notificationId);
+    if (idx != -1) {
+      final updated = _items[idx].copyWith(isRead: true, readAt: DateTime.now());
+      _items[idx] = updated;
+    }
+  }
+
+  @override
+  Future<void> markAllAsRead({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
+    for (int i = 0; i < _items.length; i++) {
+      _items[i] = _items[i].copyWith(isRead: true, readAt: DateTime.now());
+    }
+  }
+
+  @override
+  Future<void> deleteNotification(String notificationId) async {
+    _items.removeWhere((n) => n.id == notificationId);
+  }
+
+  @override
+  Future<void> clearAllNotifications({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
+    _items.clear();
+  }
+
+  @override
+  Future<NotificationItemModel> createNotification({
+    required String title,
+    required String message,
+    NotificationType type = NotificationType.system,
+    String? shipmentId,
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
+    final newItem = NotificationItemModel(
+      id: 'fake-notif-${DateTime.now().millisecondsSinceEpoch}',
+      userId: userId ?? courierId ?? 'usr-01',
+      title: title,
+      message: message,
+      type: type,
+      isRead: false,
+      createdAt: DateTime.now(),
+      shipmentId: shipmentId,
+    );
+    _items.insert(0, newItem);
+    return newItem;
+  }
+
+  @override
+  Stream<List<NotificationItemModel>> subscribeNotifications({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) {
+    return Stream.value(_items);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -29,7 +159,7 @@ void main() {
 
     setUp(() {
       SharedPreferences.setMockInitialValues({});
-      remoteDataSource = NotificationRemoteDataSourceImpl();
+      remoteDataSource = FakeNotificationRemoteDataSource();
       localDataSource = NotificationLocalDataSourceImpl();
       repository = NotificationRepositoryImpl(
         remoteDataSource: remoteDataSource,
@@ -231,6 +361,20 @@ void main() {
       expect(find.text('Pengiriman'), findsWidgets);
       expect(find.text('Pembayaran'), findsWidgets);
       expect(find.byType(TextField), findsOneWidget);
+    });
+
+    test('NotificationRepository createNotification inserts and updates cache', () async {
+      final created = await repository.createNotification(
+        title: 'Notifikasi Uji CRUD',
+        message: 'Pengujian operasi create berhasil.',
+        type: NotificationType.system,
+      );
+
+      expect(created.title, equals('Notifikasi Uji CRUD'));
+      expect(created.message, equals('Pengujian operasi create berhasil.'));
+
+      final cached = await localDataSource.getCachedNotifications();
+      expect(cached.any((n) => n.title == 'Notifikasi Uji CRUD'), isTrue);
     });
   });
 }

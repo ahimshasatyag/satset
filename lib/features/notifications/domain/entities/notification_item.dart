@@ -41,10 +41,12 @@ enum NotificationType {
         return NotificationType.taskAssignment;
       case 'urgent':
       case 'urgent_task':
+      case 'warning':
       case 'mendesak':
       case 'prioritas':
         return NotificationType.urgentTask;
       case 'shipment':
+      case 'status':
       case 'pengiriman':
       case 'kurir':
       case 'delivery':

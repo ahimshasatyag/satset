@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:satset/features/customer/dashboard/data/models/shipment_model.dart';
 import 'package:satset/features/customer/dashboard/data/models/user_profile_model.dart';
+import 'package:satset/features/customer/dashboard/domain/entities/user_profile.dart';
 import 'package:satset/features/customer/dashboard/domain/entities/shipment.dart';
+import 'package:satset/features/customer/dashboard/presentation/widgets/dashboard_header.dart';
 import 'package:satset/features/customer/dashboard/presentation/widgets/dashboard_skeleton.dart';
 
 void main() {
@@ -133,6 +135,50 @@ void main() {
       );
 
       expect(find.byType(DashboardSkeleton), findsOneWidget);
+    });
+
+    test('UserProfile.currentLocationDisplay returns current city & subdistrict instead of street address', () {
+      const profile = UserProfile(
+        id: '1',
+        name: 'Budi Santoso',
+        alamatLengkap: 'Jl. Sudirman No. 12, RT 01 / RW 04, Menteng',
+        currentCity: 'Jakarta Pusat',
+        currentSubdistrict: 'Menteng',
+      );
+
+      expect(profile.currentLocationDisplay, 'Menteng, Jakarta Pusat');
+      expect(profile.locationDisplay, 'Menteng, Jakarta Pusat');
+      expect(profile.locationDisplay, isNot(contains('Jl. Sudirman')));
+    });
+
+    testWidgets('DashboardHeader renders current location with GPS icon instead of street address', (tester) async {
+      const profile = UserProfile(
+        id: '1',
+        name: 'Budi Santoso',
+        alamatLengkap: 'Jl. Sudirman No. 12, RT 01 / RW 04, Menteng',
+        currentCity: 'Jakarta Pusat',
+        currentSubdistrict: 'Menteng',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DashboardHeader(
+              profile: profile,
+              onNotificationTap: () {},
+            ),
+          ),
+        ),
+      );
+
+      // Pastikan ada teks lokasi atau tooltip Lokasi Sekarang
+      expect(find.byTooltip('Lokasi Sekarang'), findsOneWidget);
+      // Pastikan teks mengandung nama wilayah lokasi sekarang
+      expect(find.textContaining('Jakarta Pusat'), findsOneWidget);
+      // Pastikan alamat jalan panjang tidak muncul di header
+      expect(find.textContaining('Jl. Sudirman'), findsNothing);
+      // Pastikan ikon lokasi ditampilkan
+      expect(find.byIcon(Icons.location_on_rounded), findsOneWidget);
     });
   });
 }

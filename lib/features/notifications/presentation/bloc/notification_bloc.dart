@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/notification_item.dart';
 import '../../domain/repositories/notification_repository.dart';
+import '../../domain/usecases/create_notification_usecase.dart';
 import '../../domain/usecases/delete_notification_usecase.dart';
 import '../../domain/usecases/get_notifications_usecase.dart';
 import '../../domain/usecases/mark_all_notifications_as_read_usecase.dart';
@@ -14,6 +15,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final MarkNotificationAsReadUseCase markNotificationAsReadUseCase;
   final MarkAllNotificationsAsReadUseCase markAllNotificationsAsReadUseCase;
   final DeleteNotificationUseCase deleteNotificationUseCase;
+  final CreateNotificationUseCase createNotificationUseCase;
   final NotificationRepository repository;
 
   StreamSubscription<List<NotificationItem>>? _realtimeSubscription;
@@ -23,10 +25,18 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     required this.markNotificationAsReadUseCase,
     required this.markAllNotificationsAsReadUseCase,
     required this.deleteNotificationUseCase,
+    CreateNotificationUseCase? createNotificationUseCase,
     required this.repository,
     bool isCourier = false,
     String? courierId,
-  }) : super(NotificationState(isCourier: isCourier, courierId: courierId)) {
+    String? userId,
+  })  : createNotificationUseCase =
+            createNotificationUseCase ?? CreateNotificationUseCase(repository),
+        super(NotificationState(
+          isCourier: isCourier,
+          courierId: courierId,
+          userId: userId,
+        )) {
     on<NotificationLoadStarted>(_onLoadStarted);
     on<NotificationFilterChanged>(_onFilterChanged);
     on<NotificationSearchQueryChanged>(_onSearchQueryChanged);
@@ -35,19 +45,36 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     on<NotificationDeleted>(_onDeleted);
     on<NotificationClearAllSubmitted>(_onClearAllSubmitted);
     on<NotificationRealtimeUpdated>(_onRealtimeUpdated);
+    on<NotificationCreated>(_onCreated);
 
     // Mulai dengarkan pembaruan real-time dari Supabase
-    _startRealtimeSubscription(isCourier: isCourier, courierId: courierId);
+    _startRealtimeSubscription(
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    );
 
     // Muat data awal
-    add(NotificationLoadStarted(isCourier: isCourier, courierId: courierId));
+    add(NotificationLoadStarted(
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    ));
   }
 
-  void _startRealtimeSubscription({bool isCourier = false, String? courierId}) {
+  void _startRealtimeSubscription({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) {
     _realtimeSubscription?.cancel();
     try {
       _realtimeSubscription = repository
-          .subscribeNotifications(isCourier: isCourier, courierId: courierId)
+          .subscribeNotifications(
+            isCourier: isCourier,
+            courierId: courierId,
+            userId: userId,
+          )
           .listen(
         (items) {
           add(NotificationRealtimeUpdated(items));
@@ -103,6 +130,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   ) async {
     final effectiveIsCourier = event.isCourier || state.isCourier;
     final effectiveCourierId = event.courierId ?? state.courierId;
+    final effectiveUserId = event.userId ?? state.userId;
 
     if (!event.isRefresh) {
       emit(state.copyWith(
@@ -111,6 +139,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         clearAction: true,
         isCourier: effectiveIsCourier,
         courierId: effectiveCourierId,
+        userId: effectiveUserId,
       ));
     }
 
@@ -118,6 +147,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       final items = await getNotificationsUseCase(
         isCourier: effectiveIsCourier,
         courierId: effectiveCourierId,
+        userId: effectiveUserId,
       );
       final unread = items.where((n) => !n.isRead).length;
 
@@ -131,6 +161,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         unreadCount: unread,
         isCourier: effectiveIsCourier,
         courierId: effectiveCourierId,
+        userId: effectiveUserId,
         clearError: true,
       ));
     } catch (e) {
@@ -227,6 +258,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       await markAllNotificationsAsReadUseCase(
         isCourier: state.isCourier,
         courierId: state.courierId,
+        userId: state.userId,
       );
     } catch (_) {}
   }
@@ -268,9 +300,10 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     ));
 
     try {
-      await deleteNotificationUseCase.clearAll(
+      await repository.clearAllNotifications(
         isCourier: state.isCourier,
         courierId: state.courierId,
+        userId: state.userId,
       );
     } catch (_) {}
   }
@@ -294,5 +327,41 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       filteredNotifications: filtered,
       unreadCount: unread,
     ));
+  }
+
+  Future<void> _onCreated(
+    NotificationCreated event,
+    Emitter<NotificationState> emit,
+  ) async {
+    try {
+      final item = await createNotificationUseCase(
+        title: event.title,
+        message: event.message,
+        type: event.type,
+        shipmentId: event.shipmentId,
+        isCourier: event.isCourier || state.isCourier,
+        courierId: event.courierId ?? state.courierId,
+        userId: state.userId,
+      );
+
+      final updated = [item, ...state.notifications];
+      final unread = updated.where((n) => !n.isRead).length;
+      final filtered = _applyFilterAndSearch(
+        updated,
+        state.activeFilter,
+        state.searchQuery,
+      );
+
+      emit(state.copyWith(
+        notifications: updated,
+        filteredNotifications: filtered,
+        unreadCount: unread,
+        actionMessage: 'Notifikasi berhasil ditambahkan ke database.',
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: 'Gagal membuat notifikasi: ${e.toString()}',
+      ));
+    }
   }
 }

@@ -14,16 +14,39 @@ abstract class NotificationRemoteDataSource {
     String? searchQuery,
     bool isCourier = false,
     String? courierId,
+    String? userId,
   });
 
-  Future<int> getUnreadCount({bool isCourier = false, String? courierId});
+  Future<int> getUnreadCount({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  });
   Future<void> markAsRead(String notificationId);
-  Future<void> markAllAsRead({bool isCourier = false, String? courierId});
+  Future<void> markAllAsRead({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  });
   Future<void> deleteNotification(String notificationId);
-  Future<void> clearAllNotifications({bool isCourier = false, String? courierId});
+  Future<void> clearAllNotifications({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  });
+  Future<NotificationItemModel> createNotification({
+    required String title,
+    required String message,
+    NotificationType type = NotificationType.system,
+    String? shipmentId,
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  });
   Stream<List<NotificationItemModel>> subscribeNotifications({
     bool isCourier = false,
     String? courierId,
+    String? userId,
   });
 }
 
@@ -48,9 +71,16 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
 
   SupabaseClient get _client => _customClient ?? SupabaseConfig.client;
 
-  Future<String> _resolveUserId({bool isCourier = false, String? courierId}) async {
+  Future<String> _resolveUserId({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
     if (courierId != null && courierId.trim().isNotEmpty) {
       return courierId.trim();
+    }
+    if (userId != null && userId.trim().isNotEmpty) {
+      return userId.trim();
     }
 
     if (_isSupabaseAvailable) {
@@ -98,7 +128,22 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
       }
     } catch (_) {}
 
-    return '1';
+    // Coba ambil ID pengguna pertama yang ada di m_users Supabase
+    if (_isSupabaseAvailable) {
+      try {
+        final firstUser = await _client
+            .from(DatabaseConstants.tableUsers)
+            .select(UserTableColumns.id)
+            .order(UserTableColumns.id, ascending: true)
+            .limit(1)
+            .maybeSingle();
+        if (firstUser != null && firstUser[UserTableColumns.id] != null) {
+          return firstUser[UserTableColumns.id].toString();
+        }
+      } catch (_) {}
+    }
+
+    return '4';
   }
 
   @override
@@ -109,38 +154,55 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
     String? searchQuery,
     bool isCourier = false,
     String? courierId,
+    String? userId,
   }) async {
-    final userId = await _resolveUserId(isCourier: isCourier, courierId: courierId);
+    final effectiveUserId = await _resolveUserId(
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    );
 
     if (!_isSupabaseAvailable) {
-      if (isCourier) {
-        return _buildOfflineFallbackCourierNotifications(filter, searchQuery);
-      }
-      return _buildOfflineFallbackNotifications(filter, searchQuery);
+      return const [];
     }
 
     try {
-      var query = _client
-          .from(DatabaseConstants.tableNotifications)
-          .select()
-          .eq(NotificationTableColumns.userId, userId);
+      final int? numId = int.tryParse(effectiveUserId);
+      var query = _client.from(DatabaseConstants.tableNotifications).select();
+
+      if (isCourier) {
+        if (numId != null) {
+          query = query.or('employee_id.eq.$numId,employee_id.is.null');
+        }
+      } else {
+        if (numId != null) {
+          query = query.or('user_id.eq.$numId,user_id.is.null');
+        }
+      }
 
       if (filter == NotificationFilter.unread) {
         query = query.eq(NotificationTableColumns.isRead, false);
       } else if (filter == NotificationFilter.shipment) {
-        query = query.or('${NotificationTableColumns.type}.eq.shipment,${NotificationTableColumns.type}.eq.pengiriman');
+        query = query.or(
+            '${NotificationTableColumns.tipe}.eq.STATUS,${NotificationTableColumns.tipe}.eq.shipment');
       } else if (filter == NotificationFilter.payment) {
-        query = query.eq(NotificationTableColumns.type, 'payment');
+        query = query.or(
+            '${NotificationTableColumns.tipe}.eq.PAYMENT,${NotificationTableColumns.tipe}.eq.payment');
       } else if (filter == NotificationFilter.assignment) {
-        query = query.or('${NotificationTableColumns.type}.eq.assignment,${NotificationTableColumns.type}.eq.task_assignment');
+        query = query.or(
+            '${NotificationTableColumns.tipe}.eq.ASSIGNMENT,${NotificationTableColumns.tipe}.eq.assignment');
       } else if (filter == NotificationFilter.urgent) {
-        query = query.or('${NotificationTableColumns.type}.eq.urgent,${NotificationTableColumns.type}.eq.urgent_task');
+        query = query.or(
+            '${NotificationTableColumns.tipe}.eq.WARNING,${NotificationTableColumns.tipe}.eq.urgent');
+      } else if (filter == NotificationFilter.system) {
+        query = query.or(
+            '${NotificationTableColumns.tipe}.eq.INFO,${NotificationTableColumns.tipe}.eq.system');
       }
 
       if (searchQuery != null && searchQuery.trim().isNotEmpty) {
         final cleanSearch = searchQuery.trim();
         query = query.or(
-            '${NotificationTableColumns.title}.ilike.%$cleanSearch%,${NotificationTableColumns.message}.ilike.%$cleanSearch%');
+            '${NotificationTableColumns.judul}.ilike.%$cleanSearch%,${NotificationTableColumns.pesan}.ilike.%$cleanSearch%');
       }
 
       final rows = await query
@@ -148,30 +210,75 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
           .range(offset, offset + limit - 1);
 
       final list = (rows as List)
-          .map((r) => NotificationItemModel.fromDatabase(r as Map<String, dynamic>))
+          .map((r) =>
+              NotificationItemModel.fromDatabase(r as Map<String, dynamic>))
           .toList();
 
       if (list.isNotEmpty) return list;
 
-      // Jika tabel t_notifications belum memiliki baris untuk kurir/pelanggan,
-      // bangun notifikasi dinamis dari data tugas atau pengiriman nyata
+      // Jika user belum memiliki baris spesifik di t_notifications,
+      // coba ambil notifikasi dari t_notifications Supabase tanpa batasan user
+      if (offset == 0) {
+        var fallbackQuery =
+            _client.from(DatabaseConstants.tableNotifications).select();
+
+        if (filter == NotificationFilter.unread) {
+          fallbackQuery =
+              fallbackQuery.eq(NotificationTableColumns.isRead, false);
+        } else if (filter == NotificationFilter.shipment) {
+          fallbackQuery = fallbackQuery.or(
+              '${NotificationTableColumns.tipe}.eq.STATUS,${NotificationTableColumns.tipe}.eq.shipment');
+        } else if (filter == NotificationFilter.payment) {
+          fallbackQuery = fallbackQuery.or(
+              '${NotificationTableColumns.tipe}.eq.PAYMENT,${NotificationTableColumns.tipe}.eq.payment');
+        } else if (filter == NotificationFilter.assignment) {
+          fallbackQuery = fallbackQuery.or(
+              '${NotificationTableColumns.tipe}.eq.ASSIGNMENT,${NotificationTableColumns.tipe}.eq.assignment');
+        } else if (filter == NotificationFilter.urgent) {
+          fallbackQuery = fallbackQuery.or(
+              '${NotificationTableColumns.tipe}.eq.WARNING,${NotificationTableColumns.tipe}.eq.urgent');
+        } else if (filter == NotificationFilter.system) {
+          fallbackQuery = fallbackQuery.or(
+              '${NotificationTableColumns.tipe}.eq.INFO,${NotificationTableColumns.tipe}.eq.system');
+        }
+
+        if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+          final cleanSearch = searchQuery.trim();
+          fallbackQuery = fallbackQuery.or(
+              '${NotificationTableColumns.judul}.ilike.%$cleanSearch%,${NotificationTableColumns.pesan}.ilike.%$cleanSearch%');
+        }
+
+        final fallbackRows = await fallbackQuery
+            .order(NotificationTableColumns.createdAt, ascending: false)
+            .limit(limit);
+
+        final fallbackList = (fallbackRows as List)
+            .map((r) =>
+                NotificationItemModel.fromDatabase(r as Map<String, dynamic>))
+            .toList();
+
+        if (fallbackList.isNotEmpty) return fallbackList;
+      }
+
+      // Coba sinkronisasi pengiriman aktif ke t_notifications jika belum ada
       if (isCourier) {
-        return await _fetchNotificationsFromCourierTasks(userId, filter, searchQuery);
+        return await _fetchNotificationsFromCourierTasks(
+            effectiveUserId, filter, searchQuery);
       } else {
-        return await _fetchNotificationsFromShipments(userId, filter, searchQuery);
+        return await _fetchNotificationsFromShipments(
+            effectiveUserId, filter, searchQuery);
       }
     } catch (_) {
       try {
         if (isCourier) {
-          return await _fetchNotificationsFromCourierTasks(userId, filter, searchQuery);
+          return await _fetchNotificationsFromCourierTasks(
+              effectiveUserId, filter, searchQuery);
         } else {
-          return await _fetchNotificationsFromShipments(userId, filter, searchQuery);
+          return await _fetchNotificationsFromShipments(
+              effectiveUserId, filter, searchQuery);
         }
       } catch (_) {
-        if (isCourier) {
-          return _buildOfflineFallbackCourierNotifications(filter, searchQuery);
-        }
-        return _buildOfflineFallbackNotifications(filter, searchQuery);
+        return const [];
       }
     }
   }
@@ -277,6 +384,44 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
           ),
         );
       }
+
+      if (_isSupabaseAvailable && result.isNotEmpty) {
+        final numCourierId = int.tryParse(courierId);
+        if (numCourierId != null) {
+          try {
+            final payloads = result.map((n) {
+              final sIdInt =
+                  n.shipmentId != null ? int.tryParse(n.shipmentId!) : null;
+              return {
+                NotificationTableColumns.employeeId: numCourierId,
+                NotificationTableColumns.shipmentId: ?sIdInt,
+                NotificationTableColumns.judul: n.title,
+                NotificationTableColumns.pesan: n.message,
+                NotificationTableColumns.tipe:
+                    n.isUrgent ? 'WARNING' : 'ASSIGNMENT',
+                NotificationTableColumns.isRead: n.isRead,
+                NotificationTableColumns.createdAt:
+                    n.createdAt.toIso8601String(),
+              };
+            }).toList();
+
+            final inserted = await _client
+                .from(DatabaseConstants.tableNotifications)
+                .insert(payloads)
+                .select();
+
+            final insertedModels = (inserted as List)
+                .map((r) => NotificationItemModel.fromDatabase(
+                    r as Map<String, dynamic>))
+                .toList();
+
+            if (insertedModels.isNotEmpty) {
+              result.clear();
+              result.addAll(insertedModels);
+            }
+          } catch (_) {}
+        }
+      }
     } catch (_) {}
 
     var filtered = result;
@@ -378,6 +523,43 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
           ),
         );
       }
+
+      if (_isSupabaseAvailable && result.isNotEmpty) {
+        final numUserId = int.tryParse(userId);
+        if (numUserId != null) {
+          try {
+            final payloads = result.map((n) {
+              final sIdInt =
+                  n.shipmentId != null ? int.tryParse(n.shipmentId!) : null;
+              return {
+                NotificationTableColumns.userId: numUserId,
+                NotificationTableColumns.shipmentId: ?sIdInt,
+                NotificationTableColumns.judul: n.title,
+                NotificationTableColumns.pesan: n.message,
+                NotificationTableColumns.tipe: 'STATUS',
+                NotificationTableColumns.isRead: n.isRead,
+                NotificationTableColumns.createdAt:
+                    n.createdAt.toIso8601String(),
+              };
+            }).toList();
+
+            final inserted = await _client
+                .from(DatabaseConstants.tableNotifications)
+                .insert(payloads)
+                .select();
+
+            final insertedModels = (inserted as List)
+                .map((r) => NotificationItemModel.fromDatabase(
+                    r as Map<String, dynamic>))
+                .toList();
+
+            if (insertedModels.isNotEmpty) {
+              result.clear();
+              result.addAll(insertedModels);
+            }
+          } catch (_) {}
+        }
+      }
     } catch (_) {}
 
     var filtered = result;
@@ -400,11 +582,16 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   }
 
   @override
-  Future<int> getUnreadCount({bool isCourier = false, String? courierId}) async {
+  Future<int> getUnreadCount({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
     final list = await getNotifications(
       filter: NotificationFilter.unread,
       isCourier: isCourier,
       courierId: courierId,
+      userId: userId,
     );
     return list.length;
   }
@@ -413,29 +600,49 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   Future<void> markAsRead(String notificationId) async {
     if (!_isSupabaseAvailable) return;
     try {
-      await _client
-          .from(DatabaseConstants.tableNotifications)
-          .update({
-            NotificationTableColumns.isRead: true,
-            NotificationTableColumns.readAt: DateTime.now().toIso8601String(),
-          })
-          .eq(NotificationTableColumns.id, notificationId);
+      final int? numId = int.tryParse(notificationId);
+      final query = _client.from(DatabaseConstants.tableNotifications).update({
+        NotificationTableColumns.isRead: true,
+        NotificationTableColumns.readAt: DateTime.now().toIso8601String(),
+      });
+      if (numId != null) {
+        await query.eq(NotificationTableColumns.id, numId);
+      } else {
+        await query.eq(NotificationTableColumns.id, notificationId);
+      }
     } catch (_) {}
   }
 
   @override
-  Future<void> markAllAsRead({bool isCourier = false, String? courierId}) async {
+  Future<void> markAllAsRead({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
     if (!_isSupabaseAvailable) return;
     try {
-      final userId = await _resolveUserId(isCourier: isCourier, courierId: courierId);
-      await _client
+      final effectiveUserId = await _resolveUserId(
+        isCourier: isCourier,
+        courierId: courierId,
+        userId: userId,
+      );
+      final int? numId = int.tryParse(effectiveUserId);
+
+      var query = _client
           .from(DatabaseConstants.tableNotifications)
           .update({
             NotificationTableColumns.isRead: true,
             NotificationTableColumns.readAt: DateTime.now().toIso8601String(),
           })
-          .eq(NotificationTableColumns.userId, userId)
           .eq(NotificationTableColumns.isRead, false);
+
+      if (isCourier && numId != null) {
+        await query.or('employee_id.eq.$numId,user_id.eq.$numId');
+      } else if (numId != null) {
+        await query.eq(NotificationTableColumns.userId, numId);
+      } else {
+        await query.eq(NotificationTableColumns.userId, effectiveUserId);
+      }
     } catch (_) {}
   }
 
@@ -443,53 +650,161 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   Future<void> deleteNotification(String notificationId) async {
     if (!_isSupabaseAvailable) return;
     try {
-      await _client
-          .from(DatabaseConstants.tableNotifications)
-          .delete()
-          .eq(NotificationTableColumns.id, notificationId);
+      final int? numId = int.tryParse(notificationId);
+      final query = _client.from(DatabaseConstants.tableNotifications).delete();
+      if (numId != null) {
+        await query.eq(NotificationTableColumns.id, numId);
+      } else {
+        await query.eq(NotificationTableColumns.id, notificationId);
+      }
     } catch (_) {}
   }
 
   @override
-  Future<void> clearAllNotifications({bool isCourier = false, String? courierId}) async {
+  Future<void> clearAllNotifications({
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
     if (!_isSupabaseAvailable) return;
     try {
-      final userId = await _resolveUserId(isCourier: isCourier, courierId: courierId);
-      await _client
-          .from(DatabaseConstants.tableNotifications)
-          .delete()
-          .eq(NotificationTableColumns.userId, userId);
+      final effectiveUserId = await _resolveUserId(
+        isCourier: isCourier,
+        courierId: courierId,
+        userId: userId,
+      );
+      final int? numId = int.tryParse(effectiveUserId);
+      final query = _client.from(DatabaseConstants.tableNotifications).delete();
+
+      if (isCourier && numId != null) {
+        await query.or('employee_id.eq.$numId,user_id.eq.$numId');
+      } else if (numId != null) {
+        await query.eq(NotificationTableColumns.userId, numId);
+      } else {
+        await query.eq(NotificationTableColumns.userId, effectiveUserId);
+      }
     } catch (_) {}
+  }
+
+  @override
+  Future<NotificationItemModel> createNotification({
+    required String title,
+    required String message,
+    NotificationType type = NotificationType.system,
+    String? shipmentId,
+    bool isCourier = false,
+    String? courierId,
+    String? userId,
+  }) async {
+    final effectiveUserId = await _resolveUserId(
+      isCourier: isCourier,
+      courierId: courierId,
+      userId: userId,
+    );
+    final int? numUserId = int.tryParse(effectiveUserId);
+    final int? numShipmentId =
+        shipmentId != null ? int.tryParse(shipmentId) : null;
+
+    String dbType;
+    switch (type) {
+      case NotificationType.shipment:
+        dbType = 'STATUS';
+        break;
+      case NotificationType.payment:
+        dbType = 'PAYMENT';
+        break;
+      case NotificationType.taskAssignment:
+        dbType = 'ASSIGNMENT';
+        break;
+      case NotificationType.urgentTask:
+        dbType = 'WARNING';
+        break;
+      case NotificationType.system:
+      case NotificationType.account:
+      case NotificationType.promo:
+        dbType = 'INFO';
+        break;
+    }
+
+    if (!_isSupabaseAvailable) {
+      final now = DateTime.now();
+      return NotificationItemModel(
+        id: 'local-${now.millisecondsSinceEpoch}',
+        userId: effectiveUserId,
+        title: title,
+        message: message,
+        type: type,
+        isRead: false,
+        createdAt: now,
+        shipmentId: shipmentId,
+      );
+    }
+
+    try {
+      final payload = <String, dynamic>{
+        NotificationTableColumns.judul: title,
+        NotificationTableColumns.pesan: message,
+        NotificationTableColumns.tipe: dbType,
+        NotificationTableColumns.isRead: false,
+        (isCourier
+            ? NotificationTableColumns.employeeId
+            : NotificationTableColumns.userId): ?numUserId,
+        NotificationTableColumns.shipmentId: ?numShipmentId,
+      };
+
+      final row = await _client
+          .from(DatabaseConstants.tableNotifications)
+          .insert(payload)
+          .select()
+          .single();
+
+      return NotificationItemModel.fromDatabase(row);
+    } catch (e) {
+      final now = DateTime.now();
+      return NotificationItemModel(
+        id: 'local-${now.millisecondsSinceEpoch}',
+        userId: effectiveUserId,
+        title: title,
+        message: message,
+        type: type,
+        isRead: false,
+        createdAt: now,
+        shipmentId: shipmentId,
+      );
+    }
   }
 
   @override
   Stream<List<NotificationItemModel>> subscribeNotifications({
     bool isCourier = false,
     String? courierId,
+    String? userId,
   }) {
     late StreamController<List<NotificationItemModel>> controller;
     RealtimeChannel? channel;
 
     controller = StreamController<List<NotificationItemModel>>.broadcast(
       onListen: () async {
-        final userId = await _resolveUserId(isCourier: isCourier, courierId: courierId);
-        final initial = await getNotifications(isCourier: isCourier, courierId: courierId);
+        final initial = await getNotifications(
+          isCourier: isCourier,
+          courierId: courierId,
+          userId: userId,
+        );
         if (!controller.isClosed) controller.add(initial);
 
         if (_isSupabaseAvailable) {
-          channel = _client.channel('public:t_notifications:$userId');
+          channel = _client.channel('public:t_notifications_all');
           channel!
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: DatabaseConstants.tableNotifications,
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: NotificationTableColumns.userId,
-                  value: userId,
-                ),
                 callback: (_) async {
-                  final updated = await getNotifications(isCourier: isCourier, courierId: courierId);
+                  final updated = await getNotifications(
+                    isCourier: isCourier,
+                    courierId: courierId,
+                    userId: userId,
+                  );
                   if (!controller.isClosed) controller.add(updated);
                 },
               )
@@ -505,153 +820,5 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
     );
 
     return controller.stream;
-  }
-
-  List<NotificationItemModel> _buildOfflineFallbackCourierNotifications(
-    NotificationFilter filter,
-    String? searchQuery,
-  ) {
-    final now = DateTime.now();
-    final list = [
-      NotificationItemModel(
-        id: 'courier-notif-1',
-        userId: 'emp-courier-01',
-        title: 'Tugas Penjemputan Baru',
-        message: 'Anda ditugaskan menjemput paket #SATSET-20261026-001 dari Toko Berkah Mandiri.',
-        type: NotificationType.taskAssignment,
-        isRead: false,
-        createdAt: now.subtract(const Duration(minutes: 10)),
-        shipmentId: '1',
-        metadata: {'nomor_resi': 'SATSET-20261026-001'},
-      ),
-      NotificationItemModel(
-        id: 'courier-notif-2',
-        userId: 'emp-courier-01',
-        title: 'Pengantaran Prioritas Tinggi',
-        message: 'Paket #SATSET-20261026-002 memerlukan pengantaran segera sebelum jam 17:00 WIB.',
-        type: NotificationType.urgentTask,
-        isRead: false,
-        createdAt: now.subtract(const Duration(hours: 1)),
-        shipmentId: '2',
-        metadata: {'nomor_resi': 'SATSET-20261026-002'},
-      ),
-      NotificationItemModel(
-        id: 'courier-notif-3',
-        userId: 'emp-courier-01',
-        title: 'Pengantaran Berhasil Diverifikasi',
-        message: 'Bukti serah terima untuk resi #SATSET-20261025-099 berhasil disetujui hub operasional.',
-        type: NotificationType.shipment,
-        isRead: true,
-        createdAt: now.subtract(const Duration(days: 1)),
-        shipmentId: '3',
-        metadata: {'nomor_resi': 'SATSET-20261025-099'},
-      ),
-      NotificationItemModel(
-        id: 'courier-notif-4',
-        userId: 'emp-courier-01',
-        title: 'Pengumuman Operasional SatSet',
-        message: 'Pembaruan rute pengantaran area Jakarta Pusat berlaku mulai besok pagi.',
-        type: NotificationType.system,
-        isRead: true,
-        createdAt: now.subtract(const Duration(days: 2)),
-      ),
-    ];
-
-    var filtered = list;
-    if (filter == NotificationFilter.unread) {
-      filtered = filtered.where((n) => !n.isRead).toList();
-    } else if (filter == NotificationFilter.assignment) {
-      filtered = filtered.where((n) => n.isAssignment).toList();
-    } else if (filter == NotificationFilter.urgent) {
-      filtered = filtered.where((n) => n.isUrgent).toList();
-    } else if (filter == NotificationFilter.shipment) {
-      filtered = filtered.where((n) => n.isShipment).toList();
-    }
-
-    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      final q = searchQuery.trim().toLowerCase();
-      filtered = filtered
-          .where((n) =>
-              n.title.toLowerCase().contains(q) ||
-              n.message.toLowerCase().contains(q))
-          .toList();
-    }
-
-    return filtered;
-  }
-
-  List<NotificationItemModel> _buildOfflineFallbackNotifications(
-    NotificationFilter filter,
-    String? searchQuery,
-  ) {
-    final now = DateTime.now();
-    final list = [
-      NotificationItemModel(
-        id: 'notif-demo-1',
-        userId: 'usr-01',
-        title: 'Paket Sedang Diantar Kurir SatSet',
-        message:
-            'Kurir SatSet sedang meluncur mengantarkan paket dengan nomor resi #SATSET-20261021-001 ke alamat Anda.',
-        type: NotificationType.shipment,
-        isRead: false,
-        createdAt: now.subtract(const Duration(minutes: 15)),
-        shipmentId: '1',
-        metadata: {'nomor_resi': 'SATSET-20261021-001'},
-      ),
-      NotificationItemModel(
-        id: 'notif-demo-2',
-        userId: 'usr-01',
-        title: 'Pembayaran Ongkos Kirim Berhasil',
-        message:
-            'Pembayaran SatSet Pay sebesar Rp 45.000 untuk pengiriman kilat Instant Courier telah diverifikasi sistem.',
-        type: NotificationType.payment,
-        isRead: false,
-        createdAt: now.subtract(const Duration(hours: 2)),
-        paymentId: 'pay-01',
-        shipmentId: '1',
-      ),
-      NotificationItemModel(
-        id: 'notif-demo-3',
-        userId: 'usr-01',
-        title: 'Paket Berhasil Diserahkan ke Sorting Hub',
-        message:
-            'Paket Anda #SATSET-20261020-088 telah sampai di Sorting Hub Jakarta Pusat dan sedang dijadwalkan.',
-        type: NotificationType.shipment,
-        isRead: true,
-        createdAt: now.subtract(const Duration(days: 1, hours: 3)),
-        shipmentId: '2',
-        metadata: {'nomor_resi': 'SATSET-20261020-088'},
-      ),
-      NotificationItemModel(
-        id: 'notif-demo-4',
-        userId: 'usr-01',
-        title: 'Keamanan Akun Diperbarui',
-        message:
-            'Sandi akun Anda baru saja berhasil diperbarui. Jika Anda tidak merasa melakukannya, segera hubungi CS SatSet.',
-        type: NotificationType.account,
-        isRead: true,
-        createdAt: now.subtract(const Duration(days: 3)),
-      ),
-    ];
-
-    var filtered = list;
-    if (filter == NotificationFilter.unread) {
-      filtered = filtered.where((n) => !n.isRead).toList();
-    } else if (filter == NotificationFilter.shipment) {
-      filtered = filtered.where((n) => n.isShipment).toList();
-    } else if (filter == NotificationFilter.payment) {
-      filtered = filtered.where((n) => n.isPayment).toList();
-    }
-
-    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      final q = searchQuery.trim().toLowerCase();
-      filtered = filtered
-          .where((n) =>
-              n.title.toLowerCase().contains(q) ||
-              n.message.toLowerCase().contains(q))
-          .toList();
-    }
-
-    return filtered;
   }
 }

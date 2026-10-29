@@ -546,6 +546,20 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
 
       createdShipmentRow['t_shipment_payments'] = [paymentRow];
 
+      // 6. Buat entri notifikasi awal ke tabel t_notifications di Supabase
+      try {
+        final penerimaNama = data['penerima_nama'] as String? ?? 'Penerima';
+        await _client.from(DatabaseConstants.tableNotifications).insert({
+          'user_id': customerId,
+          'shipment_id': shipmentIdInt,
+          'judul': 'Pesanan Pengiriman Dibuat',
+          'pesan':
+              'Pesanan pengiriman ke $penerimaNama (Resi: $nomorResi) berhasil dibuat.',
+          'tipe': 'STATUS',
+          'is_read': false,
+        });
+      } catch (_) {}
+
       return OrderShipmentModel.fromDatabase(
         createdShipmentRow,
         currentCustomerId: customerId,

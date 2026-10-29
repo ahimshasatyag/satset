@@ -25,8 +25,17 @@ class UserProfileModel extends UserProfile {
     if (alamat != null && alamat.contains(',')) {
       final parts = alamat.split(',');
       if (parts.length >= 2) {
-        subdistrict = parts[0].trim();
-        city = parts[1].trim();
+        final last = parts.last.trim();
+        final prev = parts[parts.length - 2].trim();
+        if (prev.toLowerCase().startsWith('jl') ||
+            prev.toLowerCase().startsWith('jalan') ||
+            prev.contains('No.')) {
+          city = last;
+          subdistrict = last.contains(' ') ? last.split(' ').last : 'Pusat';
+        } else {
+          subdistrict = prev;
+          city = last;
+        }
       }
     }
 

@@ -13,15 +13,17 @@ class NotificationLoadStarted extends NotificationEvent {
   final bool isRefresh;
   final bool isCourier;
   final String? courierId;
+  final String? userId;
 
   const NotificationLoadStarted({
     this.isRefresh = false,
     this.isCourier = false,
     this.courierId,
+    this.userId,
   });
 
   @override
-  List<Object?> get props => [isRefresh, isCourier, courierId];
+  List<Object?> get props => [isRefresh, isCourier, courierId, userId];
 }
 
 /// Pengguna mengganti filter kategori
@@ -58,14 +60,16 @@ class NotificationMarkAsReadSubmitted extends NotificationEvent {
 class NotificationMarkAllAsReadSubmitted extends NotificationEvent {
   final bool isCourier;
   final String? courierId;
+  final String? userId;
 
   const NotificationMarkAllAsReadSubmitted({
     this.isCourier = false,
     this.courierId,
+    this.userId,
   });
 
   @override
-  List<Object?> get props => [isCourier, courierId];
+  List<Object?> get props => [isCourier, courierId, userId];
 }
 
 /// Menghapus satu notifikasi
@@ -82,14 +86,16 @@ class NotificationDeleted extends NotificationEvent {
 class NotificationClearAllSubmitted extends NotificationEvent {
   final bool isCourier;
   final String? courierId;
+  final String? userId;
 
   const NotificationClearAllSubmitted({
     this.isCourier = false,
     this.courierId,
+    this.userId,
   });
 
   @override
-  List<Object?> get props => [isCourier, courierId];
+  List<Object?> get props => [isCourier, courierId, userId];
 }
 
 /// Pembaruan streaming Supabase Realtime ketika ada perubahan data
@@ -101,3 +107,27 @@ class NotificationRealtimeUpdated extends NotificationEvent {
   @override
   List<Object?> get props => [notifications];
 }
+
+/// Menambahkan notifikasi baru ke database Supabase
+class NotificationCreated extends NotificationEvent {
+  final String title;
+  final String message;
+  final NotificationType type;
+  final String? shipmentId;
+  final bool isCourier;
+  final String? courierId;
+
+  const NotificationCreated({
+    required this.title,
+    required this.message,
+    this.type = NotificationType.system,
+    this.shipmentId,
+    this.isCourier = false,
+    this.courierId,
+  });
+
+  @override
+  List<Object?> get props =>
+      [title, message, type, shipmentId, isCourier, courierId];
+}
+
