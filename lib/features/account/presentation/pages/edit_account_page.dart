@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../../../../app/config/supabase_config.dart';
@@ -14,18 +17,20 @@ import '../bloc/account_bloc.dart';
 import '../bloc/account_event.dart';
 
 /// Halaman Edit Akun SatSet
-/// Memperbarui Nama Lengkap, Email, dan Nomor Telepon langsung ke tabel
+/// Memperbarui Foto Profil, Nama Lengkap, Email, dan Nomor Telepon langsung ke tabel
 /// database Supabase `m_users` atau `m_employee` berdasarkan pengecekan `id_users_roles`.
 class EditAccountPage extends StatefulWidget {
   final UserAccount? account;
   final User? user;
   final SupabaseClient? client;
+  final ImagePicker? imagePicker;
 
   const EditAccountPage({
     super.key,
     this.account,
     this.user,
     this.client,
+    this.imagePicker,
   });
 
   /// Route helper dengan transisi halus ke halaman Edit Akun
@@ -33,12 +38,14 @@ class EditAccountPage extends StatefulWidget {
     UserAccount? account,
     User? user,
     SupabaseClient? client,
+    ImagePicker? imagePicker,
   }) {
     return SmoothPageRoute<bool?>(
       child: EditAccountPage(
         account: account,
         user: user,
         client: client,
+        imagePicker: imagePicker,
       ),
     );
   }
@@ -53,6 +60,9 @@ class _EditAccountPageState extends State<EditAccountPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
+
+  File? _selectedImage;
+  String? _avatarUrl;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -91,6 +101,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
       text: widget.account?.phone ?? widget.user?.phone ?? '',
     );
     _initialEmail = widget.account?.email ?? widget.user?.email;
+    _avatarUrl = widget.account?.avatarUrl ?? widget.user?.photoUrl;
 
     _resolveInitialRole();
     _loadProfileFromSupabase();
@@ -136,14 +147,19 @@ class _EditAccountPageState extends State<EditAccountPage> {
       final localUser = widget.user ?? await authLocal.getUser();
       final authUser = _isSupabaseAvailable ? _client.auth.currentUser : null;
 
-      String targetEmail = (_initialEmail ??
-              localUser?.email ??
-              authUser?.email ??
-              '')
-          .trim()
-          .toLowerCase();
+      String targetEmail =
+          (_initialEmail ?? localUser?.email ?? authUser?.email ?? '')
+              .trim()
+              .toLowerCase();
 
       String? targetId = widget.account?.id ?? localUser?.id ?? authUser?.id;
+
+      // Ambil avatar URL dari sesi lokal atau Supabase Auth metadata jika ada
+      final metaAvatar = authUser?.userMetadata?['avatar_url'] as String?;
+      if (metaAvatar != null && metaAvatar.isNotEmpty) {
+        _avatarUrl ??= metaAvatar;
+      }
+      _avatarUrl ??= localUser?.photoUrl ?? widget.account?.avatarUrl;
 
       if (!_isSupabaseAvailable) {
         if (mounted) {
@@ -188,7 +204,9 @@ class _EditAccountPageState extends State<EditAccountPage> {
           employeeRow = await _client
               .from(DatabaseConstants.tableEmployee)
               .select()
-              .or('${DatabaseConstants.colId}.eq.$targetId,user_id.eq.$targetId')
+              .or(
+                '${DatabaseConstants.colId}.eq.$targetId,user_id.eq.$targetId',
+              )
               .maybeSingle();
         }
       } catch (_) {}
@@ -206,7 +224,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
 
       // Cek dari row tabel m_employee jika belum ditemukan
       if (detectedRoleId == null && employeeRow != null) {
-        final val = employeeRow['id_users_roles'] ?? employeeRow['id_users_role'];
+        final val =
+            employeeRow['id_users_roles'] ?? employeeRow['id_users_role'];
         if (val != null) {
           detectedRoleId = int.tryParse(val.toString());
         }
@@ -236,16 +255,19 @@ class _EditAccountPageState extends State<EditAccountPage> {
         final row = employeeRow ?? userRow;
         _recordId = row?[DatabaseConstants.colId]?.toString() ?? targetId;
 
-        final name = row?[EmployeeTableColumns.namaLengkap]?.toString() ??
+        final name =
+            row?[EmployeeTableColumns.namaLengkap]?.toString() ??
             row?[EmployeeTableColumns.nama]?.toString() ??
             row?['nama_lengkap']?.toString() ??
             row?['nama']?.toString();
 
-        final email = row?[EmployeeTableColumns.email]?.toString() ??
+        final email =
+            row?[EmployeeTableColumns.email]?.toString() ??
             row?['email']?.toString() ??
             targetEmail;
 
-        final phone = row?[EmployeeTableColumns.noHp]?.toString() ??
+        final phone =
+            row?[EmployeeTableColumns.noHp]?.toString() ??
             row?[EmployeeTableColumns.telepon]?.toString() ??
             row?['no_hp']?.toString() ??
             row?['telepon']?.toString();
@@ -263,14 +285,17 @@ class _EditAccountPageState extends State<EditAccountPage> {
         final row = userRow ?? employeeRow;
         _recordId = row?[UserTableColumns.id]?.toString() ?? targetId;
 
-        final name = row?[UserTableColumns.namaLengkap]?.toString() ??
+        final name =
+            row?[UserTableColumns.namaLengkap]?.toString() ??
             row?['nama_lengkap']?.toString();
 
-        final email = row?[UserTableColumns.email]?.toString() ??
+        final email =
+            row?[UserTableColumns.email]?.toString() ??
             row?['email']?.toString() ??
             targetEmail;
 
-        final phone = row?[UserTableColumns.noHp]?.toString() ??
+        final phone =
+            row?[UserTableColumns.noHp]?.toString() ??
             row?['no_hp']?.toString();
 
         if (name != null && name.isNotEmpty) _nameController.text = name;
@@ -291,6 +316,183 @@ class _EditAccountPageState extends State<EditAccountPage> {
     }
   }
 
+  /// Memilih foto dari Galeri atau Kamera
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = widget.imagePicker ?? ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (picked != null) {
+        setState(() {
+          _selectedImage = File(picked.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memilih gambar: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Menampilkan Modal Bottom Sheet untuk opsi Ganti Foto Profil
+  void _showImageSourceModal(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      builder: (sheetContext) {
+        final hasImage =
+            _selectedImage != null ||
+            (_avatarUrl != null && _avatarUrl!.isNotEmpty);
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Indikator geser (handle bar)
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Ganti Foto Profil',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pilih sumber foto untuk profil akun Anda',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // 1. Ambil Foto dari Kamera
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  title: const Text(
+                    'Ambil Foto (Kamera)',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Gunakan kamera untuk mengambil foto baru',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+                const SizedBox(height: 4),
+
+                // 2. Pilih dari Galeri
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.photo_library_rounded,
+                      color: AppColors.secondary,
+                      size: 22,
+                    ),
+                  ),
+                  title: const Text(
+                    'Pilih dari Galeri',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Pilih foto dari galeri perangkat',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+
+                // 3. Hapus Foto (jika sudah ada foto yang dipilih / tersimpan)
+                if (hasImage) ...[
+                  const Divider(height: 16),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: AppColors.error,
+                        size: 22,
+                      ),
+                    ),
+                    title: const Text(
+                      'Hapus Foto Profil',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Gunakan inisial nama sebagai foto profil',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      setState(() {
+                        _selectedImage = null;
+                        _avatarUrl = null;
+                      });
+                    },
+                  ),
+                ],
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   /// Menyimpan pembaruan akun ke database Supabase
   Future<void> _saveAccount() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
@@ -307,9 +509,53 @@ class _EditAccountPageState extends State<EditAccountPage> {
     final newPhone = _phoneController.text.trim();
 
     try {
+      String? finalAvatarUrl = _avatarUrl;
+
+      // 1. Unggah foto baru jika pengguna memilih gambar dari perangkat
+      if (_selectedImage != null) {
+        finalAvatarUrl = _selectedImage!.path;
+
+        if (_isSupabaseAvailable) {
+          try {
+            final fileName =
+                'avatar_${_recordId ?? DateTime.now().millisecondsSinceEpoch}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            final bytes = await _selectedImage!.readAsBytes();
+            await _client.storage
+                .from('avatars')
+                .uploadBinary(
+                  fileName,
+                  bytes,
+                  fileOptions: const FileOptions(
+                    upsert: true,
+                    contentType: 'image/jpeg',
+                  ),
+                );
+            final publicUrl = _client.storage
+                .from('avatars')
+                .getPublicUrl(fileName);
+            if (publicUrl.isNotEmpty) {
+              finalAvatarUrl = publicUrl;
+            }
+          } catch (_) {
+            // Jika bucket 'avatars' belum dikonfigurasi, gunakan path lokal
+            finalAvatarUrl = _selectedImage!.path;
+          }
+
+          // Sinkronkan ke Supabase Auth User Metadata jika login aktif
+          try {
+            if (_client.auth.currentUser != null) {
+              await _client.auth.updateUser(
+                UserAttributes(data: {'avatar_url': finalAvatarUrl}),
+              );
+            }
+          } catch (_) {}
+        }
+      }
+
       if (_isSupabaseAvailable) {
         // Pengecekan id_users_roles untuk memilih target tabel update
-        if (_idUsersRoles == 2 || _targetTable == DatabaseConstants.tableEmployee) {
+        if (_idUsersRoles == 2 ||
+            _targetTable == DatabaseConstants.tableEmployee) {
           // UPDATE TABEL m_employee
           final updateData = <String, dynamic>{
             EmployeeTableColumns.namaLengkap: newName,
@@ -388,6 +634,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
               name: newName,
               email: newEmail,
               phone: newPhone,
+              photoUrl: finalAvatarUrl,
             ),
           );
         }
@@ -397,12 +644,13 @@ class _EditAccountPageState extends State<EditAccountPage> {
       if (mounted) {
         try {
           context.read<AccountBloc>().add(
-                AccountProfileUpdated(
-                  name: newName,
-                  phone: newPhone,
-                  email: newEmail,
-                ),
-              );
+            AccountProfileUpdated(
+              name: newName,
+              phone: newPhone,
+              email: newEmail,
+              avatarUrl: finalAvatarUrl,
+            ),
+          );
         } catch (_) {}
       }
 
@@ -411,11 +659,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
           SnackBar(
             content: const Row(
               children: [
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -451,8 +695,9 @@ class _EditAccountPageState extends State<EditAccountPage> {
     final isCourierRole = _idUsersRoles == 2;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       appBar: AppBar(
         title: const Text(
           'Edit Akun',
@@ -493,7 +738,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Avatar
+                      // Header Avatar Interaktif
                       _buildHeaderCard(context, isDark, isCourierRole),
                       const SizedBox(height: 20),
 
@@ -571,7 +816,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
     );
   }
 
-  /// Kartu Header Profil
+  /// Kartu Header Profil & Avatar yang Dapat Diklik untuk Ganti Foto
   Widget _buildHeaderCard(
     BuildContext context,
     bool isDark,
@@ -581,6 +826,17 @@ class _EditAccountPageState extends State<EditAccountPage> {
     final displayName = _nameController.text.isNotEmpty
         ? _nameController.text
         : 'Pengguna SatSet';
+
+    ImageProvider? avatarImage;
+    if (_selectedImage != null) {
+      avatarImage = FileImage(_selectedImage!);
+    } else if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+      if (_avatarUrl!.startsWith('http')) {
+        avatarImage = NetworkImage(_avatarUrl!);
+      } else {
+        avatarImage = FileImage(File(_avatarUrl!));
+      }
+    }
 
     return Container(
       width: double.infinity,
@@ -601,43 +857,86 @@ class _EditAccountPageState extends State<EditAccountPage> {
       ),
       child: Column(
         children: [
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 44,
-                backgroundColor: roleColor.withValues(alpha: 0.15),
-                child: Text(
-                  displayName.isNotEmpty ? displayName[0].toUpperCase() : 'S',
-                  style: TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
-                    color: roleColor,
-                  ),
+          // Avatar Stack yang dapat diklik
+          GestureDetector(
+            onTap: () => _showImageSourceModal(context, isDark),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 46,
+                  backgroundColor: roleColor.withValues(alpha: 0.15),
+                  backgroundImage: avatarImage,
+                  child: avatarImage == null
+                      ? Text(
+                          displayName.isNotEmpty
+                              ? displayName[0].toUpperCase()
+                              : 'S',
+                          style: TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.bold,
+                            color: roleColor,
+                          ),
+                        )
+                      : null,
                 ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: roleColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? AppColors.surfaceDark : Colors.white,
-                      width: 2,
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: roleColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark ? AppColors.surfaceDark : Colors.white,
+                        width: 2.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 15,
+                      color: Colors.white,
                     ),
                   ),
-                  child: const Icon(
-                    Icons.edit_rounded,
-                    size: 14,
-                    color: Colors.white,
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
+
+          // Tombol Text Link Ganti Foto
+          InkWell(
+            onTap: () => _showImageSourceModal(context, isDark),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.photo_camera_rounded, size: 14, color: roleColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Ganti Foto Profil',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: roleColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
           Text(
             displayName,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -690,10 +989,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                     ),
                     Text(
                       'Pastikan nama, email, dan no telp sesuai dan aktif.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -723,8 +1019,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
             keyboardType: TextInputType.emailAddress,
             prefixIcon: const Icon(Icons.email_outlined, size: 20),
             validator: Validators.validateEmail,
-            helperText:
-                'Email digunakan untuk otentikasi login Supabase Auth.',
           ),
           const SizedBox(height: 16),
 
@@ -737,8 +1031,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
             keyboardType: TextInputType.phone,
             prefixIcon: const Icon(Icons.phone_outlined, size: 20),
             validator: Validators.validatePhone,
-            helperText:
-                'Digunakan untuk notifikasi dan koordinasi pengiriman.',
+            helperText: 'Digunakan untuk notifikasi dan koordinasi pengiriman.',
           ),
         ],
       ),

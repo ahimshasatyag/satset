@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-
 import '../../domain/entities/user_account.dart';
 
 abstract class AccountEvent extends Equatable {
@@ -24,20 +23,22 @@ class AccountNotificationsToggled extends AccountEvent {
   List<Object?> get props => [isEnabled];
 }
 
-/// Pengguna memperbarui profil (nama, nomor telepon, dan email opsional)
+/// Pengguna memperbarui profil (nama, nomor telepon, email opsional, dan foto avatar)
 class AccountProfileUpdated extends AccountEvent {
   final String name;
   final String phone;
   final String? email;
+  final String? avatarUrl;
 
   const AccountProfileUpdated({
     required this.name,
     required this.phone,
     this.email,
+    this.avatarUrl,
   });
 
   @override
-  List<Object?> get props => [name, phone, email];
+  List<Object?> get props => [name, phone, email, avatarUrl];
 }
 
 /// Pengguna mengubah kata sandi akun via Supabase Auth

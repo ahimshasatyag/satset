@@ -83,6 +83,9 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
         email: event.email != null && event.email!.trim().isNotEmpty
             ? event.email!.trim()
             : current.email,
+        avatarUrl: event.avatarUrl != null && event.avatarUrl!.isNotEmpty
+            ? event.avatarUrl
+            : current.avatarUrl,
       );
       await repository.updateAccount(updated);
       emit(state.copyWith(
