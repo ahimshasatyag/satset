@@ -98,7 +98,7 @@ void main() {
     );
 
     testWidgets(
-      'tapping profile picture or button opens image source options modal',
+      'tapping profile picture avatar opens image source options modal',
       (tester) async {
         await tester.pumpWidget(
           createWidgetUnderTest(
@@ -107,10 +107,14 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final changePhotoBtn = find.text('Ganti Foto Profil');
-        expect(changePhotoBtn, findsOneWidget);
+        // Teks 'Ganti Foto Profil' di bawah avatar sudah dihapus
+        expect(find.text('Ganti Foto Profil'), findsNothing);
 
-        await tester.tap(changePhotoBtn);
+        // Mengetuk langsung foto profil (CircleAvatar)
+        final avatar = find.byType(CircleAvatar);
+        expect(avatar, findsOneWidget);
+
+        await tester.tap(avatar);
         await tester.pumpAndSettle();
 
         // Memastikan bottom sheet opsi sumber foto tampil

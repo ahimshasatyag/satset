@@ -910,32 +910,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
-
-          // Tombol Text Link Ganti Foto
-          InkWell(
-            onTap: () => _showImageSourceModal(context, isDark),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.photo_camera_rounded, size: 14, color: roleColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Ganti Foto Profil',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: roleColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
 
           Text(
             displayName,
