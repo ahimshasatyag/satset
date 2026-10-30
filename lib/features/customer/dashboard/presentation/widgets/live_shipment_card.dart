@@ -181,7 +181,10 @@ class LiveShipmentCard extends StatelessWidget {
                   ),
 
                   // Estimasi Tiba Badge jika tersedia
-                  if (active.estimasiTiba != null || active.etaMinutes > 0)
+                  if (active.estimasiTiba != null ||
+                      active.etaMinutes > 0 ||
+                      active.estimasiHariMin != null ||
+                      active.serviceName.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),

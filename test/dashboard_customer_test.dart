@@ -6,6 +6,7 @@ import 'package:satset/features/customer/dashboard/domain/entities/user_profile.
 import 'package:satset/features/customer/dashboard/domain/entities/shipment.dart';
 import 'package:satset/features/customer/dashboard/presentation/widgets/dashboard_header.dart';
 import 'package:satset/features/customer/dashboard/presentation/widgets/dashboard_skeleton.dart';
+import 'package:satset/features/customer/dashboard/presentation/widgets/mini_map_canvas.dart';
 
 void main() {
   group('Dashboard Customer Supabase Data Models & Entity Tests', () {
@@ -179,6 +180,87 @@ void main() {
       expect(find.textContaining('Jl. Sudirman'), findsNothing);
       // Pastikan ikon lokasi ditampilkan
       expect(find.byIcon(Icons.location_on_rounded), findsOneWidget);
+    });
+
+    test('ShipmentModel extracts estimasi_hari_min and max from m_service_types as 1-2 hari kerja', () {
+      final shipmentRow = {
+        'id': 102,
+        'nomor_resi': 'SST-20261021-002',
+        'barcode_value': 'SST-20261021-002',
+        'customer_id': 4,
+        'service_type_id': 1,
+        'status_id': 5,
+        'pengirim_nama': 'Toko Sepatu SatSet',
+        'pengirim_no_hp': '081122334455',
+        'pengirim_alamat': 'Jl. Asia Afrika No. 1',
+        'pengirim_kota': 'Jakarta Pusat',
+        'penerima_nama': 'Budi Santoso',
+        'penerima_no_hp': '089988776655',
+        'penerima_alamat': 'Jl. Fatmawati No. 45',
+        'penerima_kota': 'Jakarta Selatan',
+        'total_berat_gram': 1000,
+        'total_biaya': 12000.0,
+        'created_at': '2026-10-21T10:00:00Z',
+        'updated_at': '2026-10-21T11:00:00Z',
+        'm_service_types': {
+          'id': 1,
+          'kode': 'REG',
+          'nama_layanan': 'Reguler',
+          'estimasi_hari_min': 1,
+          'estimasi_hari_max': 2,
+          'deskripsi': 'Layanan pengiriman reguler ekonomis',
+          'is_active': true,
+        },
+      };
+
+      final shipment = ShipmentModel.fromDatabase(shipmentRow);
+
+      expect(shipment.estimasiHariMin, 1);
+      expect(shipment.estimasiHariMax, 2);
+      expect(shipment.estimationDaysDisplay, '1-2 hari kerja');
+    });
+
+    testWidgets('MiniMapCanvas renders 1-2 hari kerja on map indicator from m_service_types', (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final shipment = Shipment(
+        id: '102',
+        nomorResi: 'SST-20261021-002',
+        barcodeValue: 'SST-20261021-002',
+        customerId: 4,
+        serviceTypeId: 1,
+        serviceName: 'Reguler',
+        serviceCode: 'REG',
+        estimasiHariMin: 1,
+        estimasiHariMax: 2,
+        statusId: 5,
+        statusCode: 'IN_TRANSIT',
+        statusName: 'Dalam Perjalanan',
+        pengirimNama: 'Pengirim',
+        pengirimNoHp: '08123',
+        pengirimAlamat: 'Alamat',
+        penerimaNama: 'Penerima',
+        penerimaNoHp: '08456',
+        penerimaAlamat: 'Alamat',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MiniMapCanvas(shipment: shipment),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.textContaining('1-2 hari kerja'), findsOneWidget);
     });
   });
 }

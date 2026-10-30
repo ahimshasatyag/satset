@@ -206,6 +206,8 @@ class Shipment extends Equatable {
   final int serviceTypeId;
   final String serviceName;
   final String serviceCode;
+  final int? estimasiHariMin;
+  final int? estimasiHariMax;
   final int statusId;
   final String statusCode;
   final String statusName;
@@ -246,6 +248,8 @@ class Shipment extends Equatable {
     required this.serviceTypeId,
     required this.serviceName,
     this.serviceCode = 'REG',
+    this.estimasiHariMin,
+    this.estimasiHariMax,
     required this.statusId,
     required this.statusCode,
     required this.statusName,
@@ -393,6 +397,22 @@ class Shipment extends Equatable {
     }
   }
 
+  /// Estimasi durasi pengiriman dari tabel m_service_types (estimasi_hari_min & estimasi_hari_max)
+  String get estimationDaysDisplay {
+    final min = estimasiHariMin;
+    final max = estimasiHariMax;
+    if (min != null && max != null) {
+      if (min == 0 && max == 0) return 'Hari ini';
+      if (min == max) return '$min hari kerja';
+      return '$min-$max hari kerja';
+    } else if (min != null) {
+      return '$min hari kerja';
+    } else if (max != null) {
+      return '$max hari kerja';
+    }
+    return '1-2 hari kerja';
+  }
+
   /// Estimasi waktu tiba dalam format ramah pengguna
   String get etaDisplay {
     if (isDelivered) return 'Tiba di tujuan';
@@ -411,7 +431,7 @@ class Shipment extends Equatable {
       }
       return 'Tiba sebentar lagi';
     }
-    return '1-2 Hari Kerja';
+    return estimationDaysDisplay;
   }
 
   /// Format rupiah untuk total biaya
@@ -461,6 +481,8 @@ class Shipment extends Equatable {
     int? serviceTypeId,
     String? serviceName,
     String? serviceCode,
+    int? estimasiHariMin,
+    int? estimasiHariMax,
     int? statusId,
     String? statusCode,
     String? statusName,
@@ -501,6 +523,8 @@ class Shipment extends Equatable {
       serviceTypeId: serviceTypeId ?? this.serviceTypeId,
       serviceName: serviceName ?? this.serviceName,
       serviceCode: serviceCode ?? this.serviceCode,
+      estimasiHariMin: estimasiHariMin ?? this.estimasiHariMin,
+      estimasiHariMax: estimasiHariMax ?? this.estimasiHariMax,
       statusId: statusId ?? this.statusId,
       statusCode: statusCode ?? this.statusCode,
       statusName: statusName ?? this.statusName,
@@ -544,6 +568,8 @@ class Shipment extends Equatable {
         serviceTypeId,
         serviceName,
         serviceCode,
+        estimasiHariMin,
+        estimasiHariMax,
         statusId,
         statusCode,
         statusName,

@@ -82,6 +82,8 @@ class ShipmentModel extends Shipment {
     required super.serviceTypeId,
     required super.serviceName,
     super.serviceCode = 'REG',
+    super.estimasiHariMin,
+    super.estimasiHariMax,
     required super.statusId,
     required super.statusCode,
     required super.statusName,
@@ -130,7 +132,12 @@ class ShipmentModel extends Shipment {
         _statusNameFromCode(statusCode);
 
     // 2. Ekstrak Service Type dari joined m_service_types jika ada
-    final serviceMap = map['m_service_types'] as Map<String, dynamic>?;
+    final serviceRaw = map['m_service_types'];
+    final Map<String, dynamic>? serviceMap = serviceRaw is Map<String, dynamic>
+        ? serviceRaw
+        : (serviceRaw is List && serviceRaw.isNotEmpty)
+            ? serviceRaw.first as Map<String, dynamic>
+            : null;
     final int serviceTypeId = (map['service_type_id'] as num?)?.toInt() ??
         (serviceMap?['id'] as num?)?.toInt() ??
         1;
@@ -140,6 +147,29 @@ class ShipmentModel extends Shipment {
     final String serviceCode = (serviceMap?['kode'] as String?) ??
         (map['service_code'] as String?) ??
         'REG';
+
+    // Ekstrak estimasi hari kerja dari tabel m_service_types (estimasi_hari_min, estimasi_hari_max)
+    int? estimasiHariMin = (serviceMap?['estimasi_hari_min'] as num?)?.toInt() ??
+        (map['estimasi_hari_min'] as num?)?.toInt();
+    int? estimasiHariMax = (serviceMap?['estimasi_hari_max'] as num?)?.toInt() ??
+        (map['estimasi_hari_max'] as num?)?.toInt();
+
+    // Default fallback jika nilai belum diatur
+    if (estimasiHariMin == null && estimasiHariMax == null) {
+      if (serviceCode.toUpperCase() == 'REG' ||
+          serviceName.toLowerCase().contains('reguler')) {
+        estimasiHariMin = 1;
+        estimasiHariMax = 2;
+      } else if (serviceCode.toUpperCase() == 'EXP' ||
+          serviceName.toLowerCase().contains('express')) {
+        estimasiHariMin = 1;
+        estimasiHariMax = 1;
+      } else if (serviceCode.toUpperCase() == 'SAMEDAY' ||
+          serviceCode.toUpperCase() == 'INST') {
+        estimasiHariMin = 0;
+        estimasiHariMax = 0;
+      }
+    }
 
     // 3. Ekstrak Timeline jika t_shipment_tracking di-include
     List<ShipmentTimelineStepModel> timelineList = [];
@@ -213,6 +243,8 @@ class ShipmentModel extends Shipment {
       serviceTypeId: serviceTypeId,
       serviceName: serviceName,
       serviceCode: serviceCode,
+      estimasiHariMin: estimasiHariMin,
+      estimasiHariMax: estimasiHariMax,
       statusId: statusId,
       statusCode: statusCode,
       statusName: statusName,
@@ -317,6 +349,8 @@ class ShipmentModel extends Shipment {
       'service_type_id': serviceTypeId,
       'service_name': serviceName,
       'service_code': serviceCode,
+      'estimasi_hari_min': estimasiHariMin,
+      'estimasi_hari_max': estimasiHariMax,
       'status_id': statusId,
       'status_code': statusCode,
       'status_name': statusName,

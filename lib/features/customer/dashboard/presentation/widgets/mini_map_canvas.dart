@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -220,12 +219,6 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
                   1000.0)
               .toStringAsFixed(1);
 
-    final etaMin = widget.shipment.etaMinutes > 0
-        ? widget.shipment.etaMinutes
-        : (math.max(
-            1,
-            (double.tryParse(distanceKm.toString()) ?? 2.5) * 3,
-          )).toInt();
 
     final routePoints = [origin, courier, destination];
 
@@ -541,13 +534,13 @@ class _MiniMapCanvasState extends State<MiniMapCanvas>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
-                    Icons.speed_rounded,
+                    Icons.schedule_rounded,
                     size: 14,
                     color: AppColors.secondary,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '~$etaMin mnt • $distanceKm km ke tujuan',
+                    '${widget.shipment.estimationDaysDisplay} • $distanceKm km ke tujuan',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
