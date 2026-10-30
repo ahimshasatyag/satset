@@ -41,6 +41,19 @@ abstract class ShipmentRemoteDataSource {
 
   /// Menyelesaikan customer_id pengguna yang sedang login
   Future<int> resolveCustomerId({String? userId});
+
+  /// Memperbarui data alamat utama pengguna di tabel public.m_users
+  Future<void> updateUserMainAddress({
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+    String? namaLengkap,
+    String? noHp,
+  });
 }
 
 class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
@@ -118,43 +131,209 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
   @override
   Future<Map<String, dynamic>?> getCurrentUserProfile() async {
     try {
-      final customerId = await resolveCustomerId();
-      if (!_isSupabaseAvailable) {
-        final user = await _authLocalDataSource?.getUser() ?? currentUser;
-        if (user != null) {
-          return {
-            'id': customerId,
-            'nama_lengkap': user.name,
-            'no_hp': user.phone,
-            'email': user.email,
-          };
+      final authLocal = _authLocalDataSource ?? AuthLocalDataSourceImpl();
+      final localUser = await authLocal.getUser();
+      final localEmail = (localUser?.email ?? '').trim().toLowerCase();
+      final localPhone = (localUser?.phone ?? '').trim();
+      final localId = int.tryParse(localUser?.id ?? '');
+
+      final authUser = _client.auth.currentUser;
+      final sessionEmail = (authUser?.email ?? '').trim().toLowerCase();
+      final email = sessionEmail.isNotEmpty ? sessionEmail : localEmail;
+
+      if (_isSupabaseAvailable) {
+        // 1. Coba ambil berdasarkan email
+        if (email.isNotEmpty) {
+          final userByEmail = await _client
+              .from(DatabaseConstants.tableUsers)
+              .select()
+              .eq(DatabaseConstants.colEmail, email)
+              .maybeSingle();
+          if (userByEmail != null) {
+            return userByEmail;
+          }
         }
-        return null;
+
+        // 2. Coba ambil berdasarkan nomor telepon jika ada
+        if (localPhone.isNotEmpty) {
+          final userByPhone = await _client
+              .from(DatabaseConstants.tableUsers)
+              .select()
+              .eq(UserTableColumns.noHp, localPhone)
+              .maybeSingle();
+          if (userByPhone != null) {
+            return userByPhone;
+          }
+        }
+
+        // 3. Coba ambil berdasarkan ID pengguna sesi lokal
+        if (localId != null && localId > 0) {
+          final userById = await _client
+              .from(DatabaseConstants.tableUsers)
+              .select()
+              .eq(DatabaseConstants.colId, localId)
+              .maybeSingle();
+          if (userById != null) {
+            return userById;
+          }
+        }
+
+        // 4. Fallback customerId yang teresolusi
+        final customerId = await resolveCustomerId();
+        final userRows = await _client
+            .from(DatabaseConstants.tableUsers)
+            .select()
+            .eq(DatabaseConstants.colId, customerId)
+            .limit(1);
+
+        if (userRows.isNotEmpty) {
+          return userRows.first;
+        }
       }
 
-      final userRows = await _client
-          .from(DatabaseConstants.tableUsers)
-          .select()
-          .eq('id', customerId)
-          .limit(1);
-
-      if (userRows.isNotEmpty) {
-        return userRows.first;
-      }
-
-      final user = await _authLocalDataSource?.getUser() ?? currentUser;
+      final user = localUser ?? currentUser;
       if (user != null) {
         return {
-          'id': customerId,
+          'id': user.id,
           'nama_lengkap': user.name,
           'no_hp': user.phone,
           'email': user.email,
+          'alamat_lengkap': user.alamatLengkap,
+          'latitude': user.latitude,
+          'longitude': user.longitude,
+          'id_provinsi': user.idProvinsi,
+          'id_kabkot': user.idKabkot,
+          'id_kecamatan': user.idKecamatan,
+          'id_kelurahan': user.idKelurahan,
         };
       }
       return null;
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<void> updateUserMainAddress({
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+    String? namaLengkap,
+    String? noHp,
+  }) async {
+    final updateData = <String, dynamic>{
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    if (idProvinsi != null && idProvinsi.isNotEmpty) {
+      updateData[UserTableColumns.idProvinsi] = idProvinsi;
+    }
+    if (idKabkot != null && idKabkot.isNotEmpty) {
+      updateData[UserTableColumns.idKabkot] = idKabkot;
+    }
+    if (idKecamatan != null && idKecamatan.isNotEmpty) {
+      updateData[UserTableColumns.idKecamatan] = idKecamatan;
+    }
+    if (idKelurahan != null && idKelurahan.isNotEmpty) {
+      updateData[UserTableColumns.idKelurahan] = idKelurahan;
+    }
+    if (alamatLengkap != null && alamatLengkap.trim().isNotEmpty) {
+      updateData[UserTableColumns.alamatLengkap] = alamatLengkap.trim();
+    }
+    if (latitude != null && latitude != 0.0) {
+      updateData[UserTableColumns.latitude] = latitude;
+    }
+    if (longitude != null && longitude != 0.0) {
+      updateData[UserTableColumns.longitude] = longitude;
+    }
+    if (namaLengkap != null && namaLengkap.trim().isNotEmpty) {
+      updateData[UserTableColumns.namaLengkap] = namaLengkap.trim();
+    }
+    if (noHp != null && noHp.trim().isNotEmpty) {
+      updateData[UserTableColumns.noHp] = noHp.trim();
+    }
+
+    if (updateData.length <= 1) {
+      return;
+    }
+
+    if (_isSupabaseAvailable) {
+      try {
+        final authLocal = _authLocalDataSource ?? AuthLocalDataSourceImpl();
+        final localUser = await authLocal.getUser();
+        final localEmail = (localUser?.email ?? '').trim().toLowerCase();
+        final localPhone = (noHp ?? localUser?.phone ?? '').trim();
+        final localId = int.tryParse(localUser?.id ?? '');
+
+        final authUser = _client.auth.currentUser;
+        final sessionEmail = (authUser?.email ?? '').trim().toLowerCase();
+        final email = sessionEmail.isNotEmpty ? sessionEmail : localEmail;
+        final customerId =
+            (localId != null && localId > 0) ? localId : await resolveCustomerId();
+
+        var updated = false;
+
+        // 1. Prioritaskan update berdasarkan email akun
+        if (email.isNotEmpty) {
+          final res = await _client
+              .from(DatabaseConstants.tableUsers)
+              .update(updateData)
+              .eq(DatabaseConstants.colEmail, email)
+              .select('id');
+          if (res.isNotEmpty) {
+            updated = true;
+          }
+        }
+
+        // 2. Coba update berdasarkan nomor HP jika ada
+        if (!updated && localPhone.isNotEmpty) {
+          final res = await _client
+              .from(DatabaseConstants.tableUsers)
+              .update(updateData)
+              .eq(UserTableColumns.noHp, localPhone)
+              .select('id');
+          if (res.isNotEmpty) {
+            updated = true;
+          }
+        }
+
+        // 3. Jika belum terupdate atau email/phone tidak ada, update berdasarkan customerId
+        if (!updated && customerId > 0) {
+          await _client
+              .from(DatabaseConstants.tableUsers)
+              .update(updateData)
+              .eq(DatabaseConstants.colId, customerId);
+        }
+      } catch (e) {
+        // ignore: avoid_print
+        print('Peringatan: Gagal update m_users: $e');
+      }
+    }
+
+    // 3. Sinkronkan ke cache lokal AuthLocalDataSource jika tersedia
+    try {
+      final authLocal = _authLocalDataSource ?? AuthLocalDataSourceImpl();
+      final local = await authLocal.getUser();
+      if (local != null) {
+        final updatedLocal = local.copyWith(
+          name: updateData[UserTableColumns.namaLengkap] as String? ?? local.name,
+          phone: updateData[UserTableColumns.noHp] as String? ?? local.phone,
+          alamatLengkap: updateData[UserTableColumns.alamatLengkap] as String? ?? local.alamatLengkap,
+          latitude: (updateData[UserTableColumns.latitude] as num?)?.toDouble() ?? local.latitude,
+          longitude: (updateData[UserTableColumns.longitude] as num?)?.toDouble() ?? local.longitude,
+          idProvinsi: updateData[UserTableColumns.idProvinsi] as String? ?? local.idProvinsi,
+          idKabkot: updateData[UserTableColumns.idKabkot] as String? ?? local.idKabkot,
+          idKecamatan: updateData[UserTableColumns.idKecamatan] as String? ?? local.idKecamatan,
+          idKelurahan: updateData[UserTableColumns.idKelurahan] as String? ?? local.idKelurahan,
+          updatedAt: DateTime.now(),
+        );
+        await authLocal.saveUser(updatedLocal);
+      }
+    } catch (_) {}
   }
 
   @override

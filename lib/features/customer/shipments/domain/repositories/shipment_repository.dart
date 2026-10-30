@@ -34,4 +34,17 @@ abstract class ShipmentRepository {
 
   /// Mengambil daftar master rekening bank dari m_bank join m_jenis_bank
   Future<List<BankAccount>> getBanks();
+
+  /// Memperbarui alamat utama pengguna di tabel public.m_users
+  Future<void> updateUserMainAddress({
+    String? idProvinsi,
+    String? idKabkot,
+    String? idKecamatan,
+    String? idKelurahan,
+    String? alamatLengkap,
+    double? latitude,
+    double? longitude,
+    String? namaLengkap,
+    String? noHp,
+  });
 }

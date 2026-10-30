@@ -70,9 +70,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
   AddressRepository? _addressRepo;
   AddressRepository get _addressRepository =>
       _addressRepo ??= AddressRepositoryImpl(
-        remoteDataSource: AddressRemoteDataSourceImpl(
-          client: SupabaseConfig.client,
-        ),
+        remoteDataSource: AddressRemoteDataSourceImpl(),
       );
   bool _isUsePrimaryAddress = false;
   bool _isLoadingPrimaryAddress = false;
@@ -190,9 +188,7 @@ class _CreateShipmentSheetState extends State<CreateShipmentSheet> {
           localDataSource: ShipmentLocalDataSourceImpl(),
         );
     _addressRepo = AddressRepositoryImpl(
-      remoteDataSource: AddressRemoteDataSourceImpl(
-        client: SupabaseConfig.client,
-      ),
+      remoteDataSource: AddressRemoteDataSourceImpl(),
     );
     _loadInitialData();
   }
