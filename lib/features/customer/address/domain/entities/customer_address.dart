@@ -181,3 +181,21 @@ class CustomerAddress extends Equatable {
         updatedAt,
       ];
 }
+/// Master label alamat dari tabel `m_label` di Supabase.
+class AddressLabel extends Equatable {
+  final int id;
+  final String name;
+
+  const AddressLabel({required this.id, required this.name});
+
+  factory AddressLabel.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    return AddressLabel(
+      id: rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0,
+      name: (json['nm_label'] ?? '').toString(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name];
+}

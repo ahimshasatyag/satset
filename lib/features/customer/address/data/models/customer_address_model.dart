@@ -1,4 +1,3 @@
-import '../../domain/entities/address_label.dart';
 import '../../domain/entities/customer_address.dart';
 
 /// Model implementasi data layer untuk [CustomerAddress].
@@ -113,8 +112,6 @@ class CustomerAddressModel extends CustomerAddress {
       resolvedLabelName = json['m_label']['nm_label']?.toString();
     } else if (json['nm_label'] != null) {
       resolvedLabelName = json['nm_label']?.toString();
-    } else if (labelIdInt != null) {
-      resolvedLabelName = AddressLabel.defaultLabels.where((l) => l.id == labelIdInt).firstOrNull?.name;
     }
 
     final customLabel = json['label']?.toString();

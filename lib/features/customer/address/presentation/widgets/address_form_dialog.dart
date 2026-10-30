@@ -6,7 +6,7 @@ import 'package:satset/features/customer/shipments/domain/entities/shipment.dart
 import 'package:satset/features/customer/shipments/presentation/widgets/location_picker_map_dialog.dart';
 import 'package:satset/shared/theme/theme.dart';
 import 'package:satset/shared/widgets/widgets.dart';
-import '../../domain/entities/address_label.dart';
+
 import '../../domain/entities/customer_address.dart';
 import '../../domain/repositories/address_repository.dart';
 
@@ -73,7 +73,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
   late final TextEditingController _postalCodeController;
 
   // Master Labels (m_label)
-  List<AddressLabel> _labels = AddressLabel.defaultLabels;
+  List<AddressLabel> _labels = [];
   AddressLabel? _selectedLabel;
   bool _isLoadingLabels = false;
 
@@ -105,9 +105,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     super.initState();
     final addr = widget.initialAddress;
 
-    _titleController = TextEditingController(
-      text: addr?.title ?? 'Rumah',
-    );
+    _titleController = TextEditingController(text: addr?.title ?? 'Rumah');
     _nameController = TextEditingController(
       text: addr?.receiverName ?? widget.defaultName ?? '',
     );
@@ -117,12 +115,8 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     _emailController = TextEditingController(
       text: addr?.email ?? widget.defaultEmail ?? '',
     );
-    _addressController = TextEditingController(
-      text: addr?.fullAddress ?? '',
-    );
-    _postalCodeController = TextEditingController(
-      text: addr?.postalCode ?? '',
-    );
+    _addressController = TextEditingController(text: addr?.fullAddress ?? '');
+    _postalCodeController = TextEditingController(text: addr?.postalCode ?? '');
 
     _latitude = addr?.latitude;
     _longitude = addr?.longitude;
@@ -132,10 +126,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
   }
 
   Future<void> _initData() async {
-    await Future.wait([
-      _fetchLabels(),
-      _initRegionData(),
-    ]);
+    await Future.wait([_fetchLabels(), _initRegionData()]);
   }
 
   /// Mengambil master label dari tabel m_label
@@ -145,14 +136,14 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
       final rows = await widget.repository.getLabels();
       if (mounted) {
         setState(() {
-          _labels = rows.isNotEmpty ? rows : AddressLabel.defaultLabels;
+          _labels = rows;
           _resolveInitialLabel();
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          _labels = AddressLabel.defaultLabels;
+          _labels = [];
           _resolveInitialLabel();
         });
       }
@@ -170,9 +161,12 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     }
     if (_selectedLabel == null && addr?.title != null) {
       final t = addr!.title.toLowerCase();
-      _selectedLabel = _labels.where((l) => l.name.toLowerCase() == t).firstOrNull;
+      _selectedLabel = _labels
+          .where((l) => l.name.toLowerCase() == t)
+          .firstOrNull;
     }
-    _selectedLabel ??= _labels.where((l) => l.name.toLowerCase() == 'rumah').firstOrNull ??
+    _selectedLabel ??=
+        _labels.where((l) => l.name.toLowerCase() == 'rumah').firstOrNull ??
         (_labels.isNotEmpty ? _labels.first : null);
 
     if (_selectedLabel != null && _titleController.text.trim().isEmpty) {
@@ -186,10 +180,14 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     await _fetchProvinces();
 
     if (addr != null && mounted) {
-      final prov = _provinces.where((p) =>
-        (addr.provinceCode != null && p.code == addr.provinceCode) ||
-        (addr.provinceName != null && p.name.toLowerCase() == addr.provinceName!.toLowerCase())
-      ).firstOrNull;
+      final prov = _provinces
+          .where(
+            (p) =>
+                (addr.provinceCode != null && p.code == addr.provinceCode) ||
+                (addr.provinceName != null &&
+                    p.name.toLowerCase() == addr.provinceName!.toLowerCase()),
+          )
+          .firstOrNull;
 
       if (prov != null) {
         setState(() => _selectedProvince = prov);
@@ -203,10 +201,16 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
               _isLoadingRegencies = false;
             });
 
-            final reg = regList.where((r) =>
-              (addr.regencyCode != null && r.code == addr.regencyCode) ||
-              (addr.regencyName != null && r.name.toLowerCase() == addr.regencyName!.toLowerCase())
-            ).firstOrNull;
+            final reg = regList
+                .where(
+                  (r) =>
+                      (addr.regencyCode != null &&
+                          r.code == addr.regencyCode) ||
+                      (addr.regencyName != null &&
+                          r.name.toLowerCase() ==
+                              addr.regencyName!.toLowerCase()),
+                )
+                .firstOrNull;
 
             if (reg != null) {
               setState(() => _selectedRegency = reg);
@@ -220,27 +224,41 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     _isLoadingDistricts = false;
                   });
 
-                  final dist = distList.where((d) =>
-                    (addr.districtCode != null && d.code == addr.districtCode) ||
-                    (addr.districtName != null && d.name.toLowerCase() == addr.districtName!.toLowerCase())
-                  ).firstOrNull;
+                  final dist = distList
+                      .where(
+                        (d) =>
+                            (addr.districtCode != null &&
+                                d.code == addr.districtCode) ||
+                            (addr.districtName != null &&
+                                d.name.toLowerCase() ==
+                                    addr.districtName!.toLowerCase()),
+                      )
+                      .firstOrNull;
 
                   if (dist != null) {
                     setState(() => _selectedDistrict = dist);
 
                     setState(() => _isLoadingVillages = true);
                     try {
-                      final vilList = await widget.repository.getVillages(dist.code);
+                      final vilList = await widget.repository.getVillages(
+                        dist.code,
+                      );
                       if (mounted) {
                         setState(() {
                           _villages = vilList;
                           _isLoadingVillages = false;
                         });
 
-                        final vil = vilList.where((v) =>
-                          (addr.villageCode != null && v.code == addr.villageCode) ||
-                          (addr.villageName != null && v.name.toLowerCase() == addr.villageName!.toLowerCase())
-                        ).firstOrNull;
+                        final vil = vilList
+                            .where(
+                              (v) =>
+                                  (addr.villageCode != null &&
+                                      v.code == addr.villageCode) ||
+                                  (addr.villageName != null &&
+                                      v.name.toLowerCase() ==
+                                          addr.villageName!.toLowerCase()),
+                            )
+                            .firstOrNull;
 
                         if (vil != null) {
                           setState(() {
@@ -363,7 +381,8 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
 
   /// Membuka peta interaktif LocationPickerMapDialog untuk memilih titik GPS presisi
   Future<void> _pickLocationOnMap() async {
-    final initialLoc = (_latitude != null && _longitude != null && _latitude != 0.0)
+    final initialLoc =
+        (_latitude != null && _longitude != null && _latitude != 0.0)
         ? LatLng(_latitude!, _longitude!)
         : null;
 
@@ -394,7 +413,9 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     bool enabled = true,
     bool isLoading = false,
   }) {
-    final effectiveHint = !enabled && disabledHint != null ? disabledHint : (hintText ?? 'Pilih $label');
+    final effectiveHint = !enabled && disabledHint != null
+        ? disabledHint
+        : (hintText ?? 'Pilih $label');
     final isActuallyEnabled = enabled && !isLoading && items.isNotEmpty;
 
     return SearchableDropdown<T>(
@@ -441,7 +462,9 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
       title: labelTitle.isNotEmpty ? labelTitle : 'Alamat',
       receiverName: _nameController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
-      email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+      email: _emailController.text.trim().isNotEmpty
+          ? _emailController.text.trim()
+          : null,
       fullAddress: _addressController.text.trim(),
       provinceCode: _selectedProvince?.code,
       provinceName: _selectedProvince?.name,
@@ -480,7 +503,8 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEditing = widget.initialAddress != null;
-    final hasCoord = _latitude != null && _longitude != null && _latitude != 0.0;
+    final hasCoord =
+        _latitude != null && _longitude != null && _latitude != 0.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -538,19 +562,19 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                       Text(
                         isEditing ? 'Ubah Alamat' : 'Tambah Alamat Baru',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         isEditing
                             ? 'Perbarui detail data alamat Anda'
                             : 'Simpan alamat pengiriman baru untuk SatSet',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: isDark
-                                  ? AppColors.textSecondaryDark
-                                  : AppColors.textSecondaryLight,
-                            ),
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                        ),
                       ),
                     ],
                   ),
@@ -572,7 +596,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                   children: [
                     // 1. Dropdown Label (id_label dari m_label)
                     SearchableDropdown<AddressLabel>(
-                      label: 'Label Alamat (m_label)',
+                      label: 'Label Alamat',
                       hintText: 'Pilih Label Alamat',
                       value: _selectedLabel,
                       items: _labels,
@@ -588,58 +612,6 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                           }
                         });
                       },
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Quick Chips untuk memilih Label cepat
-                    SizedBox(
-                      height: 34,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _labels.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final lbl = _labels[index];
-                          final isSelected = _selectedLabel?.id == lbl.id;
-                          return ActionChip(
-                            label: Text(lbl.name),
-                            labelStyle: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? Colors.white
-                                  : (isDark
-                                      ? AppColors.textPrimaryDark
-                                      : AppColors.textPrimaryLight),
-                            ),
-                            backgroundColor: isSelected
-                                ? AppColors.primary
-                                : (isDark
-                                    ? AppColors.surfaceDark
-                                    : AppColors.surfaceLight),
-                            side: BorderSide(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : (isDark ? Colors.white12 : Colors.black12),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 0,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _selectedLabel = lbl;
-                                _titleController.text = lbl.name;
-                              });
-                            },
-                          );
-                        },
-                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -691,15 +663,21 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                       'Titik Lokasi Peta (GPS)',
                       style: AppTextStyles.labelMedium.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Container(
                       decoration: BoxDecoration(
                         color: hasCoord
-                            ? AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.06)
-                            : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC)),
+                            ? AppColors.primary.withValues(
+                                alpha: isDark ? 0.15 : 0.06,
+                              )
+                            : (isDark
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : const Color(0xFFF8FAFC)),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: hasCoord
@@ -715,7 +693,10 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                           borderRadius: BorderRadius.circular(14),
                           onTap: _isSubmitting ? null : _pickLocationOnMap,
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
                             child: Row(
                               children: [
                                 Container(
@@ -723,7 +704,11 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                                   decoration: BoxDecoration(
                                     color: hasCoord
                                         ? AppColors.primary
-                                        : (isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06)),
+                                        : (isDark
+                                              ? Colors.white12
+                                              : Colors.black.withValues(
+                                                  alpha: 0.06,
+                                                )),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -731,16 +716,20 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                                     size: 20,
                                     color: hasCoord
                                         ? Colors.white
-                                        : (isDark ? Colors.white70 : Colors.black54),
+                                        : (isDark
+                                              ? Colors.white70
+                                              : Colors.black54),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Wrap(
-                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
                                         spacing: 6,
                                         runSpacing: 4,
                                         children: [
@@ -753,13 +742,16 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                                           ),
                                           if (hasCoord)
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 6,
-                                                vertical: 2,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: AppColors.success.withValues(alpha: 0.15),
-                                                borderRadius: BorderRadius.circular(4),
+                                                color: AppColors.success
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
                                               ),
                                               child: const Text(
                                                 'TERPASANG',
@@ -779,8 +771,12 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                                             : 'Buka peta interaktif untuk menentukan titik koordinat presisi',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          fontFamily: hasCoord ? 'monospace' : null,
-                                          color: isDark ? Colors.white60 : Colors.black54,
+                                          fontFamily: hasCoord
+                                              ? 'monospace'
+                                              : null,
+                                          color: isDark
+                                              ? Colors.white60
+                                              : Colors.black54,
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -791,7 +787,10 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                                 const SizedBox(width: 8),
                                 if (hasCoord)
                                   IconButton(
-                                    icon: const Icon(Icons.close_rounded, size: 18),
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      size: 18,
+                                    ),
                                     tooltip: 'Hapus Titik',
                                     onPressed: () {
                                       setState(() {
@@ -801,7 +800,10 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                                     },
                                   )
                                 else
-                                  const Icon(Icons.chevron_right_rounded, size: 20),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                  ),
                               ],
                             ),
                           ),
@@ -917,7 +919,8 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                       onChanged: (v) {
                         setState(() {
                           _selectedVillage = v;
-                          if (v?.postalCode != null && v!.postalCode!.isNotEmpty) {
+                          if (v?.postalCode != null &&
+                              v!.postalCode!.isNotEmpty) {
                             _postalCodeController.text = v.postalCode!;
                           }
                         });
@@ -928,7 +931,8 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     // 7. Input Alamat Lengkap
                     CustomTextField(
                       label: 'Alamat Lengkap',
-                      hintText: 'Contoh: Jl. Sudirman No. 45, RT 01/RW 02, Menteng',
+                      hintText:
+                          'Contoh: Jl. Sudirman No. 45, RT 01/RW 02, Menteng',
                       controller: _addressController,
                       keyboardType: TextInputType.streetAddress,
                       textInputAction: TextInputAction.next,
@@ -953,42 +957,51 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     const SizedBox(height: 16),
 
                     // 9. Switch Alamat Utama
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark ? Colors.white10 : Colors.black12,
+                    if (isEditing) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.star_rounded,
-                            size: 20,
-                            color: _isPrimary ? AppColors.secondary : Colors.grey,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? Colors.white10 : Colors.black12,
                           ),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text(
-                              'Jadikan sebagai Alamat Utama',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.star_rounded,
+                              size: 20,
+                              color: _isPrimary
+                                  ? AppColors.secondary
+                                  : Colors.grey,
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Jadikan sebagai Alamat Utama',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
-                          Switch(
-                            value: _isPrimary,
-                            activeThumbColor: AppColors.primary,
-                            onChanged: _isSubmitting
-                                ? null
-                                : (val) => setState(() => _isPrimary = val),
-                          ),
-                        ],
+                            Switch(
+                              value: _isPrimary,
+                              activeThumbColor: AppColors.primary,
+                              onChanged: _isSubmitting
+                                  ? null
+                                  : (val) => setState(() => _isPrimary = val),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -1003,7 +1016,9 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
               isLoading: _isSubmitting,
               onPressed: _isSubmitting ? null : _submit,
               prefixIcon: Icon(
-                isEditing ? Icons.check_circle_outline_rounded : Icons.add_location_alt_outlined,
+                isEditing
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.add_location_alt_outlined,
                 color: Colors.white,
                 size: 18,
               ),

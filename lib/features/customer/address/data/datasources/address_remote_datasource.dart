@@ -1,4 +1,4 @@
-import '../../domain/entities/address_label.dart';
+import '../../domain/entities/customer_address.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:satset/core/error/exceptions.dart';
 import 'package:satset/app/config/supabase_config.dart';
@@ -551,7 +551,7 @@ class AddressRemoteDataSourceImpl implements AddressRemoteDataSource {
   @override
   Future<List<AddressLabel>> getLabels() async {
     if (!_isSupabaseAvailable) {
-      return AddressLabel.defaultLabels;
+      return <AddressLabel>[];
     }
     try {
       final res = await _client
@@ -562,7 +562,7 @@ class AddressRemoteDataSourceImpl implements AddressRemoteDataSource {
           .map((row) => AddressLabel.fromJson(row as Map<String, dynamic>))
           .toList();
     } catch (_) {
-      return AddressLabel.defaultLabels;
+      return <AddressLabel>[];
     }
   }
 

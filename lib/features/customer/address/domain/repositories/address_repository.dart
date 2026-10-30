@@ -1,4 +1,3 @@
-import '../entities/address_label.dart';
 import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
 import '../entities/customer_address.dart';
 

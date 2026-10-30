@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:satset/features/customer/address/data/models/customer_address_model.dart';
-import 'package:satset/features/customer/address/domain/entities/address_label.dart';
 import 'package:satset/features/customer/address/domain/entities/customer_address.dart';
 
 void main() {
@@ -13,8 +12,6 @@ void main() {
       expect(label.id, equals(2));
       expect(label.name, equals('Rumah'));
 
-      expect(AddressLabel.defaultLabels.length, equals(7));
-      expect(AddressLabel.defaultLabels.first.name, equals('Kantor'));
     });
 
     test('CustomerAddressModel serialization to m_address JSON contains all new fields', () {
@@ -95,3 +92,4 @@ void main() {
     });
   });
 }
+

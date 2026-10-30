@@ -1,4 +1,3 @@
-import '../../domain/entities/address_label.dart';
 import 'package:satset/core/error/exceptions.dart';
 import 'package:satset/core/error/failures.dart';
 import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
