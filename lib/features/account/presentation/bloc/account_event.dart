@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+
 import '../../domain/entities/user_account.dart';
 
 abstract class AccountEvent extends Equatable {

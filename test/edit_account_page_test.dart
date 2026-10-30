@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:satset/app/constants/database_constants.dart';
 import 'package:satset/features/account/domain/entities/user_account.dart';
 import 'package:satset/features/account/presentation/pages/edit_account_page.dart';
 import 'package:satset/features/auth/domain/entities/user.dart';
@@ -21,7 +20,7 @@ void main() {
 
   group('EditAccountPage Dual-Table & id_users_roles Tests', () {
     testWidgets(
-        'renders customer profile with id_users_roles = 3 and table m_users',
+        'renders customer profile with prefilled name, email, and phone',
         (tester) async {
       const customerUser = User(
         id: 'usr_003',
@@ -58,13 +57,13 @@ void main() {
       expect(find.text('ahmad@satset.id'), findsOneWidget);
       expect(find.text('081234567890'), findsOneWidget);
 
-      // Memastikan badge role dan keterangan tabel m_users tampil
-      expect(find.textContaining('Pelanggan (Role: 3)'), findsOneWidget);
-      expect(find.textContaining(DatabaseConstants.tableUsers), findsOneWidget);
+      // Memastikan bagian teks 'Sinkronisasi Supabase' dan badge '(Role' telah dihapus
+      expect(find.textContaining('Sinkronisasi Supabase'), findsNothing);
+      expect(find.textContaining('(Role:'), findsNothing);
     });
 
     testWidgets(
-        'renders courier profile with id_users_roles = 2 and table m_employee',
+        'renders courier profile with prefilled name, email, and phone',
         (tester) async {
       const courierUser = User(
         id: 'emp_002',
@@ -99,15 +98,9 @@ void main() {
       expect(find.text('budi.courier@satset.id'), findsOneWidget);
       expect(find.text('081987654321'), findsOneWidget);
 
-      // Memastikan badge role kurir dan tabel m_employee tampil
-      expect(
-        find.textContaining('Mitra Kurir / Pegawai (Role: 2)'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining(DatabaseConstants.tableEmployee),
-        findsOneWidget,
-      );
+      // Memastikan bagian teks 'Sinkronisasi Supabase' dan badge '(Role' telah dihapus
+      expect(find.textContaining('Sinkronisasi Supabase'), findsNothing);
+      expect(find.textContaining('(Role:'), findsNothing);
     });
 
     testWidgets('triggers validation errors when fields are empty or invalid',

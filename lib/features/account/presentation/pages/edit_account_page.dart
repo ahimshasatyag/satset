@@ -63,7 +63,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
   /// 3 = Pelanggan (tabel `m_users`)
   int? _idUsersRoles;
   String _targetTable = DatabaseConstants.tableUsers;
-  String _roleLabel = 'Pelanggan';
   String? _recordId;
   String? _initialEmail;
 
@@ -120,10 +119,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
     _idUsersRoles = role;
     if (_idUsersRoles == 2) {
       _targetTable = DatabaseConstants.tableEmployee;
-      _roleLabel = 'Mitra Kurir / Pegawai';
     } else {
       _targetTable = DatabaseConstants.tableUsers;
-      _roleLabel = 'Pelanggan';
     }
   }
 
@@ -218,7 +215,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
       // Fallback ke localUser / widget
       detectedRoleId ??= widget.user?.idUsersRole ?? localUser?.idUsersRole;
 
-      // Jika masih null, simpulkan dari keberadaan tabel
+      // Jika masih null, simpulkan dari keberadaan data tabel
       if (detectedRoleId == null) {
         if (employeeRow != null ||
             widget.account?.isCourierAccount == true ||
@@ -235,7 +232,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
       if (_idUsersRoles == 2 || (employeeRow != null && userRow == null)) {
         // PERAN KURIR / PEGAWAI -> Tabel m_employee
         _targetTable = DatabaseConstants.tableEmployee;
-        _roleLabel = 'Mitra Kurir / Pegawai';
 
         final row = employeeRow ?? userRow;
         _recordId = row?[DatabaseConstants.colId]?.toString() ?? targetId;
@@ -263,7 +259,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
       } else {
         // PERAN PELANGGAN -> Tabel m_users
         _targetTable = DatabaseConstants.tableUsers;
-        _roleLabel = 'Pelanggan';
 
         final row = userRow ?? employeeRow;
         _recordId = row?[UserTableColumns.id]?.toString() ?? targetId;
@@ -414,18 +409,18 @@ class _EditAccountPageState extends State<EditAccountPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_rounded,
                   color: Colors.white,
                   size: 20,
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Profil akun berhasil diperbarui di tabel $_targetTable.',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    'Profil akun berhasil diperbarui.',
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -498,7 +493,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Avatar & Badge Role
+                      // Header Avatar
                       _buildHeaderCard(context, isDark, isCourierRole),
                       const SizedBox(height: 20),
 
@@ -538,11 +533,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
 
                       // Formulir Informasi Profil
                       _buildFormCard(context, isDark),
-                      const SizedBox(height: 20),
-
-                      // Card Keterangan Database Supabase
-                      _buildDatabaseInfoCard(context, isDark, isCourierRole),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 28),
 
                       // Tombol Aksi
                       CustomButton(
@@ -580,7 +571,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
     );
   }
 
-  /// Kartu Header Profil & Indikator Role
+  /// Kartu Header Profil
   Widget _buildHeaderCard(
     BuildContext context,
     bool isDark,
@@ -649,44 +640,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
           const SizedBox(height: 14),
           Text(
             displayName,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          // Badge Role Berdasarkan id_users_roles
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: roleColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: roleColor.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isCourierRole
-                      ? Icons.delivery_dining_rounded
-                      : Icons.person_rounded,
-                  size: 16,
-                  color: roleColor,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '$_roleLabel (Role: ${_idUsersRoles ?? 3})',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: roleColor,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -716,7 +671,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
-                  Icons.badge_rounded,
+                  Icons.person_outline_rounded,
                   color: AppColors.primary,
                   size: 20,
                 ),
@@ -784,62 +739,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
             validator: Validators.validatePhone,
             helperText:
                 'Digunakan untuk notifikasi dan koordinasi pengiriman.',
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Kartu Informasi Integrasi Skema Database Supabase
-  Widget _buildDatabaseInfoCard(
-    BuildContext context,
-    bool isDark,
-    bool isCourierRole,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.surfaceVariantDark.withValues(alpha: 0.6)
-            : const Color(0xFFF0F4F8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark
-              ? AppColors.borderDark
-              : const Color(0xFFD6E2EE),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            color: AppColors.tertiary,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sinkronisasi Supabase',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Berdasarkan pengecekan id_users_roles = ${_idUsersRoles ?? 3}, data akun ini disimpan dan disinkronkan ke tabel [$_targetTable] dengan proteksi Supabase RLS.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? Colors.white70 : Colors.black87,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
