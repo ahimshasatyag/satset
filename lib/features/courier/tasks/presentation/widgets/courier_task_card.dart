@@ -105,9 +105,21 @@ class CourierTaskCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    StatusBadge(
-                      label: task.statusName,
-                      status: _resolveBadgeStatus(task.statusCode),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (task.isWaitingPayment) ...[
+                          const StatusBadge(
+                            label: 'Belum Bayar',
+                            status: BadgeStatus.error,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        StatusBadge(
+                          label: task.statusName,
+                          status: _resolveBadgeStatus(task.statusCode),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -239,17 +251,57 @@ class CourierTaskCard extends StatelessWidget {
                       ],
                     ),
                     ElevatedButton.icon(
-                      onPressed: onQuickAction ?? onTap,
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 14),
+                      onPressed: () {
+                        if (task.isWaitingPayment) {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: const Row(
+                                children: [
+                                  Icon(Icons.payment_rounded, color: AppColors.warning),
+                                  SizedBox(width: 8),
+                                  Text('Menunggu Pembayaran'),
+                                ],
+                              ),
+                              content: const Text(
+                                'Pesanan ini belum dibayar oleh pelanggan. Paket tidak dapat dijemput, diproses, atau diantar sebelum pembayaran dikonfirmasi lunas.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  child: const Text('Tutup'),
+                                ),
+                              ],
+                            ),
+                          );
+                        } else {
+                          (onQuickAction ?? onTap)();
+                        }
+                      },
+                      icon: Icon(
+                        task.isWaitingPayment
+                            ? Icons.lock_clock_rounded
+                            : Icons.arrow_forward_rounded,
+                        size: 14,
+                      ),
                       label: Text(
-                        task.taskGroup == CourierTaskGroup.completed
-                            ? 'Lihat Detail'
-                            : 'Proses Tugas',
+                        task.isWaitingPayment
+                            ? 'Menunggu Bayar'
+                            : (task.taskGroup == CourierTaskGroup.completed
+                                ? 'Lihat Detail'
+                                : 'Proses Tugas'),
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: task.isWaitingPayment
+                            ? (isDark ? const Color(0xFF3B2B1B) : const Color(0xFFFFF3CD))
+                            : AppColors.primary,
+                        foregroundColor: task.isWaitingPayment
+                            ? const Color(0xFF856404)
+                            : Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         visualDensity: VisualDensity.compact,
                         shape: RoundedRectangleBorder(

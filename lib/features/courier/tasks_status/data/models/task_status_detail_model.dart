@@ -27,6 +27,7 @@ class TaskStatusDetailModel extends TaskStatusDetail {
     super.shippingCost,
     super.paymentMethod,
     super.shippingNotes,
+    super.paymentStatus = 'PENDING',
     required super.currentStatusId,
     required super.currentStatusCode,
     required super.currentStatusName,
@@ -113,6 +114,18 @@ class TaskStatusDetailModel extends TaskStatusDetail {
     final estimatedArrival = parseDate(shipmentMap['estimasi_tiba']) ??
         parseDate(rawMap['estimasi_tiba']);
 
+    // 5. Ekstrak status pembayaran
+    final paymentsRaw = shipmentMap['t_shipment_payments'] ?? rawMap['t_shipment_payments'];
+    final paymentMap = paymentsRaw is Map<String, dynamic>
+        ? paymentsRaw
+        : (paymentsRaw is List && paymentsRaw.isNotEmpty)
+            ? paymentsRaw.first as Map<String, dynamic>
+            : null;
+    final paymentStatus = paymentMap?['status_pembayaran']?.toString() ??
+        rawMap['payment_status']?.toString() ??
+        shipmentMap['payment_status']?.toString() ??
+        'PENDING';
+
     return TaskStatusDetailModel(
       shipmentId: shipmentMap['id']?.toString() ?? rawMap['shipment_id']?.toString() ?? '',
       assignmentId: assignmentMap?['id']?.toString() ?? rawMap['assignment_id']?.toString() ?? '',
@@ -168,6 +181,7 @@ class TaskStatusDetailModel extends TaskStatusDetail {
       shippingNotes: shipmentMap['catatan_pengiriman']?.toString() ??
           rawMap['catatan_pengiriman']?.toString() ??
           assignmentMap?['catatan']?.toString(),
+      paymentStatus: paymentStatus,
       currentStatusId: statusId,
       currentStatusCode: statusCode,
       currentStatusName: statusName,
@@ -264,6 +278,7 @@ class TaskStatusDetailModel extends TaskStatusDetail {
       'totalWeightGram': totalWeightGram,
       'shippingCost': shippingCost,
       'paymentMethod': paymentMethod,
+      'paymentStatus': paymentStatus,
       'shippingNotes': shippingNotes,
       'currentStatusId': currentStatusId,
       'currentStatusCode': currentStatusCode,

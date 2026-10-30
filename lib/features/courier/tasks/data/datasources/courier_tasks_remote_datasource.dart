@@ -165,7 +165,8 @@ class CourierTasksRemoteDataSourceImpl implements CourierTasksRemoteDataSource {
           ${DatabaseConstants.tableShipments}(
             *,
             ${DatabaseConstants.tableShipmentStatuses}(*),
-            ${DatabaseConstants.tableServiceTypes}(*)
+            ${DatabaseConstants.tableServiceTypes}(*),
+            ${DatabaseConstants.tableShipmentPayments}(*)
           )
         ''');
 

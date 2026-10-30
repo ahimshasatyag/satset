@@ -73,6 +73,12 @@ class ScannedShipment extends Equatable {
   final int weightGram;
   final String? notes;
 
+  /// Metode pembayaran (mis. CASH, TRANSFER, QRIS, COD)
+  final String paymentMethod;
+
+  /// Status pembayaran (PENDING, PAID, SETTLED, EXPIRED, CANCELLED)
+  final String paymentStatus;
+
   /// Metadata waktu
   final DateTime? estimatedArrival;
   final DateTime? pickedUpAt;
@@ -110,6 +116,8 @@ class ScannedShipment extends Equatable {
     required this.serviceTypeCode,
     required this.weightGram,
     this.notes,
+    this.paymentMethod = 'TRANSFER',
+    this.paymentStatus = 'PENDING',
     this.estimatedArrival,
     this.pickedUpAt,
     this.deliveredAt,
@@ -117,6 +125,15 @@ class ScannedShipment extends Equatable {
     required this.updatedAt,
     required this.isAssignedToActiveCourier,
   });
+
+  /// Apakah pesanan sudah dibayar (atau bertipe COD)
+  bool get isPaid =>
+      paymentStatus.toUpperCase() == 'PAID' ||
+      paymentStatus.toUpperCase() == 'SETTLED' ||
+      paymentMethod.toUpperCase() == 'COD';
+
+  /// Apakah pesanan masih menunggu pembayaran pelanggan
+  bool get isWaitingPayment => !isPaid;
 
   /// Mengidentifikasi jenis proses operasional berdasarkan status kode pengiriman
   BarcodeScanProcessType get processType {
@@ -188,6 +205,7 @@ class ScannedShipment extends Equatable {
 
   /// Apakah status saat ini diizinkan untuk diproses oleh kurir
   bool get isStatusPermittedForAction {
+    if (isWaitingPayment) return false;
     final code = statusCode.toUpperCase();
     // Status yang siap diproses:
     // 1. Pickup: PENDING, CONFIRMED, PICKUP_SCHEDULED -> boleh konfirmasi PICKED_UP
@@ -202,6 +220,7 @@ class ScannedShipment extends Equatable {
 
   /// Status kode target berikutnya yang direkomendasikan
   String? get recommendedActionStatusCode {
+    if (isWaitingPayment) return null;
     final code = statusCode.toUpperCase();
     switch (code) {
       case 'PENDING':
@@ -224,6 +243,7 @@ class ScannedShipment extends Equatable {
 
   /// Label tombol aksi operasional berikutnya
   String? get recommendedActionLabel {
+    if (isWaitingPayment) return 'Menunggu Pembayaran';
     final targetCode = recommendedActionStatusCode;
     if (targetCode == null) return null;
     switch (targetCode) {
@@ -242,6 +262,7 @@ class ScannedShipment extends Equatable {
 
   /// Daftar opsi status valid selanjutnya
   List<String> get validNextStatuses {
+    if (isWaitingPayment) return const [];
     final code = statusCode.toUpperCase();
     switch (code) {
       case 'PENDING':
@@ -276,6 +297,8 @@ class ScannedShipment extends Equatable {
         receiverName,
         serviceTypeId,
         weightGram,
+        paymentMethod,
+        paymentStatus,
         isAssignedToActiveCourier,
       ];
 }

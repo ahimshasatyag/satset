@@ -284,18 +284,40 @@ class CourierDeliveryProofRemoteDataSourceImpl
     final parsedShipmentId = int.tryParse(shipmentId) ?? shipmentId;
     final parsedCourierId = int.tryParse(courierId) ?? courierId;
 
-    // 1. Double Submission Guard: Periksa status terkini
+    // 1. Double Submission Guard & Payment Status Check: Periksa status terkini dan pembayaran
     final checkRows = await _client
         .from(DatabaseConstants.tableShipments)
-        .select(ShipmentTableColumns.statusId)
+        .select('''
+          ${ShipmentTableColumns.statusId},
+          metode_pembayaran,
+          ${DatabaseConstants.tableShipmentPayments}(status_pembayaran)
+        ''')
         .eq(ShipmentTableColumns.id, parsedShipmentId)
         .limit(1);
 
     if (checkRows.isNotEmpty) {
-      final currentStatusId = checkRows.first[ShipmentTableColumns.statusId];
+      final shipmentRow = checkRows.first;
+      final currentStatusId = shipmentRow[ShipmentTableColumns.statusId];
       if (currentStatusId == 8) {
         throw StateError(
           'Paket dengan ID $shipmentId sudah tercatat sebagai DELIVERED sebelumnya.',
+        );
+      }
+
+      final method = (shipmentRow['metode_pembayaran']?.toString() ?? '').toUpperCase();
+      final paymentsRaw = shipmentRow['t_shipment_payments'];
+      final paymentMap = paymentsRaw is Map<String, dynamic>
+          ? paymentsRaw
+          : (paymentsRaw is List && paymentsRaw.isNotEmpty)
+              ? paymentsRaw.first as Map<String, dynamic>
+              : null;
+      final paymentStatus =
+          (paymentMap?['status_pembayaran']?.toString() ?? 'PENDING').toUpperCase();
+      final isPaid = paymentStatus == 'PAID' || paymentStatus == 'SETTLED' || method == 'COD';
+
+      if (!isPaid) {
+        throw StateError(
+          'Pesanan ini belum dibayar oleh pelanggan. Paket tidak dapat diselesaikan pengantarannya sebelum pembayaran lunas.',
         );
       }
     }

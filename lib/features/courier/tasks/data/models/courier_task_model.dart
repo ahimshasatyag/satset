@@ -34,6 +34,7 @@ class CourierTaskModel extends CourierTask {
     required super.itemValue,
     required super.totalFee,
     required super.paymentMethod,
+    super.paymentStatus = 'PENDING',
     super.notes,
     required super.assignedAt,
     super.estimatedArrival,
@@ -176,6 +177,17 @@ class CourierTaskModel extends CourierTask {
         (shipmentMap['biaya_pengiriman'] as num?)?.toDouble() ??
         0.0;
     final paymentMethod = shipmentMap['metode_pembayaran']?.toString() ?? 'TRANSFER';
+    final paymentsRaw = shipmentMap['t_shipment_payments'];
+    final paymentMap = paymentsRaw is Map<String, dynamic>
+        ? paymentsRaw
+        : (paymentsRaw is List && paymentsRaw.isNotEmpty)
+            ? paymentsRaw.first as Map<String, dynamic>
+            : null;
+    final paymentStatus = paymentMap?['status_pembayaran']?.toString() ??
+        shipmentMap['status_pembayaran']?.toString() ??
+        map['status_pembayaran']?.toString() ??
+        (paymentMethod == 'COD' ? 'COD' : (statusCode == 'PENDING' ? 'PENDING' : 'PAID'));
+
     final notes = map['notes']?.toString() ??
         map['catatan']?.toString() ??
         shipmentMap['catatan_pengiriman']?.toString();
@@ -212,6 +224,7 @@ class CourierTaskModel extends CourierTask {
       itemValue: itemValue,
       totalFee: totalFee,
       paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
       notes: notes,
       assignedAt: assignedAt,
       estimatedArrival: estimatedArrival,
@@ -257,6 +270,7 @@ class CourierTaskModel extends CourierTask {
       itemValue: (json['itemValue'] as num?)?.toDouble() ?? 0.0,
       totalFee: (json['totalFee'] as num?)?.toDouble() ?? 0.0,
       paymentMethod: json['paymentMethod']?.toString() ?? 'TRANSFER',
+      paymentStatus: json['paymentStatus']?.toString() ?? 'PENDING',
       notes: json['notes']?.toString(),
       assignedAt: json['assignedAt'] != null
           ? DateTime.tryParse(json['assignedAt'].toString()) ?? DateTime.now()
@@ -310,6 +324,7 @@ class CourierTaskModel extends CourierTask {
       'itemValue': itemValue,
       'totalFee': totalFee,
       'paymentMethod': paymentMethod,
+      'paymentStatus': paymentStatus,
       'notes': notes,
       'assignedAt': assignedAt.toIso8601String(),
       'estimatedArrival': estimatedArrival?.toIso8601String(),

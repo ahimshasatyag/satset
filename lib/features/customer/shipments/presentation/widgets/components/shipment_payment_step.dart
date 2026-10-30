@@ -265,6 +265,37 @@ class ShipmentPaymentStep extends StatelessWidget {
               ),
               if (paymentMethod == 'TRANSFER') ...[
                 const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Paket akan dibuat dalam status Menunggu Pembayaran. Penjemputan, pemrosesan hub, dan pengantaran kurir baru aktif setelah pembayaran lunas.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.4,
+                            color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 const Row(
                   children: [
                     Icon(
@@ -312,6 +343,39 @@ class ShipmentPaymentStep extends StatelessWidget {
                     ],
                   ),
                 ],
+              ],
+              if (paymentMethod == 'COD') ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.payments_outlined,
+                        color: AppColors.secondary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Metode Cash on Delivery (COD): Kurir dapat langsung menjemput dan memproses paket. Pembayaran tunai ditagihkan saat penyerahan paket ke penerima.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.4,
+                            color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ],
           ),

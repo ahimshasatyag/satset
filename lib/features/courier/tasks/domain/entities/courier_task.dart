@@ -81,6 +81,7 @@ class CourierTask extends Equatable {
   final double itemValue;
   final double totalFee;
   final String paymentMethod;
+  final String paymentStatus;
   final String? notes;
 
   /// Metadata Waktu
@@ -122,6 +123,7 @@ class CourierTask extends Equatable {
     required this.itemValue,
     required this.totalFee,
     required this.paymentMethod,
+    this.paymentStatus = 'PENDING',
     this.notes,
     required this.assignedAt,
     this.estimatedArrival,
@@ -185,8 +187,21 @@ class CourierTask extends Equatable {
   /// Bobot paket terformat dalam Kilogram (kg)
   String get weightFormatted => '${(weightGram / 1000).toStringAsFixed(1)} kg';
 
+  /// True jika pembayaran sudah selesai (Lunas / Settled / COD)
+  bool get isPaid =>
+      paymentStatus.toUpperCase() == 'PAID' ||
+      paymentStatus.toUpperCase() == 'SETTLED' ||
+      paymentMethod.toUpperCase() == 'COD';
+
+  /// True jika paket masih menunggu pembayaran dari pelanggan
+  bool get isWaitingPayment => !isPaid;
+
   /// Daftar status alur berikutnya yang diizinkan untuk tugas ini
   List<String> get validNextStatuses {
+    // Jika masih menunggu pembayaran, paket belum bisa dijemput, dalam perjalanan, diproses, atau diantar!
+    if (isWaitingPayment) {
+      return const [];
+    }
     final code = statusCode.toUpperCase();
     if (isPickup) {
       if (code == 'PICKUP_SCHEDULED' || code == 'CONFIRMED' || code == 'PENDING') {
@@ -241,6 +256,7 @@ class CourierTask extends Equatable {
     double? itemValue,
     double? totalFee,
     String? paymentMethod,
+    String? paymentStatus,
     String? notes,
     DateTime? assignedAt,
     DateTime? estimatedArrival,
@@ -280,6 +296,7 @@ class CourierTask extends Equatable {
       itemValue: itemValue ?? this.itemValue,
       totalFee: totalFee ?? this.totalFee,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
       notes: notes ?? this.notes,
       assignedAt: assignedAt ?? this.assignedAt,
       estimatedArrival: estimatedArrival ?? this.estimatedArrival,
@@ -315,6 +332,7 @@ class CourierTask extends Equatable {
         itemName,
         totalFee,
         paymentMethod,
+        paymentStatus,
         notes,
         assignedAt,
         estimatedArrival,

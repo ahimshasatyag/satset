@@ -26,6 +26,7 @@ class TaskStatusDetail extends Equatable {
   final int? totalWeightGram;
   final double? shippingCost;
   final String? paymentMethod;
+  final String paymentStatus;
   final String? shippingNotes;
   final int currentStatusId;
   final String currentStatusCode;
@@ -62,6 +63,7 @@ class TaskStatusDetail extends Equatable {
     this.totalWeightGram,
     this.shippingCost,
     this.paymentMethod,
+    this.paymentStatus = 'PENDING',
     this.shippingNotes,
     required this.currentStatusId,
     required this.currentStatusCode,
@@ -103,6 +105,15 @@ class TaskStatusDetail extends Equatable {
     return receiverAddress;
   }
 
+  /// True jika pembayaran sudah lunas / selesai / COD
+  bool get isPaid =>
+      paymentStatus.toUpperCase() == 'PAID' ||
+      paymentStatus.toUpperCase() == 'SETTLED' ||
+      (paymentMethod?.toUpperCase() == 'COD');
+
+  /// True jika paket masih menunggu pembayaran dari pelanggan
+  bool get isWaitingPayment => !isPaid;
+
   /// True jika status sudah final dan tidak dapat diperbarui lagi
   bool get isCompleted =>
       isFinalStatus ||
@@ -112,7 +123,8 @@ class TaskStatusDetail extends Equatable {
 
   /// Daftar transisi status berikutnya yang sah sesuai status terkini dan aturan operasional
   List<StatusTransitionOption> get validNextTransitions {
-    if (isCompleted) {
+    // Jika masih menunggu pembayaran atau sudah selesai, kunci transisi berikutnya!
+    if (isCompleted || isWaitingPayment) {
       return const [];
     }
 
@@ -185,6 +197,7 @@ class TaskStatusDetail extends Equatable {
         totalWeightGram,
         shippingCost,
         paymentMethod,
+        paymentStatus,
         shippingNotes,
         currentStatusId,
         currentStatusCode,

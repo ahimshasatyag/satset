@@ -58,6 +58,9 @@ void main() {
             'kode': 'EXP',
             'nama_layanan': 'Express',
           },
+          't_shipment_payments': {
+            'status_pembayaran': 'PAID',
+          },
         },
       };
 
@@ -68,11 +71,18 @@ void main() {
       expect(model.trackingNumber, 'SST-20261023-999');
       expect(model.taskType, CourierTaskType.pickup);
       expect(model.taskGroup, CourierTaskGroup.pending);
+      expect(model.isPaid, isTrue);
+      expect(model.isWaitingPayment, isFalse);
       expect(model.senderName, 'Budi Toko');
       expect(model.receiverName, 'Siti Pembeli');
       expect(model.serviceTypeName, 'Express');
       expect(model.weightFormatted, '2.5 kg');
       expect(model.validNextStatuses, contains('PICKED_UP'));
+
+      // Uji jika pesanan belum dibayar (non-COD)
+      final unpaidTask = model.copyWith(paymentStatus: 'PENDING', paymentMethod: 'TRANSFER');
+      expect(unpaidTask.isWaitingPayment, isTrue);
+      expect(unpaidTask.validNextStatuses, isEmpty);
 
       final json = model.toJson();
       expect(json['id'], 'ASN-999');

@@ -142,6 +142,49 @@ class _ScannedPackageDetailCardState extends State<ScannedPackageDetailCard> {
                         ],
                       ),
                     ),
+                  ] else if (shipment.isWaitingPayment) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.error.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.lock_clock_rounded,
+                            color: AppColors.error,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Menunggu Pembayaran',
+                                  style: AppTextStyles.labelMedium.copyWith(
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Pesanan ini belum dibayar oleh pelanggan. Paket tidak dapat dijemput, diproses, atau diantar sebelum pembayaran lunas.',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
 
                   // 2. Baris Header: Nomor Resi, Barcode & Badges
@@ -191,9 +234,21 @@ class _ScannedPackageDetailCardState extends State<ScannedPackageDetailCard> {
                         ),
                       ),
                       // Status Badge
-                      StatusBadge(
-                        label: shipment.statusName,
-                        status: _mapStatusToBadge(shipment.statusCode),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          StatusBadge(
+                            label: shipment.statusName,
+                            status: _mapStatusToBadge(shipment.statusCode),
+                          ),
+                          if (shipment.isWaitingPayment) ...[
+                            const SizedBox(height: 4),
+                            const StatusBadge(
+                              label: 'Belum Bayar',
+                              status: BadgeStatus.error,
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),

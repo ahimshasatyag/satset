@@ -140,7 +140,8 @@ class CourierTaskStatusRemoteDataSourceImpl implements CourierTaskStatusRemoteDa
           *,
           ${DatabaseConstants.tableShipmentAssignments}(*),
           ${DatabaseConstants.tableShipmentStatuses}(*),
-          ${DatabaseConstants.tableServiceTypes}(*)
+          ${DatabaseConstants.tableServiceTypes}(*),
+          ${DatabaseConstants.tableShipmentPayments}(*)
         ''')
         .eq(ShipmentTableColumns.id, shipmentId)
         .maybeSingle();
@@ -228,6 +229,38 @@ class CourierTaskStatusRemoteDataSourceImpl implements CourierTaskStatusRemoteDa
       throw const TaskNotAssignedException();
     }
 
+    // 1b. Verifikasi status pembayaran (jika belum lunas, tidak boleh diproses/dijemput/diantar)
+    final upperCode = targetStatusCode.toUpperCase();
+    if (upperCode != 'CANCELLED') {
+      final shipmentData = await _client
+          .from(DatabaseConstants.tableShipments)
+          .select('''
+            metode_pembayaran,
+            ${DatabaseConstants.tableShipmentPayments}(status_pembayaran)
+          ''')
+          .eq(ShipmentTableColumns.id, shipmentId)
+          .maybeSingle();
+
+      if (shipmentData != null) {
+        final method = (shipmentData['metode_pembayaran']?.toString() ?? '').toUpperCase();
+        final paymentsRaw = shipmentData['t_shipment_payments'];
+        final paymentMap = paymentsRaw is Map<String, dynamic>
+            ? paymentsRaw
+            : (paymentsRaw is List && paymentsRaw.isNotEmpty)
+                ? paymentsRaw.first as Map<String, dynamic>
+                : null;
+        final paymentStatus =
+            (paymentMap?['status_pembayaran']?.toString() ?? 'PENDING').toUpperCase();
+        final isPaid = paymentStatus == 'PAID' || paymentStatus == 'SETTLED' || method == 'COD';
+
+        if (!isPaid) {
+          throw const InvalidStatusTransitionException(
+            'Pesanan ini belum dibayar oleh pelanggan. Paket tidak dapat dijemput, diproses, atau diantar sebelum pembayaran lunas.',
+          );
+        }
+      }
+    }
+
     // 2. Siapkan pembaruan status pada t_shipments
     final nowIso = DateTime.now().toUtc().toIso8601String();
     final shipmentUpdate = <String, dynamic>{
@@ -235,7 +268,6 @@ class CourierTaskStatusRemoteDataSourceImpl implements CourierTaskStatusRemoteDa
       ShipmentTableColumns.updatedAt: nowIso,
     };
 
-    final upperCode = targetStatusCode.toUpperCase();
     if (upperCode == 'PICKED_UP') {
       shipmentUpdate[ShipmentTableColumns.pickedUpAt] = nowIso;
     } else if (upperCode == 'DELIVERED') {

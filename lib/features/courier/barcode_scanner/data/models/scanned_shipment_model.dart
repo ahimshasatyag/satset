@@ -29,6 +29,8 @@ class ScannedShipmentModel extends ScannedShipment {
     required super.serviceTypeCode,
     required super.weightGram,
     super.notes,
+    super.paymentMethod,
+    super.paymentStatus,
     super.estimatedArrival,
     super.pickedUpAt,
     super.deliveredAt,
@@ -110,6 +112,21 @@ class ScannedShipmentModel extends ScannedShipment {
     final resi = shipmentMap['nomor_resi']?.toString() ?? '';
     final barcode = shipmentMap['barcode_value']?.toString() ?? resi;
 
+    // 5. Ekstrak data pembayaran
+    final paymentsRaw = shipmentMap['t_shipment_payments'] ?? map['t_shipment_payments'];
+    final paymentMap = paymentsRaw is Map<String, dynamic>
+        ? paymentsRaw
+        : (paymentsRaw is List && paymentsRaw.isNotEmpty)
+            ? paymentsRaw.first as Map<String, dynamic>
+            : null;
+    final paymentStatus = paymentMap?['status_pembayaran']?.toString() ??
+        map['payment_status']?.toString() ??
+        shipmentMap['payment_status']?.toString() ??
+        'PENDING';
+    final paymentMethod = shipmentMap['metode_pembayaran']?.toString() ??
+        map['metode_pembayaran']?.toString() ??
+        'TRANSFER';
+
     return ScannedShipmentModel(
       shipmentId: shipmentMap['id']?.toString() ?? '',
       assignmentId: assignmentId,
@@ -137,6 +154,8 @@ class ScannedShipmentModel extends ScannedShipment {
       serviceTypeCode: serviceTypeCode,
       weightGram: int.tryParse(shipmentMap['total_berat_gram']?.toString() ?? '') ?? 1000,
       notes: shipmentMap['catatan_pengiriman']?.toString(),
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
       estimatedArrival: DateTime.tryParse(shipmentMap['estimasi_tiba']?.toString() ?? ''),
       pickedUpAt: DateTime.tryParse(shipmentMap['picked_up_at']?.toString() ?? ''),
       deliveredAt: DateTime.tryParse(shipmentMap['delivered_at']?.toString() ?? ''),

@@ -116,6 +116,66 @@ class TaskStatusActionBar extends StatelessWidget {
       );
     }
 
+    if (detail.isWaitingPayment) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          border: Border(
+            top: BorderSide(
+              color: AppColors.warning.withValues(alpha: 0.4),
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              offset: const Offset(0, -3),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_clock_rounded, color: AppColors.warning, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Menunggu Pembayaran',
+                        style: AppTextStyles.labelLarge.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.warning,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Pesanan belum dibayar oleh pelanggan. Paket tidak dapat dijemput, diproses, atau diantar sebelum pembayaran lunas.',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final transitions = detail.validNextTransitions;
     if (transitions.isEmpty) {
       return const SizedBox.shrink();

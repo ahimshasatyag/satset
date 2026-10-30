@@ -121,9 +121,21 @@ class TaskStatusHeaderCard extends StatelessWidget {
                   ],
                 ),
               ),
-              StatusBadge(
-                label: detail.currentStatusName,
-                status: _resolveBadgeStatus(detail.currentStatusCode),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  StatusBadge(
+                    label: detail.currentStatusName,
+                    status: _resolveBadgeStatus(detail.currentStatusCode),
+                  ),
+                  if (detail.isWaitingPayment) ...[
+                    const SizedBox(height: 4),
+                    const StatusBadge(
+                      label: 'Belum Bayar',
+                      status: BadgeStatus.error,
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

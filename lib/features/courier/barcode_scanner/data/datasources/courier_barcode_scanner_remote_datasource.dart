@@ -145,7 +145,8 @@ class CourierBarcodeScannerRemoteDataSourceImpl
         final res = await _client.from(DatabaseConstants.tableShipments).select('''
           *,
           ${DatabaseConstants.tableShipmentStatuses}(*),
-          ${DatabaseConstants.tableServiceTypes}(*)
+          ${DatabaseConstants.tableServiceTypes}(*),
+          ${DatabaseConstants.tableShipmentPayments}(*)
         ''').or('barcode_value.eq.$cleanBarcode,nomor_resi.eq.$cleanBarcode').limit(1).maybeSingle();
 
         shipmentData = res;
@@ -229,6 +230,41 @@ class CourierBarcodeScannerRemoteDataSourceImpl
     final nowStr = DateTime.now().toIso8601String();
 
     if (_isSupabaseAvailable) {
+      // Validasi status pembayaran (jika belum lunas, tidak boleh diproses/dijemput/diantar)
+      if (cleanCode != 'CANCELLED') {
+        try {
+          final paymentRes = await _client
+              .from(DatabaseConstants.tableShipments)
+              .select('''
+                metode_pembayaran,
+                ${DatabaseConstants.tableShipmentPayments}(status_pembayaran)
+              ''')
+              .eq(ShipmentTableColumns.id, shipmentId)
+              .maybeSingle();
+
+          if (paymentRes != null) {
+            final method = (paymentRes['metode_pembayaran']?.toString() ?? '').toUpperCase();
+            final paymentsRaw = paymentRes['t_shipment_payments'];
+            final paymentMap = paymentsRaw is Map<String, dynamic>
+                ? paymentsRaw
+                : (paymentsRaw is List && paymentsRaw.isNotEmpty)
+                    ? paymentsRaw.first as Map<String, dynamic>
+                    : null;
+            final paymentStatus =
+                (paymentMap?['status_pembayaran']?.toString() ?? 'PENDING').toUpperCase();
+            final isPaid = paymentStatus == 'PAID' || paymentStatus == 'SETTLED' || method == 'COD';
+
+            if (!isPaid) {
+              throw Exception(
+                'Pesanan ini belum dibayar oleh pelanggan. Paket tidak dapat dijemput, diproses, atau diantar sebelum pembayaran lunas.',
+              );
+            }
+          }
+        } on Exception {
+          rethrow;
+        } catch (_) {}
+      }
+
       // 1. Coba RPC Supabase jika tersedia
       try {
         final rpcResult = await _client.rpc('update_shipment_status', params: {
@@ -450,6 +486,8 @@ class CourierBarcodeScannerRemoteDataSourceImpl
       serviceTypeCode: 'EXP',
       weightGram: 1800,
       notes: 'Harap hati-hati, barang elektronik mudah pecah.',
+      paymentMethod: 'TRANSFER',
+      paymentStatus: 'PAID',
       estimatedArrival: now.add(const Duration(hours: 4)),
       pickedUpAt: statusCode == 'PICKED_UP' || statusCode == 'DELIVERED' ? now : null,
       deliveredAt: statusCode == 'DELIVERED' ? now : null,

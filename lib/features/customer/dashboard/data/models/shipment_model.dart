@@ -14,13 +14,18 @@ class ShipmentTimelineStepModel extends ShipmentTimelineStep {
   });
 
   /// Factory untuk parse dari baris tabel Supabase t_shipment_tracking
-  factory ShipmentTimelineStepModel.fromDatabase(Map<String, dynamic> map, {bool isCurrent = false}) {
+  factory ShipmentTimelineStepModel.fromDatabase(
+    Map<String, dynamic> map, {
+    bool isCurrent = false,
+  }) {
     final statusMap = map['m_shipment_statuses'] as Map<String, dynamic>?;
-    final statusName = statusMap?['nama_status'] as String? ??
+    final statusName =
+        statusMap?['nama_status'] as String? ??
         map['status_name'] as String? ??
         map['status'] as String? ??
         'Pembaruan Status';
-    final catatan = map['catatan'] as String? ?? map['deskripsi'] as String? ?? '';
+    final catatan =
+        map['catatan'] as String? ?? map['deskripsi'] as String? ?? '';
     final lokasi = map['lokasi_nama'] as String? ?? map['location'] as String?;
     final lat = (map['latitude'] as num?)?.toDouble();
     final lng = (map['longitude'] as num?)?.toDouble();
@@ -121,13 +126,16 @@ class ShipmentModel extends Shipment {
   factory ShipmentModel.fromDatabase(Map<String, dynamic> map) {
     // 1. Ekstrak Status dari joined m_shipment_statuses jika ada
     final statusMap = map['m_shipment_statuses'] as Map<String, dynamic>?;
-    final int statusId = (map['status_id'] as num?)?.toInt() ??
+    final int statusId =
+        (map['status_id'] as num?)?.toInt() ??
         (statusMap?['id'] as num?)?.toInt() ??
         1;
-    final String statusCode = (statusMap?['kode'] as String?) ??
+    final String statusCode =
+        (statusMap?['kode'] as String?) ??
         (map['status_code'] as String?) ??
         _statusCodeFromId(statusId);
-    final String statusName = (statusMap?['nama_status'] as String?) ??
+    final String statusName =
+        (statusMap?['nama_status'] as String?) ??
         (map['status_name'] as String?) ??
         _statusNameFromCode(statusCode);
 
@@ -136,22 +144,27 @@ class ShipmentModel extends Shipment {
     final Map<String, dynamic>? serviceMap = serviceRaw is Map<String, dynamic>
         ? serviceRaw
         : (serviceRaw is List && serviceRaw.isNotEmpty)
-            ? serviceRaw.first as Map<String, dynamic>
-            : null;
-    final int serviceTypeId = (map['service_type_id'] as num?)?.toInt() ??
+        ? serviceRaw.first as Map<String, dynamic>
+        : null;
+    final int serviceTypeId =
+        (map['service_type_id'] as num?)?.toInt() ??
         (serviceMap?['id'] as num?)?.toInt() ??
         1;
-    final String serviceName = (serviceMap?['nama_layanan'] as String?) ??
+    final String serviceName =
+        (serviceMap?['nama_layanan'] as String?) ??
         (map['service_name'] as String?) ??
         'Reguler';
-    final String serviceCode = (serviceMap?['kode'] as String?) ??
+    final String serviceCode =
+        (serviceMap?['kode'] as String?) ??
         (map['service_code'] as String?) ??
         'REG';
 
     // Ekstrak estimasi hari kerja dari tabel m_service_types (estimasi_hari_min, estimasi_hari_max)
-    int? estimasiHariMin = (serviceMap?['estimasi_hari_min'] as num?)?.toInt() ??
+    int? estimasiHariMin =
+        (serviceMap?['estimasi_hari_min'] as num?)?.toInt() ??
         (map['estimasi_hari_min'] as num?)?.toInt();
-    int? estimasiHariMax = (serviceMap?['estimasi_hari_max'] as num?)?.toInt() ??
+    int? estimasiHariMax =
+        (serviceMap?['estimasi_hari_max'] as num?)?.toInt() ??
         (map['estimasi_hari_max'] as num?)?.toInt();
 
     // Default fallback jika nilai belum diatur
@@ -178,10 +191,12 @@ class ShipmentModel extends Shipment {
       for (int i = 0; i < trackingRaw.length; i++) {
         final item = trackingRaw[i];
         if (item is Map<String, dynamic>) {
-          timelineList.add(ShipmentTimelineStepModel.fromDatabase(
-            item,
-            isCurrent: i == trackingRaw.length - 1,
-          ));
+          timelineList.add(
+            ShipmentTimelineStepModel.fromDatabase(
+              item,
+              isCurrent: i == trackingRaw.length - 1,
+            ),
+          );
         }
       }
     }
@@ -204,7 +219,9 @@ class ShipmentModel extends Shipment {
           name: 'Kurir SatSet',
           phone: '+6281234567890',
           photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          vehicleType: serviceName.contains('Instant') ? 'Motor Flash' : 'Motor SatSet',
+          vehicleType: serviceName.contains('Instant')
+              ? 'Motor Flash'
+              : 'Motor SatSet',
           vehiclePlate: 'B ${map['id']} SAT',
           latitude: lastStep.latitude!,
           longitude: lastStep.longitude!,
