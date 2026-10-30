@@ -34,6 +34,7 @@ import '../widgets/recent_shipments_list.dart';
 import '../widgets/shipment_detail_sheet.dart';
 import '../widgets/shipment_summary_cards.dart';
 import '../widgets/smart_tracking_bar.dart';
+import '../widgets/tarif_calculator_sheet.dart';
 
 class DashboardPage extends StatefulWidget {
   final VoidCallback? onToggleTheme;
@@ -373,137 +374,10 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _showTarifCalculatorSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        int weightKg = 1;
-        String origin = 'Jakarta Selatan';
-        String destination = 'Bandung';
-
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            final instantPrice = weightKg * 24000;
-            final samedayPrice = weightKg * 18000;
-            final regulerPrice = weightKg * 12000;
-
-            return Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade400,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Kalkulator Cek Ongkir',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        onPressed: () => Navigator.of(ctx).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Rute: $origin ➔ $destination',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.white70 : Colors.black87,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Berat Paket:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline, size: 20),
-                            onPressed: weightKg > 1
-                                ? () => setSheetState(() => weightKg--)
-                                : null,
-                          ),
-                          Text('$weightKg Kg',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline, size: 20),
-                            onPressed: () => setSheetState(() => weightKg++),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.bolt_rounded, color: AppColors.primary),
-                    title: const Text('SATSET Instant (1-2 Jam)',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    trailing: Text(
-                      'Rp ${instantPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                  ),
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.schedule_rounded, color: AppColors.secondary),
-                    title: const Text('SATSET Sameday (6-8 Jam)',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    trailing: Text(
-                      'Rp ${samedayPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.secondary),
-                    ),
-                  ),
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.local_shipping_outlined, color: AppColors.tertiary),
-                    title: const Text('SATSET Reguler (1-2 Hari)',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    trailing: Text(
-                      'Rp ${regulerPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.tertiary),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomButton(
-                    text: 'Lanjutkan Buat Pesanan (+ Kirim)',
-                    isFullWidth: true,
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      _openCreateShipmentSheet();
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-        );
+    TarifCalculatorSheet.show(
+      context,
+      onCreateShipment: () {
+        _openCreateShipmentSheet();
       },
     );
   }

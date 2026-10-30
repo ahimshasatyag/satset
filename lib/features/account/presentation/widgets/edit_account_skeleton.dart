@@ -225,3 +225,4 @@ class _EditAccountSkeletonState extends State<EditAccountSkeleton>
     );
   }
 }
+
