@@ -19,7 +19,6 @@ import 'components/shipment_package_step.dart';
 import 'components/shipment_payment_step.dart';
 import 'location_picker_map_dialog.dart';
 
-import 'package:satset/app/config/supabase_config.dart';
 import 'package:satset/features/customer/address/domain/entities/customer_address.dart';
 import 'package:satset/features/customer/address/domain/repositories/address_repository.dart';
 import 'package:satset/features/customer/address/data/datasources/address_remote_datasource.dart';
