@@ -136,6 +136,38 @@ class AddressCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (address.latitude != null && address.longitude != null) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.pin_drop_rounded,
+                                        size: 10,
+                                        color: AppColors.success,
+                                      ),
+                                      SizedBox(width: 2),
+                                      Text(
+                                        'GPS',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.success,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               if (isPrimary) ...[
                                 const SizedBox(width: 8),
                                 Container(
@@ -274,6 +306,31 @@ class AddressCard extends StatelessWidget {
                   ],
                 ),
 
+                // Email Penerima jika ada
+                if (address.email != null && address.email!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.email_outlined,
+                        size: 13,
+                        color: isDark
+                            ? Colors.white60
+                            : AppColors.textSecondaryLight,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        address.email!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 8),
 
                 // Alamat Lengkap

@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:satset/features/auth/data/utils/validators.dart';
 import 'package:satset/features/customer/shipments/data/models/shipment_model.dart';
 import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
+import 'package:satset/features/customer/shipments/presentation/widgets/location_picker_map_dialog.dart';
 import 'package:satset/shared/theme/theme.dart';
 import 'package:satset/shared/widgets/widgets.dart';
+import '../../domain/entities/address_label.dart';
 import '../../domain/entities/customer_address.dart';
 import '../../domain/repositories/address_repository.dart';
 
 /// Form dialog (bottom sheet) untuk menambah atau mengubah data alamat customer.
-/// Mengadopsi implementasi dropdown wilayah berjenjang (Provinsi, Kab/Kota, Kecamatan, Kelurahan)
-/// yang persis dan konsisten dengan [RegisterPage].
+/// Mendukung input:
+/// - Dropdown Master Label (`id_label` dari tabel `m_label`)
+/// - Nama Lengkap Penerima (`nama_lengkap`)
+/// - Nomor Telepon / WhatsApp (`no_telp`)
+/// - Email Penerima (`email`)
+/// - Pemilih Lokasi Peta GPS Interaktif (`latitude`, `longitude`)
+/// - Cascading Dropdown Wilayah Berjenjang (Provinsi, Kab/Kota, Kecamatan, Kelurahan)
+/// - Alamat Lengkap & Kode Pos
+/// - Switch Alamat Utama (`is_utama`)
 class AddressFormDialog extends StatefulWidget {
   final CustomerAddress? initialAddress;
   final AddressRepository repository;
   final String? defaultName;
   final String? defaultPhone;
+  final String? defaultEmail;
 
   const AddressFormDialog({
     super.key,
@@ -22,6 +33,7 @@ class AddressFormDialog extends StatefulWidget {
     required this.repository,
     this.defaultName,
     this.defaultPhone,
+    this.defaultEmail,
   });
 
   static Future<CustomerAddress?> show(
@@ -30,6 +42,7 @@ class AddressFormDialog extends StatefulWidget {
     required AddressRepository repository,
     String? defaultName,
     String? defaultPhone,
+    String? defaultEmail,
   }) {
     return showModalBottomSheet<CustomerAddress>(
       context: context,
@@ -40,6 +53,7 @@ class AddressFormDialog extends StatefulWidget {
         repository: repository,
         defaultName: defaultName,
         defaultPhone: defaultPhone,
+        defaultEmail: defaultEmail,
       ),
     );
   }
@@ -54,10 +68,20 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
   late final TextEditingController _titleController;
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _emailController;
   late final TextEditingController _addressController;
   late final TextEditingController _postalCodeController;
 
-  // Variabel dropdown wilayah berjenjang (selaras dengan RegisterPage)
+  // Master Labels (m_label)
+  List<AddressLabel> _labels = AddressLabel.defaultLabels;
+  AddressLabel? _selectedLabel;
+  bool _isLoadingLabels = false;
+
+  // Koordinat Peta (latitude & longitude)
+  double? _latitude;
+  double? _longitude;
+
+  // Variabel dropdown wilayah berjenjang
   Province? _selectedProvince;
   Regency? _selectedRegency;
   District? _selectedDistrict;
@@ -73,9 +97,8 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
   bool _isLoadingDistricts = false;
   bool _isLoadingVillages = false;
 
+  bool _isPrimary = false;
   bool _isSubmitting = false;
-
-  static const List<String> _quickLabels = ['Rumah', 'Kantor', 'Apartemen', 'Toko'];
 
   @override
   void initState() {
@@ -91,6 +114,9 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     _phoneController = TextEditingController(
       text: addr?.phoneNumber ?? widget.defaultPhone ?? '',
     );
+    _emailController = TextEditingController(
+      text: addr?.email ?? widget.defaultEmail ?? '',
+    );
     _addressController = TextEditingController(
       text: addr?.fullAddress ?? '',
     );
@@ -98,7 +124,60 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
       text: addr?.postalCode ?? '',
     );
 
-    _initRegionData();
+    _latitude = addr?.latitude;
+    _longitude = addr?.longitude;
+    _isPrimary = addr?.isPrimary ?? false;
+
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    await Future.wait([
+      _fetchLabels(),
+      _initRegionData(),
+    ]);
+  }
+
+  /// Mengambil master label dari tabel m_label
+  Future<void> _fetchLabels() async {
+    setState(() => _isLoadingLabels = true);
+    try {
+      final rows = await widget.repository.getLabels();
+      if (mounted) {
+        setState(() {
+          _labels = rows.isNotEmpty ? rows : AddressLabel.defaultLabels;
+          _resolveInitialLabel();
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _labels = AddressLabel.defaultLabels;
+          _resolveInitialLabel();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLabels = false);
+      }
+    }
+  }
+
+  void _resolveInitialLabel() {
+    final addr = widget.initialAddress;
+    if (addr?.labelId != null) {
+      _selectedLabel = _labels.where((l) => l.id == addr!.labelId).firstOrNull;
+    }
+    if (_selectedLabel == null && addr?.title != null) {
+      final t = addr!.title.toLowerCase();
+      _selectedLabel = _labels.where((l) => l.name.toLowerCase() == t).firstOrNull;
+    }
+    _selectedLabel ??= _labels.where((l) => l.name.toLowerCase() == 'rumah').firstOrNull ??
+        (_labels.isNotEmpty ? _labels.first : null);
+
+    if (_selectedLabel != null && _titleController.text.trim().isEmpty) {
+      _titleController.text = _selectedLabel!.name;
+    }
   }
 
   /// Inisialisasi awal master wilayah dan pemilihan otomatis saat mode edit
@@ -115,7 +194,6 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
       if (prov != null) {
         setState(() => _selectedProvince = prov);
 
-        // Muat kabupaten untuk provinsi terpilih tanpa mereset data edit
         setState(() => _isLoadingRegencies = true);
         try {
           final regList = await widget.repository.getRegencies(prov.code);
@@ -133,7 +211,6 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
             if (reg != null) {
               setState(() => _selectedRegency = reg);
 
-              // Muat kecamatan untuk kabupaten terpilih
               setState(() => _isLoadingDistricts = true);
               try {
                 final distList = await widget.repository.getDistricts(reg.code);
@@ -151,7 +228,6 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                   if (dist != null) {
                     setState(() => _selectedDistrict = dist);
 
-                    // Muat kelurahan untuk kecamatan terpilih
                     setState(() => _isLoadingVillages = true);
                     try {
                       final vilList = await widget.repository.getVillages(dist.code);
@@ -196,15 +272,11 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
 
   /// Mengambil daftar provinsi dari Supabase / repository
   Future<void> _fetchProvinces() async {
-    setState(() {
-      _isLoadingProvinces = true;
-    });
+    setState(() => _isLoadingProvinces = true);
     try {
       final rows = await widget.repository.getProvinces();
       if (mounted) {
-        setState(() {
-          _provinces = rows;
-        });
+        setState(() => _provinces = rows);
       }
     } catch (_) {
       if (mounted) {
@@ -221,14 +293,11 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoadingProvinces = false;
-        });
+        setState(() => _isLoadingProvinces = false);
       }
     }
   }
 
-  /// Mengambil daftar kabupaten/kota berdasarkan kode provinsi
   Future<void> _fetchRegencies(String provinceCode) async {
     setState(() {
       _isLoadingRegencies = true;
@@ -243,21 +312,15 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     try {
       final rows = await widget.repository.getRegencies(provinceCode);
       if (mounted) {
-        setState(() {
-          _regencies = rows;
-        });
+        setState(() => _regencies = rows);
       }
     } catch (_) {
+      if (mounted) setState(() => _regencies = []);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingRegencies = false;
-        });
-      }
+      if (mounted) setState(() => _isLoadingRegencies = false);
     }
   }
 
-  /// Mengambil daftar kecamatan berdasarkan kode kabupaten/kota
   Future<void> _fetchDistricts(String regencyCode) async {
     setState(() {
       _isLoadingDistricts = true;
@@ -270,21 +333,15 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     try {
       final rows = await widget.repository.getDistricts(regencyCode);
       if (mounted) {
-        setState(() {
-          _districts = rows;
-        });
+        setState(() => _districts = rows);
       }
     } catch (_) {
+      if (mounted) setState(() => _districts = []);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingDistricts = false;
-        });
-      }
+      if (mounted) setState(() => _isLoadingDistricts = false);
     }
   }
 
-  /// Mengambil daftar kelurahan berdasarkan kode kecamatan
   Future<void> _fetchVillages(String districtCode) async {
     setState(() {
       _isLoadingVillages = true;
@@ -295,45 +352,49 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     try {
       final rows = await widget.repository.getVillages(districtCode);
       if (mounted) {
-        setState(() {
-          _villages = rows;
-        });
+        setState(() => _villages = rows);
       }
     } catch (_) {
+      if (mounted) setState(() => _villages = []);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingVillages = false;
-        });
-      }
+      if (mounted) setState(() => _isLoadingVillages = false);
     }
   }
 
-  /// Helper untuk membangun SearchableDropdown wilayah persis seperti pada RegisterPage
+  /// Membuka peta interaktif LocationPickerMapDialog untuk memilih titik GPS presisi
+  Future<void> _pickLocationOnMap() async {
+    final initialLoc = (_latitude != null && _longitude != null && _latitude != 0.0)
+        ? LatLng(_latitude!, _longitude!)
+        : null;
+
+    final result = await LocationPickerMapDialog.show(
+      context,
+      title: 'Tentukan Titik Alamat',
+      initialLocation: initialLoc,
+      initialCityName: _selectedRegency?.name ?? _selectedProvince?.name,
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _latitude = result.latitude;
+        _longitude = result.longitude;
+      });
+    }
+  }
+
   Widget _buildRegionDropdown<T>({
     required String label,
+    String? hintText,
+    String? disabledHint,
     required T? value,
     required List<T> items,
     required String Function(T) itemLabel,
     required ValueChanged<T?> onChanged,
-    String? hintText,
-    String? disabledHint,
+    required bool isDark,
     bool enabled = true,
     bool isLoading = false,
-    bool isDark = false,
   }) {
-    String effectiveHint;
-    if (isLoading) {
-      effectiveHint = 'Memuat $label...';
-    } else if (!enabled) {
-      effectiveHint =
-          disabledHint ?? 'Pilih wilayah sebelumnya terlebih dahulu';
-    } else if (items.isEmpty) {
-      effectiveHint = 'Tidak ada data $label';
-    } else {
-      effectiveHint = hintText ?? 'Pilih $label';
-    }
-
+    final effectiveHint = !enabled && disabledHint != null ? disabledHint : (hintText ?? 'Pilih $label');
     final isActuallyEnabled = enabled && !isLoading && items.isNotEmpty;
 
     return SearchableDropdown<T>(
@@ -371,14 +432,16 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     });
 
     final existing = widget.initialAddress;
+    final labelTitle = _selectedLabel?.name ?? _titleController.text.trim();
 
     final result = CustomerAddress(
       id: existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}',
       rawId: existing?.rawId,
       userId: existing?.userId,
-      title: _titleController.text.trim(),
+      title: labelTitle.isNotEmpty ? labelTitle : 'Alamat',
       receiverName: _nameController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
+      email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
       fullAddress: _addressController.text.trim(),
       provinceCode: _selectedProvince?.code,
       provinceName: _selectedProvince?.name,
@@ -389,9 +452,11 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
       villageCode: _selectedVillage?.code,
       villageName: _selectedVillage?.name,
       postalCode: _postalCodeController.text.trim(),
-      latitude: existing?.latitude,
-      longitude: existing?.longitude,
-      isPrimary: existing?.isPrimary ?? false,
+      latitude: _latitude,
+      longitude: _longitude,
+      labelId: _selectedLabel?.id,
+      labelName: _selectedLabel?.name,
+      isPrimary: _isPrimary,
       sourceType: existing?.sourceType ?? AddressSourceType.mAddress,
       createdAt: existing?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
@@ -405,6 +470,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
     _titleController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _addressController.dispose();
     _postalCodeController.dispose();
     super.dispose();
@@ -414,6 +480,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEditing = widget.initialAddress != null;
+    final hasCoord = _latitude != null && _longitude != null && _latitude != 0.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -427,7 +494,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
       ),
       child: Form(
         key: _formKey,
@@ -503,38 +570,39 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Label / Nama Tempat
-                    CustomTextField(
-                      label: 'Label Alamat',
-                      hintText: 'Contoh: Rumah, Kantor, Toko',
-                      controller: _titleController,
-                      textInputAction: TextInputAction.next,
-                      isRequired: true,
+                    // 1. Dropdown Label (id_label dari m_label)
+                    SearchableDropdown<AddressLabel>(
+                      label: 'Label Alamat (m_label)',
+                      hintText: 'Pilih Label Alamat',
+                      value: _selectedLabel,
+                      items: _labels,
+                      itemLabel: (l) => l.name,
+                      isLoading: _isLoadingLabels,
+                      isDark: isDark,
                       enabled: !_isSubmitting,
-                      prefixIcon: const Icon(Icons.bookmark_outline_rounded),
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) {
-                          return 'Label alamat wajib diisi';
-                        }
-                        return null;
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedLabel = val;
+                          if (val != null) {
+                            _titleController.text = val.name;
+                          }
+                        });
                       },
                     ),
                     const SizedBox(height: 8),
 
-                    // Quick Chips untuk Label
+                    // Quick Chips untuk memilih Label cepat
                     SizedBox(
                       height: 34,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        itemCount: _quickLabels.length,
+                        itemCount: _labels.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 8),
                         itemBuilder: (context, index) {
-                          final label = _quickLabels[index];
-                          final isSelected =
-                              _titleController.text.trim().toLowerCase() ==
-                                  label.toLowerCase();
+                          final lbl = _labels[index];
+                          final isSelected = _selectedLabel?.id == lbl.id;
                           return ActionChip(
-                            label: Text(label),
+                            label: Text(lbl.name),
                             labelStyle: TextStyle(
                               fontSize: 11,
                               fontWeight: isSelected
@@ -565,7 +633,8 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                             ),
                             onPressed: () {
                               setState(() {
-                                _titleController.text = label;
+                                _selectedLabel = lbl;
+                                _titleController.text = lbl.name;
                               });
                             },
                           );
@@ -574,7 +643,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Nama Penerima
+                    // 2. Input Nama Lengkap (nama_lengkap)
                     CustomTextField(
                       label: 'Nama Lengkap Penerima',
                       hintText: 'Contoh: Budi Pratama',
@@ -587,10 +656,10 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Nomor Telepon / WA
+                    // 3. Input Nomor Telepon (no_telp)
                     CustomTextField(
-                      label: 'Nomor WhatsApp / HP',
-                      hintText: '081234567890',
+                      label: 'Nomor Telepon / WhatsApp',
+                      hintText: 'Contoh: 081234567890',
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,
@@ -601,8 +670,148 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Dropdown Wilayah Berjenjang (Persis sesuai RegisterPage)
-                    // 1. Dropdown Provinsi
+                    // 4. Input Email (email)
+                    CustomTextField(
+                      label: 'Alamat Email',
+                      hintText: 'Contoh: nama@domain.com',
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      enabled: !_isSubmitting,
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return null;
+                        return Validators.validateEmail(val.trim());
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 5. Pemilih Titik Koordinat Peta (latitude & longitude)
+                    Text(
+                      'Titik Lokasi Peta (GPS)',
+                      style: AppTextStyles.labelMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: hasCoord
+                            ? AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.06)
+                            : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC)),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: hasCoord
+                              ? AppColors.primary.withValues(alpha: 0.5)
+                              : (isDark ? Colors.white12 : Colors.black12),
+                          width: hasCoord ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: _isSubmitting ? null : _pickLocationOnMap,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: hasCoord
+                                        ? AppColors.primary
+                                        : (isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06)),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.map_rounded,
+                                    size: 20,
+                                    color: hasCoord
+                                        ? Colors.white
+                                        : (isDark ? Colors.white70 : Colors.black54),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Wrap(
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          const Text(
+                                            'Pilih Titik di Peta',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          if (hasCoord)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.success.withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: const Text(
+                                                'TERPASANG',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.success,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        hasCoord
+                                            ? 'Lat: ${_latitude!.toStringAsFixed(6)}, Lng: ${_longitude!.toStringAsFixed(6)}'
+                                            : 'Buka peta interaktif untuk menentukan titik koordinat presisi',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontFamily: hasCoord ? 'monospace' : null,
+                                          color: isDark ? Colors.white60 : Colors.black54,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (hasCoord)
+                                  IconButton(
+                                    icon: const Icon(Icons.close_rounded, size: 18),
+                                    tooltip: 'Hapus Titik',
+                                    onPressed: () {
+                                      setState(() {
+                                        _latitude = null;
+                                        _longitude = null;
+                                      });
+                                    },
+                                  )
+                                else
+                                  const Icon(Icons.chevron_right_rounded, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 6. Dropdown Wilayah Berjenjang
+                    // 6.1 Dropdown Provinsi
                     _buildRegionDropdown<Province>(
                       label: 'Provinsi',
                       hintText: 'Pilih Provinsi',
@@ -634,7 +843,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 2. Dropdown Kabupaten / Kota
+                    // 6.2 Dropdown Kabupaten / Kota
                     _buildRegionDropdown<Regency>(
                       label: 'Kabupaten / Kota',
                       hintText: 'Pilih Kabupaten/Kota',
@@ -665,7 +874,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 3. Dropdown Kecamatan
+                    // 6.3 Dropdown Kecamatan
                     _buildRegionDropdown<District>(
                       label: 'Kecamatan',
                       hintText: 'Pilih Kecamatan',
@@ -694,7 +903,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 4. Dropdown Kelurahan
+                    // 6.4 Dropdown Kelurahan
                     _buildRegionDropdown<Village>(
                       label: 'Kelurahan',
                       hintText: 'Pilih Kelurahan',
@@ -716,7 +925,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Input Alamat Lengkap
+                    // 7. Input Alamat Lengkap
                     CustomTextField(
                       label: 'Alamat Lengkap',
                       hintText: 'Contoh: Jl. Sudirman No. 45, RT 01/RW 02, Menteng',
@@ -731,7 +940,7 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Kode Pos
+                    // 8. Kode Pos
                     CustomTextField(
                       label: 'Kode Pos',
                       hintText: 'Contoh: 10110',
@@ -740,6 +949,45 @@ class _AddressFormDialogState extends State<AddressFormDialog> {
                       textInputAction: TextInputAction.done,
                       enabled: !_isSubmitting,
                       prefixIcon: const Icon(Icons.local_post_office_outlined),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 9. Switch Alamat Utama
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : Colors.black12,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            size: 20,
+                            color: _isPrimary ? AppColors.secondary : Colors.grey,
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Jadikan sebagai Alamat Utama',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Switch(
+                            value: _isPrimary,
+                            activeThumbColor: AppColors.primary,
+                            onChanged: _isSubmitting
+                                ? null
+                                : (val) => setState(() => _isPrimary = val),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
                   ],

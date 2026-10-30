@@ -1,3 +1,4 @@
+import '../entities/address_label.dart';
 import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
 import '../entities/customer_address.dart';
 
@@ -25,6 +26,9 @@ abstract class AddressRepository {
   Future<void> setAsPrimaryAddress(CustomerAddress address);
 
   /// Mengambil daftar master provinsi dari `m_provinsi`
+  /// Mengambil daftar master label alamat dari `m_label`
+  Future<List<AddressLabel>> getLabels();
+
   Future<List<Province>> getProvinces();
 
   /// Mengambil daftar master kabkot dari `m_kabkot` berdasarkan kode provinsi

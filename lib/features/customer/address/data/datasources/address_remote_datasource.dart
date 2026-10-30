@@ -1,3 +1,4 @@
+import '../../domain/entities/address_label.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:satset/core/error/exceptions.dart';
 import 'package:satset/app/config/supabase_config.dart';
@@ -27,6 +28,9 @@ abstract class AddressRemoteDataSource {
   Future<void> setAsPrimaryAddress(CustomerAddressModel address);
 
   /// Mengambil daftar master provinsi dari `m_provinsi`
+  /// Mengambil daftar master label alamat dari tabel `m_label`
+  Future<List<AddressLabel>> getLabels();
+
   Future<List<ProvinceModel>> getProvinces();
 
   /// Mengambil daftar master kabupaten/kota dari `m_kabkot` berdasarkan kode provinsi
@@ -161,7 +165,7 @@ class AddressRemoteDataSourceImpl implements AddressRemoteDataSource {
       // 2. Ambil daftar alamat lain dari tabel `m_address`
       final addressRows = await _client
           .from(DatabaseConstants.tableAddress)
-          .select()
+          .select('*, m_label(id, nm_label)')
           .eq(AddressTableColumns.idUsers, uid)
           .order(AddressTableColumns.createdAt, ascending: false);
 
@@ -278,11 +282,20 @@ class AddressRemoteDataSourceImpl implements AddressRemoteDataSource {
     payload[AddressTableColumns.isUtama] = address.isPrimary;
     payload[AddressTableColumns.createdAt] = DateTime.now().toIso8601String();
 
-    final inserted = await _client
-        .from(DatabaseConstants.tableAddress)
-        .insert(payload)
-        .select()
-        .single();
+    Map<String, dynamic> inserted;
+    try {
+      inserted = await _client
+          .from(DatabaseConstants.tableAddress)
+          .insert(payload)
+          .select('*, m_label(id, nm_label)')
+          .single();
+    } catch (_) {
+      inserted = await _client
+          .from(DatabaseConstants.tableAddress)
+          .insert(payload)
+          .select()
+          .single();
+    }
 
     final regionNames = await _resolveRegionNames(
       provCode: inserted[AddressTableColumns.idProvinsi]?.toString(),
@@ -534,6 +547,24 @@ class AddressRemoteDataSourceImpl implements AddressRemoteDataSource {
   // ===========================================================================
   // MASTER WILAYAH
   // ===========================================================================
+
+  @override
+  Future<List<AddressLabel>> getLabels() async {
+    if (!_isSupabaseAvailable) {
+      return AddressLabel.defaultLabels;
+    }
+    try {
+      final res = await _client
+          .from(DatabaseConstants.tableLabel)
+          .select()
+          .order('id', ascending: true);
+      return (res as List)
+          .map((row) => AddressLabel.fromJson(row as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return AddressLabel.defaultLabels;
+    }
+  }
 
   @override
   Future<List<ProvinceModel>> getProvinces() async {

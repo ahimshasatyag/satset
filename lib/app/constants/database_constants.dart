@@ -51,6 +51,9 @@ class DatabaseConstants {
   /// Nama tabel master alamat tambahan
   static const String tableAddress = 'm_address';
 
+  /// Nama tabel master label alamat
+  static const String tableLabel = 'm_label';
+
   /// Kolom umum
   static const String colId = 'id';
   static const String colEmail = 'email';
@@ -375,3 +378,12 @@ class AddressTableColumns {
   static const String updatedAt = 'updated_at';
 }
 
+
+/// Kolom-kolom tabel m_label di Supabase
+class LabelTableColumns {
+  LabelTableColumns._();
+
+  static const String id = 'id';
+  static const String nmLabel = 'nm_label';
+  static const String createdAt = 'created_at';
+}

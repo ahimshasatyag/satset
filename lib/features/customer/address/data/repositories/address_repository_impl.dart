@@ -1,3 +1,4 @@
+import '../../domain/entities/address_label.dart';
 import 'package:satset/core/error/exceptions.dart';
 import 'package:satset/core/error/failures.dart';
 import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
@@ -95,6 +96,11 @@ class AddressRepositoryImpl implements AddressRepository {
     } catch (e) {
       throw ServerFailure('Gagal mengubah alamat utama: ${e.toString()}');
     }
+  }
+
+  @override
+  Future<List<AddressLabel>> getLabels() {
+    return remoteDataSource.getLabels();
   }
 
   @override

@@ -19,6 +19,7 @@ class CustomerAddress extends Equatable {
   final String title;
   final String receiverName;
   final String phoneNumber;
+  final String? email;
   final String fullAddress;
   final String? provinceCode;
   final String? provinceName;
@@ -31,6 +32,8 @@ class CustomerAddress extends Equatable {
   final String? postalCode;
   final double? latitude;
   final double? longitude;
+  final int? labelId;
+  final String? labelName;
   final bool isPrimary;
   final AddressSourceType sourceType;
   final DateTime? createdAt;
@@ -43,6 +46,7 @@ class CustomerAddress extends Equatable {
     required this.title,
     required this.receiverName,
     required this.phoneNumber,
+    this.email,
     required this.fullAddress,
     this.provinceCode,
     this.provinceName,
@@ -55,6 +59,8 @@ class CustomerAddress extends Equatable {
     this.postalCode,
     this.latitude,
     this.longitude,
+    this.labelId,
+    this.labelName,
     this.isPrimary = false,
     this.sourceType = AddressSourceType.mAddress,
     this.createdAt,
@@ -97,6 +103,7 @@ class CustomerAddress extends Equatable {
     String? title,
     String? receiverName,
     String? phoneNumber,
+    String? email,
     String? fullAddress,
     String? provinceCode,
     String? provinceName,
@@ -109,6 +116,8 @@ class CustomerAddress extends Equatable {
     String? postalCode,
     double? latitude,
     double? longitude,
+    int? labelId,
+    String? labelName,
     bool? isPrimary,
     AddressSourceType? sourceType,
     DateTime? createdAt,
@@ -121,6 +130,7 @@ class CustomerAddress extends Equatable {
       title: title ?? this.title,
       receiverName: receiverName ?? this.receiverName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
       fullAddress: fullAddress ?? this.fullAddress,
       provinceCode: provinceCode ?? this.provinceCode,
       provinceName: provinceName ?? this.provinceName,
@@ -133,6 +143,8 @@ class CustomerAddress extends Equatable {
       postalCode: postalCode ?? this.postalCode,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      labelId: labelId ?? this.labelId,
+      labelName: labelName ?? this.labelName,
       isPrimary: isPrimary ?? this.isPrimary,
       sourceType: sourceType ?? this.sourceType,
       createdAt: createdAt ?? this.createdAt,
@@ -148,6 +160,7 @@ class CustomerAddress extends Equatable {
         title,
         receiverName,
         phoneNumber,
+        email,
         fullAddress,
         provinceCode,
         provinceName,
@@ -160,6 +173,8 @@ class CustomerAddress extends Equatable {
         postalCode,
         latitude,
         longitude,
+        labelId,
+        labelName,
         isPrimary,
         sourceType,
         createdAt,

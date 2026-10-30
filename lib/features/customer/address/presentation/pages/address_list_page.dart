@@ -95,10 +95,12 @@ class _AddressListPageState extends State<AddressListPage> {
     final state = _addressBloc.state;
     String? defaultName;
     String? defaultPhone;
+    String? defaultEmail;
 
     if (state is AddressLoaded && state.primaryAddress != null) {
       defaultName = state.primaryAddress!.receiverName;
       defaultPhone = state.primaryAddress!.phoneNumber;
+      defaultEmail = state.primaryAddress!.email;
     }
 
     final newAddress = await AddressFormDialog.show(
@@ -106,6 +108,7 @@ class _AddressListPageState extends State<AddressListPage> {
       repository: _repository,
       defaultName: defaultName,
       defaultPhone: defaultPhone,
+      defaultEmail: defaultEmail,
     );
 
     if (newAddress != null && mounted) {

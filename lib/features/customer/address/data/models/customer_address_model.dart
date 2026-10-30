@@ -1,3 +1,4 @@
+import '../../domain/entities/address_label.dart';
 import '../../domain/entities/customer_address.dart';
 
 /// Model implementasi data layer untuk [CustomerAddress].
@@ -10,6 +11,7 @@ class CustomerAddressModel extends CustomerAddress {
     required super.title,
     required super.receiverName,
     required super.phoneNumber,
+    super.email,
     required super.fullAddress,
     super.provinceCode,
     super.provinceName,
@@ -22,6 +24,8 @@ class CustomerAddressModel extends CustomerAddress {
     super.postalCode,
     super.latitude,
     super.longitude,
+    super.labelId,
+    super.labelName,
     super.isPrimary = false,
     super.sourceType = AddressSourceType.mAddress,
     super.createdAt,
@@ -57,6 +61,7 @@ class CustomerAddressModel extends CustomerAddress {
       title: 'Alamat Utama (Profil Akun)',
       receiverName: (json['nama_lengkap'] ?? 'Pengguna SatSet').toString(),
       phoneNumber: (json['no_hp'] ?? '').toString(),
+      email: json['email']?.toString(),
       fullAddress: (json['alamat_lengkap'] ?? '').toString(),
       provinceCode: json['id_provinsi']?.toString(),
       provinceName: provinceName,
@@ -82,6 +87,7 @@ class CustomerAddressModel extends CustomerAddress {
     bool? isPrimary,
     String? fallbackName,
     String? fallbackPhone,
+    String? fallbackEmail,
     String? provinceName,
     String? regencyName,
     String? districtName,
@@ -99,15 +105,32 @@ class CustomerAddressModel extends CustomerAddress {
     final createdAtStr = json['created_at']?.toString();
     final updatedAtStr = json['updated_at']?.toString();
 
-    final label = json['label']?.toString();
-    final receiver = json['penerima_nama']?.toString() ??
+    final rawLabelId = json['id_label'];
+    final labelIdInt = rawLabelId is int ? rawLabelId : int.tryParse(rawLabelId?.toString() ?? '');
+
+    String? resolvedLabelName;
+    if (json['m_label'] is Map) {
+      resolvedLabelName = json['m_label']['nm_label']?.toString();
+    } else if (json['nm_label'] != null) {
+      resolvedLabelName = json['nm_label']?.toString();
+    } else if (labelIdInt != null) {
+      resolvedLabelName = AddressLabel.defaultLabels.where((l) => l.id == labelIdInt).firstOrNull?.name;
+    }
+
+    final customLabel = json['label']?.toString();
+    final effectiveTitle = resolvedLabelName ?? (customLabel != null && customLabel.isNotEmpty ? customLabel : 'Alamat');
+
+    final receiver = json['nama_lengkap']?.toString() ??
+        json['penerima_nama']?.toString() ??
         json['nama_penerima']?.toString() ??
         fallbackName ??
         'Penerima Paket';
-    final phone = json['no_hp']?.toString() ??
+    final phone = json['no_telp']?.toString() ??
+        json['no_hp']?.toString() ??
         json['telepon']?.toString() ??
         fallbackPhone ??
         '-';
+    final email = json['email']?.toString() ?? fallbackEmail;
 
     final rawKelCode = json['id_kelurahan']?.toString();
     String? effectiveDistrictCode = districtCode ?? json['id_kecamatan']?.toString();
@@ -126,9 +149,10 @@ class CustomerAddressModel extends CustomerAddress {
       id: 'addr_${idInt ?? DateTime.now().millisecondsSinceEpoch}',
       rawId: idInt,
       userId: userIdInt,
-      title: label != null && label.isNotEmpty ? label : 'Alamat Tambahan',
+      title: effectiveTitle,
       receiverName: receiver,
       phoneNumber: phone,
+      email: email,
       fullAddress: (json['alamat_lengkap'] ?? '').toString(),
       provinceCode: json['id_provinsi']?.toString(),
       provinceName: provinceName,
@@ -145,6 +169,8 @@ class CustomerAddressModel extends CustomerAddress {
       longitude: json['longitude'] != null
           ? double.tryParse(json['longitude'].toString())
           : null,
+      labelId: labelIdInt,
+      labelName: resolvedLabelName,
       isPrimary: isPrimary ?? isUtama,
       sourceType: AddressSourceType.mAddress,
       createdAt: createdAtStr != null ? DateTime.tryParse(createdAtStr) : null,
@@ -166,6 +192,12 @@ class CustomerAddressModel extends CustomerAddress {
         'id_kelurahan': villageCode,
       if (postalCode != null && postalCode!.isNotEmpty)
         'kode_pos': postalCode,
+      'nama_lengkap': receiverName,
+      'no_telp': phoneNumber,
+      if (email != null && email!.trim().isNotEmpty) 'email': email!.trim(),
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (labelId != null) 'id_label': labelId,
       'is_utama': isPrimary,
       'updated_at': DateTime.now().toIso8601String(),
     };
@@ -198,6 +230,7 @@ class CustomerAddressModel extends CustomerAddress {
     String? title,
     String? receiverName,
     String? phoneNumber,
+    String? email,
     String? fullAddress,
     String? provinceCode,
     String? provinceName,
@@ -210,6 +243,8 @@ class CustomerAddressModel extends CustomerAddress {
     String? postalCode,
     double? latitude,
     double? longitude,
+    int? labelId,
+    String? labelName,
     bool? isPrimary,
     AddressSourceType? sourceType,
     DateTime? createdAt,
@@ -222,6 +257,7 @@ class CustomerAddressModel extends CustomerAddress {
       title: title ?? this.title,
       receiverName: receiverName ?? this.receiverName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
       fullAddress: fullAddress ?? this.fullAddress,
       provinceCode: provinceCode ?? this.provinceCode,
       provinceName: provinceName ?? this.provinceName,
@@ -234,6 +270,8 @@ class CustomerAddressModel extends CustomerAddress {
       postalCode: postalCode ?? this.postalCode,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      labelId: labelId ?? this.labelId,
+      labelName: labelName ?? this.labelName,
       isPrimary: isPrimary ?? this.isPrimary,
       sourceType: sourceType ?? this.sourceType,
       createdAt: createdAt ?? this.createdAt,
@@ -250,6 +288,7 @@ class CustomerAddressModel extends CustomerAddress {
       title: entity.title,
       receiverName: entity.receiverName,
       phoneNumber: entity.phoneNumber,
+      email: entity.email,
       fullAddress: entity.fullAddress,
       provinceCode: entity.provinceCode,
       provinceName: entity.provinceName,
@@ -262,6 +301,8 @@ class CustomerAddressModel extends CustomerAddress {
       postalCode: entity.postalCode,
       latitude: entity.latitude,
       longitude: entity.longitude,
+      labelId: entity.labelId,
+      labelName: entity.labelName,
       isPrimary: entity.isPrimary,
       sourceType: entity.sourceType,
       createdAt: entity.createdAt,
