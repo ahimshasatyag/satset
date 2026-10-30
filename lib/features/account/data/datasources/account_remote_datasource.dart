@@ -355,6 +355,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
           EmployeeTableColumns.nama: account.name,
           EmployeeTableColumns.noHp: account.phone,
           EmployeeTableColumns.telepon: account.phone,
+          EmployeeTableColumns.email: cleanEmail,
           EmployeeTableColumns.updatedAt: DateTime.now().toIso8601String(),
         };
 
@@ -385,6 +386,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
         final updateData = <String, dynamic>{
           UserTableColumns.namaLengkap: account.name,
           UserTableColumns.noHp: account.phone,
+          UserTableColumns.email: cleanEmail,
           UserTableColumns.updatedAt: DateTime.now().toIso8601String(),
         };
 

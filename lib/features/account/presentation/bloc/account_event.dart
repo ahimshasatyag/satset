@@ -23,15 +23,20 @@ class AccountNotificationsToggled extends AccountEvent {
   List<Object?> get props => [isEnabled];
 }
 
-/// Pengguna memperbarui profil (nama & nomor telepon)
+/// Pengguna memperbarui profil (nama, nomor telepon, dan email opsional)
 class AccountProfileUpdated extends AccountEvent {
   final String name;
   final String phone;
+  final String? email;
 
-  const AccountProfileUpdated({required this.name, required this.phone});
+  const AccountProfileUpdated({
+    required this.name,
+    required this.phone,
+    this.email,
+  });
 
   @override
-  List<Object?> get props => [name, phone];
+  List<Object?> get props => [name, phone, email];
 }
 
 /// Pengguna mengubah kata sandi akun via Supabase Auth

@@ -80,6 +80,9 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
       final updated = current.copyWith(
         name: event.name.trim(),
         phone: event.phone.trim(),
+        email: event.email != null && event.email!.trim().isNotEmpty
+            ? event.email!.trim()
+            : current.email,
       );
       await repository.updateAccount(updated);
       emit(state.copyWith(

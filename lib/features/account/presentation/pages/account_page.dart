@@ -16,7 +16,7 @@ import '../bloc/account_state.dart';
 import '../../../customer/address/presentation/pages/address_list_page.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/pages/forgot_password_page.dart';
-import '../widgets/account_edit_profile_dialog.dart';
+import 'edit_account_page.dart';
 import '../widgets/account_legal_dialog.dart';
 import '../widgets/account_logout_dialog.dart';
 import '../widgets/account_menu_card.dart';
@@ -82,17 +82,14 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   void _showEditProfile(BuildContext context, UserAccount account, AccountBloc bloc) async {
-    final result = await AccountEditProfileDialog.show(
-      context,
-      currentName: account.name,
-      currentPhone: account.phone,
-      currentEmail: account.email,
+    final result = await Navigator.of(context).push<bool?>(
+      EditAccountPage.route(
+        account: account,
+        user: widget.user,
+      ),
     );
-    if (result != null) {
-      bloc.add(AccountProfileUpdated(
-        name: result['name']!,
-        phone: result['phone']!,
-      ));
+    if (result == true) {
+      bloc.add(const AccountProfileLoaded());
     }
   }
 
