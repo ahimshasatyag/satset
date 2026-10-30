@@ -52,6 +52,9 @@ void main() {
         expect(find.text('ahmad@satset.id'), findsOneWidget);
         expect(find.text('081234567890'), findsOneWidget);
 
+        // Memastikan tombol Batal telah dihapus
+        expect(find.text('Batal'), findsNothing);
+
         // Memastikan bagian teks 'Sinkronisasi Supabase' dan badge '(Role' telah dihapus
         expect(find.textContaining('Sinkronisasi Supabase'), findsNothing);
         expect(find.textContaining('(Role:'), findsNothing);
@@ -91,9 +94,23 @@ void main() {
         expect(find.text('budi.courier@satset.id'), findsOneWidget);
         expect(find.text('081987654321'), findsOneWidget);
 
-        // Memastikan bagian teks 'Sinkronisasi Supabase' dan badge '(Role' telah dihapus
-        expect(find.textContaining('Sinkronisasi Supabase'), findsNothing);
-        expect(find.textContaining('(Role:'), findsNothing);
+        // Memastikan tombol Batal telah dihapus
+        expect(find.text('Batal'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'renders EditAccountSkeleton when loading initially',
+      (tester) async {
+        await tester.pumpWidget(
+          createWidgetUnderTest(
+            const EditAccountSkeleton(),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Memastikan widget EditAccountSkeleton terpasang
+        expect(find.byType(EditAccountSkeleton), findsOneWidget);
       },
     );
 
@@ -174,7 +191,7 @@ void main() {
 
       expect(find.text('Edit Akun'), findsOneWidget);
 
-      // Tekan tombol kembali
+      // Tekan tombol kembali pada AppBar
       final backButton = find.byIcon(Icons.arrow_back_ios_new_rounded);
       expect(backButton, findsOneWidget);
       await tester.tap(backButton);

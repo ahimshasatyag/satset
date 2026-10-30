@@ -15,6 +15,9 @@ import '../../../auth/domain/entities/user.dart';
 import '../../domain/entities/user_account.dart';
 import '../bloc/account_bloc.dart';
 import '../bloc/account_event.dart';
+import '../widgets/edit_account_skeleton.dart';
+
+export '../widgets/edit_account_skeleton.dart';
 
 /// Halaman Edit Akun SatSet
 /// Memperbarui Foto Profil, Nama Lengkap, Email, dan Nomor Telepon langsung ke tabel
@@ -712,19 +715,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
         ),
       ),
       body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(
-                    'Memuat informasi profil dari database...',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
+          ? const EditAccountSkeleton()
           : RefreshIndicator(
               onRefresh: _loadProfileFromSupabase,
               child: SingleChildScrollView(
@@ -788,24 +779,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
                         size: ButtonSize.large,
                         prefixIcon: const Icon(Icons.save_rounded, size: 20),
                         onPressed: _saveAccount,
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: BorderSide(
-                            color: isDark
-                                ? AppColors.borderDark
-                                : AppColors.borderLight,
-                          ),
-                        ),
-                        onPressed: _isSaving
-                            ? null
-                            : () => Navigator.of(context).pop(false),
-                        child: const Text('Batal'),
                       ),
                       const SizedBox(height: 24),
                     ],
