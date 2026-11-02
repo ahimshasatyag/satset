@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import 'account_menu_card.dart';
 
 class AccountSkeleton extends StatefulWidget {

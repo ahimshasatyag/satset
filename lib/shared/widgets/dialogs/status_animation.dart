@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import '../../theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 /// Path aset animasi JSON Lottie untuk status dialog & bottom sheet
 class AppAnimationAssets {

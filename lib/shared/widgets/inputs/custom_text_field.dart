@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../..//theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 /// Field input teks kustom aplikasi SatSet dengan gaya rounded modern,
 /// penanganan label rapi, toggle visibilitas kata sandi, dan validasi selaras tema.

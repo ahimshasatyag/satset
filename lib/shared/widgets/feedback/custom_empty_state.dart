@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../..//theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
+
 import '../buttons/custom_button.dart';
 
 /// Widget tampilan status kosong (*empty state*) atau tidak ditemukan
@@ -52,11 +53,7 @@ class CustomEmptyState extends StatelessWidget {
                   ),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  size: 42,
-                  color: AppColors.primary,
-                ),
+                child: Icon(icon, size: 42, color: AppColors.primary),
               ),
             const SizedBox(height: 20),
 
@@ -65,7 +62,9 @@ class CustomEmptyState extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: AppTextStyles.titleLarge.copyWith(
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -76,7 +75,9 @@ class CustomEmptyState extends StatelessWidget {
               description,
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
             ),
 

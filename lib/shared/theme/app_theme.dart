@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../navigation/smooth_page_route.dart';
-import 'app_colors.dart';
-import 'app_text_styles.dart';
+import 'package:satset/shared/navigation/smooth_page_route.dart';
+import 'package:satset/shared/theme/app_colors.dart';
+import 'package:satset/shared/theme/app_text_styles.dart';
 
 /// Konfigurasi [ThemeData] aplikasi SatSet yang selaras dengan palet logo resmi.
 /// Menggunakan pendekatan Material 3 dengan gaya modern, bersih, dan profesional.

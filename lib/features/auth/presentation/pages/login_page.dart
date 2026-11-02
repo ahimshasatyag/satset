@@ -23,6 +23,7 @@ import 'courier_register_page.dart';
 
 import 'package:satset/app/config/supabase_config.dart';
 import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
+import 'package:satset/features/admin/dashboard/presentation/pages/admin_dashboard_page.dart';
 import 'package:satset/features/main_navigation/presentation/pages/main_navigation_page.dart';
 
 /// Halaman Login Utama SatSet
@@ -142,13 +143,17 @@ class _LoginViewState extends State<LoginView> {
                   }
                 }
 
+                final isAdmin =
+                    state.user.idUsersRole == 1 || state.user.role == 'admin';
                 final isCourier =
                     state.user.idUsersRole == 2 || state.user.role == 'courier';
                 CustomDialog.showSuccess(
                   context: context,
                   title: 'Login Berhasil! 🎉',
                   message: state.message,
-                  confirmText: isCourier
+                  confirmText: isAdmin
+                      ? 'Buka Dashboard Admin'
+                      : isCourier
                       ? 'Buka Tugas Kurir'
                       : 'Lanjutkan ke Dashboard',
                   onConfirm: go,
@@ -361,7 +366,16 @@ class _LoginViewState extends State<LoginView> {
     }
     // Jika tidak ditangani oleh callback root, navigasikan langsung sesuai id_users_role
     if (Navigator.of(context).canPop() || widget.onLoginSuccess == null) {
-      if (user.idUsersRole == 2 || user.role == 'courier') {
+      if (user.idUsersRole == 1 || user.role == 'admin') {
+        // id_users_role = 1 -> Halaman Dashboard Admin
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) =>
+                AdminDashboardPage(user: user, token: user.token),
+          ),
+          (route) => false,
+        );
+      } else if (user.idUsersRole == 2 || user.role == 'courier') {
         // id_users_role = 2 -> Halaman Utama Kurir lengkap dengan Bilah Navigasi Bawah
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(

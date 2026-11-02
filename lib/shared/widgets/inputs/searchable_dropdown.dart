@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 /// Komponen Dropdown interaktif dengan fitur pencarian teks real-time,
 /// animasi ekspansi, tombol clear pencarian ('X'), ikon panah dinamis (^/v),

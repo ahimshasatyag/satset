@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
 import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
 import '../../domain/entities/user_account.dart';

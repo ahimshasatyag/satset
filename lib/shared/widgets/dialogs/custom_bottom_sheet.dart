@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../buttons/custom_button.dart';
 import 'status_animation.dart';
 

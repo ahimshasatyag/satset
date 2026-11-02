@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../../domain/entities/navigation_item.dart';
 
 class SatSetBottomNavigationBar extends StatefulWidget {

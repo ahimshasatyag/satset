@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../../app/config/supabase_config.dart';
 import '../../../../../../app/constants/database_constants.dart';
-import '../../../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../../../../../../shared/widgets/widgets.dart';
 import 'package:satset/features/customer/shipments/domain/entities/shipment.dart';
 

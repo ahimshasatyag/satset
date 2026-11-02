@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../customer/livetrack/presentation/pages/live_track_page.dart';
 import '../../../courier/tasks_status/presentation/pages/courier_task_status_page.dart';

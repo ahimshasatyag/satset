@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../..//theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 /// Status semantik untuk [StatusBadge]
 enum BadgeStatus {

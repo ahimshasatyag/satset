@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../account/presentation/pages/account_page.dart';
 import '../../../auth/domain/entities/user.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 /// App Bar kustom aplikasi SatSet dengan opsi latar belakang bersih atau gradient brand,
 /// mode minimalist (tanpa background, hanya arrow), tombol kembali berdesain rounded, dan integrasi tipografi konsisten.

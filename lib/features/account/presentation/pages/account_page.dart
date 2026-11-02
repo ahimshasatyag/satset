@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../data/datasources/account_local_datasource.dart';

@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../../../../app/config/supabase_config.dart';
 import '../../../../app/constants/database_constants.dart';
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../../auth/data/datasources/auth_local_datasource.dart';
 import '../../../auth/data/utils/validators.dart';

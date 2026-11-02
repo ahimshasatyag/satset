@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'package:satset/shared/theme/app_colors.dart';
 
 /// Tipografi aplikasi SatSet yang dirancang proporsional, terbaca jelas,
 /// dan selaras dengan hierarki desain modern Material 3.

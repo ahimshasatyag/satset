@@ -1,24 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'app/config/supabase_config.dart';
-import 'app/observers/app_bloc_observer.dart';
-import 'features/auth/data/datasources/auth_local_datasource.dart';
-import 'features/auth/data/datasources/auth_remote_datasource.dart';
-import 'features/auth/data/repositories/auth_repository_impl.dart';
-import 'features/auth/domain/repositories/auth_repository.dart';
-import 'features/auth/domain/usecases/get_current_user_usecase.dart';
-import 'features/auth/domain/usecases/login_usecase.dart';
-import 'features/auth/domain/usecases/logout_usecase.dart';
-import 'features/auth/domain/usecases/register_usecase.dart';
-import 'features/auth/domain/entities/user.dart';
-import 'features/auth/presentation/bloc/auth_bloc.dart';
-import 'features/auth/presentation/pages/login_page.dart';
-import 'features/customer/dashboard/presentation/pages/dashboard_page.dart';
-import 'features/courier/tasks/presentation/pages/courier_tasks_page.dart';
-import 'features/main_navigation/presentation/pages/main_navigation_page.dart';
-import 'features/notifications/presentation/pages/notifications_page.dart';
-import 'features/splash/presentation/pages/splash_page.dart';
-import 'shared/theme/theme.dart';
+import 'package:satset/app/config/supabase_config.dart';
+import 'package:satset/app/observers/app_bloc_observer.dart';
+import 'package:satset/features/auth/data/datasources/auth_local_datasource.dart';
+import 'package:satset/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:satset/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:satset/features/auth/domain/repositories/auth_repository.dart';
+import 'package:satset/features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'package:satset/features/auth/domain/usecases/login_usecase.dart';
+import 'package:satset/features/auth/domain/usecases/logout_usecase.dart';
+import 'package:satset/features/auth/domain/usecases/register_usecase.dart';
+import 'package:satset/features/auth/domain/entities/user.dart';
+import 'package:satset/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:satset/features/auth/presentation/pages/login_page.dart';
+import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
+import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.dart';
+import 'package:satset/features/admin/auth/data/datasources/admin_auth_local_datasource.dart';
+import 'package:satset/features/admin/dashboard/presentation/pages/admin_dashboard_page.dart';
+import 'package:satset/features/main_navigation/presentation/pages/main_navigation_page.dart';
+import 'package:satset/features/notifications/presentation/pages/notifications_page.dart';
+import 'package:satset/features/splash/presentation/pages/splash_page.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +39,15 @@ Future<void> main() async {
       await SupabaseConfig.client.auth.signOut();
     }
   } catch (_) {}
+
+  // Pada platform Web, hapus sesi login admin lama saat aplikasi di-boot / hot restart
+  // agar administrator harus login kembali
+  if (kIsWeb) {
+    try {
+      final adminLocalDataSource = AdminAuthLocalDataSourceImpl();
+      await adminLocalDataSource.deleteAdmin();
+    } catch (_) {}
+  }
 
   // Inisialisasi dependensi
   final localDataSource = AuthLocalDataSourceImpl();
@@ -83,9 +95,30 @@ class SatSetApp extends StatefulWidget {
 
 class SatSetAppState extends State<SatSetApp> {
   Key _appKey = UniqueKey();
-  String _currentRoute = '/';
+  String _currentRoute = kIsWeb ? '/admin/login' : '/';
   String? _userToken;
   User? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pada platform Web, selalu mulai dari portal login admin agar setelah hot restart
+    // administrator harus memasukkan kredensial login kembali
+    if (kIsWeb) {
+      _currentRoute = '/admin/login';
+    }
+  }
+
+  void _handleAdminLogout() {
+    if (mounted) {
+      setState(() {
+        _currentUser = null;
+        _userToken = null;
+        _currentRoute = kIsWeb ? '/admin/login' : '/login';
+        _appKey = UniqueKey();
+      });
+    }
+  }
 
   /// Me-reset rute aplikasi kembali ke Splash Screen (SplashPage)
   void resetToSplash() {
@@ -119,9 +152,7 @@ class SatSetAppState extends State<SatSetApp> {
             repository: widget.authRepository,
           ),
         ),
-        BlocProvider<ThemeCubit>(
-          create: (_) => ThemeCubit(),
-        ),
+        BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, themeMode) {
@@ -134,7 +165,10 @@ class SatSetAppState extends State<SatSetApp> {
                     setState(() {
                       _userToken = user.token;
                       _currentUser = user;
-                      if (user.idUsersRole == 2 || user.role == 'courier') {
+                      if (user.idUsersRole == 1 || user.role == 'admin') {
+                        _currentRoute = '/admin/dashboard';
+                      } else if (user.idUsersRole == 2 ||
+                          user.role == 'courier') {
                         _currentRoute = '/courier/tasks';
                       } else {
                         _currentRoute = '/dashboard';
@@ -142,6 +176,27 @@ class SatSetAppState extends State<SatSetApp> {
                     });
                   }
                 },
+              );
+              break;
+            case '/admin/login':
+              homeWidget = AdminLoginPage(
+                onLoginSuccess: (user) {
+                  if (mounted) {
+                    setState(() {
+                      _userToken = user.token;
+                      _currentUser = user;
+                      _currentRoute = '/admin/dashboard';
+                      _appKey = UniqueKey();
+                    });
+                  }
+                },
+              );
+              break;
+            case '/admin/dashboard':
+              homeWidget = AdminDashboardPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
               );
               break;
             case '/courier/tasks':
@@ -152,10 +207,7 @@ class SatSetAppState extends State<SatSetApp> {
               break;
             case '/dashboard':
             case '/home':
-              homeWidget = DashboardPage(
-                token: _userToken,
-                user: _currentUser,
-              );
+              homeWidget = DashboardPage(token: _userToken, user: _currentUser);
               break;
             case '/':
             default:
@@ -176,32 +228,48 @@ class SatSetAppState extends State<SatSetApp> {
             home: homeWidget,
             routes: {
               '/login': (context) => LoginPage(
-                    onLoginSuccess: (user) {
-                      if (mounted) {
-                        setState(() {
-                          _userToken = user.token;
-                          _currentUser = user;
-                          if (user.idUsersRole == 2 || user.role == 'courier') {
-                            _currentRoute = '/courier/tasks';
-                          } else {
-                            _currentRoute = '/dashboard';
-                          }
-                        });
+                onLoginSuccess: (user) {
+                  if (mounted) {
+                    setState(() {
+                      _userToken = user.token;
+                      _currentUser = user;
+                      if (user.idUsersRole == 1 || user.role == 'admin') {
+                        _currentRoute = '/admin/dashboard';
+                      } else if (user.idUsersRole == 2 ||
+                          user.role == 'courier') {
+                        _currentRoute = '/courier/tasks';
+                      } else {
+                        _currentRoute = '/dashboard';
                       }
-                    },
-                  ),
+                    });
+                  }
+                },
+              ),
+              '/admin/login': (context) => AdminLoginPage(
+                onLoginSuccess: (user) {
+                  if (mounted) {
+                    setState(() {
+                      _userToken = user.token;
+                      _currentUser = user;
+                      _currentRoute = '/admin/dashboard';
+                      _appKey = UniqueKey();
+                    });
+                  }
+                },
+              ),
+              '/admin/dashboard': (context) => AdminDashboardPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              ),
               '/courier/tasks': (context) => CourierMainNavigationPage(
-                    user: _currentUser,
-                    token: _userToken,
-                  ),
-              '/dashboard': (context) => DashboardPage(
-                    token: _userToken,
-                    user: _currentUser,
-                  ),
-              '/home': (context) => DashboardPage(
-                    token: _userToken,
-                    user: _currentUser,
-                  ),
+                user: _currentUser,
+                token: _userToken,
+              ),
+              '/dashboard': (context) =>
+                  DashboardPage(token: _userToken, user: _currentUser),
+              '/home': (context) =>
+                  DashboardPage(token: _userToken, user: _currentUser),
               '/notifications': (context) => const NotificationsPage(),
             },
           );

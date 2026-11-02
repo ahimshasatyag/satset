@@ -47,15 +47,16 @@ class User extends Equatable {
   });
 
   /// User kosong / guest
-  static const empty = User(
-    id: '',
-    name: '',
-    email: '',
-    phone: '',
-  );
+  static const empty = User(id: '', name: '', email: '', phone: '');
 
   bool get isEmpty => id.isEmpty;
   bool get isNotEmpty => id.isNotEmpty;
+
+  /// Helper untuk mengecek apakah user memiliki peran admin (id_users_role == 1)
+  bool get isAdmin =>
+      idUsersRole == 1 ||
+      role.toLowerCase() == 'admin' ||
+      role.toLowerCase() == 'administrator';
 
   /// Helper untuk mengecek apakah user memiliki peran kurir (id_users_role == 2)
   bool get isCourier =>
@@ -66,8 +67,8 @@ class User extends Equatable {
   /// Helper untuk mengecek apakah user memiliki peran customer (id_users_role == 3)
   bool get isCustomer =>
       idUsersRole == 3 ||
-      role.toLowerCase() == 'customer' ||
-      (!isCourier);
+      (role.toLowerCase() == 'customer' && !isAdmin && !isCourier) ||
+      (!isAdmin && !isCourier);
 
   User copyWith({
     String? id,
@@ -117,25 +118,25 @@ class User extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        email,
-        phone,
-        photoUrl,
-        token,
-        role,
-        idUsersRole,
-        alamatLengkap,
-        latitude,
-        longitude,
-        googleId,
-        emailVerified,
-        emailVerifiedAt,
-        idProvinsi,
-        idKabkot,
-        idKecamatan,
-        idKelurahan,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    name,
+    email,
+    phone,
+    photoUrl,
+    token,
+    role,
+    idUsersRole,
+    alamatLengkap,
+    latitude,
+    longitude,
+    googleId,
+    emailVerified,
+    emailVerifiedAt,
+    idProvinsi,
+    idKabkot,
+    idKecamatan,
+    idKelurahan,
+    createdAt,
+    updatedAt,
+  ];
 }

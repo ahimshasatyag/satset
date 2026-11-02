@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../..//theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 /// Jenis varian tampilan tombol [CustomButton]
 enum ButtonVariant {

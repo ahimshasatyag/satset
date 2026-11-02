@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../shared/theme/theme.dart';
+import 'package:satset/shared/theme/theme.dart';
 
 /// Widget skeleton loading placeholder untuk Halaman Edit Akun (EditAccountPage) SatSet.
 /// Menampilkan animasi shimmer halus menyerupai kartu foto profil avatar,
