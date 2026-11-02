@@ -6,9 +6,10 @@ import 'package:satset/shared/theme/theme.dart';
 class AdminTopHeader extends StatelessWidget {
   final User? currentUser;
   final VoidCallback onRefresh;
-  final bool isRefreshing;
+  final bool? isRefreshing;
   final VoidCallback? onOpenDrawer;
-  final bool showDrawerButton;
+  final bool? showDrawerButton;
+  final bool? isSidebarOpen;
   final VoidCallback? onLogout;
   final String sectionTitle;
   final String pageTitle;
@@ -19,7 +20,8 @@ class AdminTopHeader extends StatelessWidget {
     required this.onRefresh,
     this.isRefreshing = false,
     this.onOpenDrawer,
-    this.showDrawerButton = false,
+    this.showDrawerButton = true,
+    this.isSidebarOpen = true,
     this.onLogout,
     this.sectionTitle = 'Portal Utama',
     this.pageTitle = 'Dashboard Operasional',
@@ -28,6 +30,9 @@ class AdminTopHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final showHamburger = showDrawerButton ?? true;
+    final sidebarOpen = isSidebarOpen ?? true;
+    final refreshing = isRefreshing ?? false;
 
     final adminName = currentUser?.name.isNotEmpty == true
         ? currentUser!.name
@@ -50,12 +55,14 @@ class AdminTopHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Tombol hamburger jika di layar mobile/tablet kecil
-          if (showDrawerButton) ...[
+          // Tombol Hamburger (Tampil di PC maupun Mobile/Tablet untuk buka/tutup Sidebar)
+          if (showHamburger) ...[
             IconButton(
               onPressed: onOpenDrawer,
-              icon: const Icon(Icons.menu_rounded),
-              tooltip: 'Buka Menu',
+              icon: Icon(
+                sidebarOpen ? Icons.menu_open_rounded : Icons.menu_rounded,
+              ),
+              tooltip: sidebarOpen ? 'Sembunyikan Sidebar' : 'Tampilkan Sidebar',
             ),
             const SizedBox(width: 8),
           ],
@@ -131,8 +138,8 @@ class AdminTopHeader extends StatelessWidget {
 
           // Tombol Refresh Manual
           IconButton(
-            onPressed: isRefreshing ? null : onRefresh,
-            icon: isRefreshing
+            onPressed: refreshing ? null : onRefresh,
+            icon: refreshing
                 ? const SizedBox(
                     width: 18,
                     height: 18,
@@ -154,71 +161,163 @@ class AdminTopHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Profil Admin
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.backgroundDark
-                  : AppColors.backgroundLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
+          // Profil Admin dengan Dropdown List (termasuk Logout)
+          PopupMenuButton<String>(
+            tooltip: 'Menu Akun Administrator',
+            offset: const Offset(0, 56),
+            elevation: 6,
+            color: isDark ? AppColors.surfaceDark : AppColors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(
                 color: isDark ? AppColors.borderDark : AppColors.borderLight,
               ),
             ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.primary,
-                  child: Text(
-                    adminName.isNotEmpty ? adminName[0].toUpperCase() : 'A',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+            onSelected: (value) {
+              if (value == 'logout') {
+                onLogout?.call();
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                enabled: false,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       adminName,
-                      style: AppTextStyles.labelMedium.copyWith(
+                      style: AppTextStyles.labelLarge.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isDark
                             ? AppColors.textPrimaryDark
                             : AppColors.textPrimaryLight,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       adminEmail,
-                      style: AppTextStyles.labelSmall.copyWith(
+                      style: AppTextStyles.bodySmall.copyWith(
                         color: isDark
                             ? AppColors.textSecondaryDark
                             : AppColors.textSecondaryLight,
-                        fontSize: 10,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'ADMINISTRATOR',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
+              const PopupMenuDivider(height: 1),
+              PopupMenuItem<String>(
+                value: 'logout',
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: isDark ? 0.15 : 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        color: AppColors.error,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Keluar Sesi (Logout)',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.backgroundDark
+                    : AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.primary,
+                    child: Text(
+                      adminName.isNotEmpty ? adminName[0].toUpperCase() : 'A',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        adminName,
+                        style: AppTextStyles.labelMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      Text(
+                        adminEmail,
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ],
+              ),
             ),
           ),
-          if (onLogout != null) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: onLogout,
-              icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-              tooltip: 'Keluar Sesi Administrator',
-            ),
-          ],
         ],
       ),
     );
   }
 }
-

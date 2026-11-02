@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:satset/shared/theme/app_colors.dart';
 import 'package:satset/shared/theme/app_text_styles.dart';
@@ -48,6 +49,7 @@ class RecentShipmentsTable extends StatefulWidget {
 
 class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
   late final TextEditingController _searchController;
+  final ScrollController _horizontalScrollController = ScrollController();
 
   @override
   void initState() {
@@ -66,6 +68,7 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
   @override
   void dispose() {
     _searchController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -302,143 +305,173 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
               ),
             )
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(
-                  isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-                ),
-                horizontalMargin: 20,
-                columnSpacing: 24,
-                columns: const [
-                  DataColumn(label: Text('Nomor Resi', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Pengirim', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Penerima', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Layanan', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Kurir SatSet', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Status Terkini', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Total Biaya', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Tanggal', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Aksi', style: TextStyle(fontWeight: FontWeight.bold))),
-                ],
-                rows: items.map((item) {
-                  final statusColor = AdminStatusHelper.getStatusColor(item.statusKode, isDark: isDark);
-                  final statusBg = AdminStatusHelper.getStatusBgColor(item.statusKode, isDark: isDark);
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                      PointerDeviceKind.stylus,
+                    },
+                  ),
+                  child: Scrollbar(
+                    controller: _horizontalScrollController,
+                    thumbVisibility: true,
+                    trackVisibility: true,
+                    interactive: true,
+                    thickness: 8,
+                    radius: const Radius.circular(8),
+                    child: SingleChildScrollView(
+                      controller: _horizontalScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const ClampingScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth,
+                        ),
+                        child: DataTable(
+                          headingRowColor: WidgetStateProperty.all(
+                            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+                          ),
+                          horizontalMargin: 20,
+                          columnSpacing: 24,
+                          columns: const [
+                            DataColumn(label: Text('Nomor Resi', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Pengirim', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Penerima', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Layanan', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Kurir SatSet', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Status Terkini', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Total Biaya', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Tanggal', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Aksi', style: TextStyle(fontWeight: FontWeight.bold))),
+                          ],
+                          rows: items.map((item) {
+                            final statusColor = AdminStatusHelper.getStatusColor(item.statusKode, isDark: isDark);
+                            final statusBg = AdminStatusHelper.getStatusBgColor(item.statusKode, isDark: isDark);
 
-                  return DataRow(
-                    cells: [
-                      // Resi
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.qr_code_2_rounded, size: 16, color: AppColors.primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              item.nomorResi,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-                            ),
-                          ],
+                            return DataRow(
+                              cells: [
+                                // Resi
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.qr_code_2_rounded, size: 16, color: AppColors.primary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        item.nomorResi,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Pengirim
+                                DataCell(
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(item.pengirimNama, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                      Text(item.pengirimKota, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
+                                    ],
+                                  ),
+                                ),
+                                // Penerima
+                                DataCell(
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(item.penerimaNama, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                      Text(item.penerimaKota, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
+                                    ],
+                                  ),
+                                ),
+                                // Layanan
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      item.serviceNama,
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                    ),
+                                  ),
+                                ),
+                                // Kurir
+                                DataCell(
+                                  Text(
+                                    item.courierNama,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: item.courierNama == 'Belum Ditugaskan'
+                                          ? (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)
+                                          : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                      fontStyle: item.courierNama == 'Belum Ditugaskan' ? FontStyle.italic : FontStyle.normal,
+                                    ),
+                                  ),
+                                ),
+                                // Status
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: statusBg,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Text(
+                                      item.statusNama,
+                                      style: TextStyle(
+                                        color: statusColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Total Biaya
+                                DataCell(
+                                  Text(
+                                    AdminCurrencyFormatter.formatRupiah(item.totalBiaya),
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                // Tanggal
+                                DataCell(
+                                  Text(
+                                    AdminDateFormatter.formatDateTime(item.createdAt),
+                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                  ),
+                                ),
+                                // Aksi
+                                DataCell(
+                                  FilledButton.tonal(
+                                    onPressed: () => widget.onSelectShipment(item.id),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: const Text('Detail', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
                         ),
                       ),
-                      // Pengirim
-                      DataCell(
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(item.pengirimNama, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            Text(item.pengirimKota, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
-                          ],
-                        ),
-                      ),
-                      // Penerima
-                      DataCell(
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(item.penerimaNama, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            Text(item.penerimaKota, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
-                          ],
-                        ),
-                      ),
-                      // Layanan
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            item.serviceNama,
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
-                          ),
-                        ),
-                      ),
-                      // Kurir
-                      DataCell(
-                        Text(
-                          item.courierNama,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: item.courierNama == 'Belum Ditugaskan'
-                                ? (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)
-                                : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                            fontStyle: item.courierNama == 'Belum Ditugaskan' ? FontStyle.italic : FontStyle.normal,
-                          ),
-                        ),
-                      ),
-                      // Status
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                          ),
-                          child: Text(
-                            item.statusNama,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Total Biaya
-                      DataCell(
-                        Text(
-                          AdminCurrencyFormatter.formatRupiah(item.totalBiaya),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      // Tanggal
-                      DataCell(
-                        Text(
-                          AdminDateFormatter.formatDateTime(item.createdAt),
-                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                        ),
-                      ),
-                      // Aksi
-                      DataCell(
-                        FilledButton.tonal(
-                          onPressed: () => widget.onSelectShipment(item.id),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text('Detail', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
 
           // Divider

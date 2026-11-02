@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:satset/app/config/supabase_config.dart';
@@ -64,7 +65,11 @@ class AdminDashboardView extends StatefulWidget {
 class _AdminDashboardViewState extends State<AdminDashboardView> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _cookieWatcherTimer;
-  bool _isAutoLoggingOut = false;
+  bool? _isAutoLoggingOut;
+  bool? _isSidebarOpen;
+
+  bool get _sidebarOpen => _isSidebarOpen ?? true;
+  bool get _autoLoggingOut => _isAutoLoggingOut ?? false;
 
   @override
   void initState() {
@@ -90,7 +95,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   }
 
   Future<void> _handleAutoLogoutOnMissingCookie() async {
-    if (_isAutoLoggingOut || !mounted) return;
+    if (_autoLoggingOut || !mounted) return;
     _isAutoLoggingOut = true;
     _cookieWatcherTimer?.cancel();
 
@@ -333,42 +338,83 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               onRefresh: () {
                 context.read<AdminDashboardBloc>().add(const AdminDashboardRefreshed());
               },
-              showDrawerButton: !isDesktop,
+              showDrawerButton: true,
+              isSidebarOpen: isDesktop ? _sidebarOpen : false,
               onOpenDrawer: () {
-                _scaffoldKey.currentState?.openDrawer();
+                if (isDesktop) {
+                  setState(() {
+                    _isSidebarOpen = !_sidebarOpen;
+                  });
+                } else {
+                  _scaffoldKey.currentState?.openDrawer();
+                }
               },
               onLogout: () => _handleLogout(context),
             ),
 
             // Scrollable Body Konten Dashboard
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  context.read<AdminDashboardBloc>().add(const AdminDashboardRefreshed());
-                },
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Banner Ringkasan Dashboard
-                      _buildWelcomeBanner(context, isDark),
-                      const SizedBox(height: 24),
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                    PointerDeviceKind.stylus,
+                  },
+                ),
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<AdminDashboardBloc>().add(const AdminDashboardRefreshed());
+                  },
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Banner Ringkasan Dashboard
+                        _buildWelcomeBanner(context, isDark),
+                        const SizedBox(height: 24),
 
-                      // 1. Statistics Cards (Total pengiriman, pending, proses, berhasil, gagal, customer, employee, kurir aktif)
-                      StatisticsCards(stats: state.stats),
-                      const SizedBox(height: 24),
+                        // 1. Statistics Cards (Total pengiriman, pending, proses, berhasil, gagal, customer, employee, kurir aktif)
+                        StatisticsCards(stats: state.stats),
+                        const SizedBox(height: 24),
 
-                      // 2. Charts Section (Trend Chart + Status Distribution Chart)
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth > 960) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: ShipmentTrendChart(
+                        // 2. Charts Section (Trend Chart + Status Distribution Chart)
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            if (constraints.maxWidth > 960) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: ShipmentTrendChart(
+                                      dailyTrends: state.stats.dailyTrends,
+                                      weeklyTrends: state.stats.weeklyTrends,
+                                      monthlyTrends: state.stats.monthlyTrends,
+                                      activePeriod: state.activeTrendPeriod,
+                                      onPeriodChanged: (period) {
+                                        context.read<AdminDashboardBloc>().add(
+                                              AdminDashboardTrendPeriodChanged(period),
+                                            );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    flex: 2,
+                                    child: ShipmentStatusChart(
+                                      distributions: state.stats.statusDistributions,
+                                      totalShipments: state.stats.totalShipments,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            } else {
+                              return Column(
+                                children: [
+                                  ShipmentTrendChart(
                                     dailyTrends: state.stats.dailyTrends,
                                     weeklyTrends: state.stats.weeklyTrends,
                                     monthlyTrends: state.stats.monthlyTrends,
@@ -379,138 +425,114 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                           );
                                     },
                                   ),
-                                ),
-                                const SizedBox(width: 20),
-                                Expanded(
-                                  flex: 2,
-                                  child: ShipmentStatusChart(
+                                  const SizedBox(height: 20),
+                                  ShipmentStatusChart(
                                     distributions: state.stats.statusDistributions,
                                     totalShipments: state.stats.totalShipments,
                                   ),
-                                ),
-                              ],
-                            );
-                          } else {
-                            return Column(
-                              children: [
-                                ShipmentTrendChart(
-                                  dailyTrends: state.stats.dailyTrends,
-                                  weeklyTrends: state.stats.weeklyTrends,
-                                  monthlyTrends: state.stats.monthlyTrends,
-                                  activePeriod: state.activeTrendPeriod,
-                                  onPeriodChanged: (period) {
-                                    context.read<AdminDashboardBloc>().add(
-                                          AdminDashboardTrendPeriodChanged(period),
-                                        );
-                                  },
-                                ),
-                                const SizedBox(height: 20),
-                                ShipmentStatusChart(
-                                  distributions: state.stats.statusDistributions,
-                                  totalShipments: state.stats.totalShipments,
-                                ),
-                              ],
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 24),
+                                ],
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
 
-                      // 3. Summaries Section (Payment Summary + Courier Summary)
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth > 960) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: PaymentSummaryCard(
+                        // 3. Summaries Section (Payment Summary + Courier Summary)
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            if (constraints.maxWidth > 960) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: PaymentSummaryCard(
+                                      paymentSummary: state.stats.paymentSummary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    child: CourierSummaryCard(
+                                      couriers: state.couriers,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            } else {
+                              return Column(
+                                children: [
+                                  PaymentSummaryCard(
                                     paymentSummary: state.stats.paymentSummary,
                                   ),
-                                ),
-                                const SizedBox(width: 20),
-                                Expanded(
-                                  child: CourierSummaryCard(
+                                  const SizedBox(height: 20),
+                                  CourierSummaryCard(
                                     couriers: state.couriers,
                                   ),
-                                ),
-                              ],
-                            );
-                          } else {
-                            return Column(
-                              children: [
-                                PaymentSummaryCard(
-                                  paymentSummary: state.stats.paymentSummary,
-                                ),
-                                const SizedBox(height: 20),
-                                CourierSummaryCard(
-                                  couriers: state.couriers,
-                                ),
-                              ],
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 24),
+                                ],
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
 
-                      // 4. Recent Shipments Table (Filter status, layanan, tanggal, pagination, pencarian, detail popup)
-                      RecentShipmentsTable(
-                        shipmentsResult: state.shipmentsResult,
-                        isLoading: state.isTableLoading,
-                        searchQuery: state.searchQuery,
-                        selectedStatus: state.statusFilter,
-                        selectedService: state.serviceFilter,
-                        startDate: state.startDate,
-                        endDate: state.endDate,
-                        statusOptions: state.statusOptions,
-                        serviceOptions: state.serviceOptions,
-                        onSearchChanged: (query) {
-                          context.read<AdminDashboardBloc>().add(
-                                AdminDashboardSearchQueryChanged(query),
-                              );
-                        },
-                        onStatusChanged: (status) {
-                          context.read<AdminDashboardBloc>().add(
-                                AdminDashboardStatusFilterChanged(status),
-                              );
-                        },
-                        onServiceChanged: (service) {
-                          context.read<AdminDashboardBloc>().add(
-                                AdminDashboardServiceFilterChanged(service),
-                              );
-                        },
-                        onDateRangeChanged: (start, end) {
-                          context.read<AdminDashboardBloc>().add(
-                                AdminDashboardDateRangeFilterChanged(
-                                  startDate: start,
-                                  endDate: end,
-                                ),
-                              );
-                        },
-                        onPageChanged: (page) {
-                          context.read<AdminDashboardBloc>().add(
-                                AdminDashboardPageChanged(page),
-                              );
-                        },
-                        onSelectShipment: (id) {
-                          context.read<AdminDashboardBloc>().add(
-                                AdminDashboardShipmentDetailRequested(id),
-                              );
-                        },
-                      ),
-                      const SizedBox(height: 24),
+                        // 4. Recent Shipments Table (Filter status, layanan, tanggal, pagination, pencarian, detail popup)
+                        RecentShipmentsTable(
+                          shipmentsResult: state.shipmentsResult,
+                          isLoading: state.isTableLoading,
+                          searchQuery: state.searchQuery,
+                          selectedStatus: state.statusFilter,
+                          selectedService: state.serviceFilter,
+                          startDate: state.startDate,
+                          endDate: state.endDate,
+                          statusOptions: state.statusOptions,
+                          serviceOptions: state.serviceOptions,
+                          onSearchChanged: (query) {
+                            context.read<AdminDashboardBloc>().add(
+                                  AdminDashboardSearchQueryChanged(query),
+                                );
+                          },
+                          onStatusChanged: (status) {
+                            context.read<AdminDashboardBloc>().add(
+                                  AdminDashboardStatusFilterChanged(status),
+                                );
+                          },
+                          onServiceChanged: (service) {
+                            context.read<AdminDashboardBloc>().add(
+                                  AdminDashboardServiceFilterChanged(service),
+                                );
+                          },
+                          onDateRangeChanged: (start, end) {
+                            context.read<AdminDashboardBloc>().add(
+                                  AdminDashboardDateRangeFilterChanged(
+                                    startDate: start,
+                                    endDate: end,
+                                  ),
+                                );
+                          },
+                          onPageChanged: (page) {
+                            context.read<AdminDashboardBloc>().add(
+                                  AdminDashboardPageChanged(page),
+                                );
+                          },
+                          onSelectShipment: (id) {
+                            context.read<AdminDashboardBloc>().add(
+                                  AdminDashboardShipmentDetailRequested(id),
+                                );
+                          },
+                        ),
+                        const SizedBox(height: 24),
 
-                      // 5. Recent Activities Timeline (dari t_shipment_tracking)
-                      RecentActivitiesView(
-                        activities: state.activities,
-                        onSelectShipment: (id) {
-                          context.read<AdminDashboardBloc>().add(
-                                AdminDashboardShipmentDetailRequested(id),
-                              );
-                        },
-                      ),
-                      const SizedBox(height: 40),
-                    ],
+                        // 5. Recent Activities Timeline (dari t_shipment_tracking)
+                        RecentActivitiesView(
+                          activities: state.activities,
+                          onSelectShipment: (id) {
+                            context.read<AdminDashboardBloc>().add(
+                                  AdminDashboardShipmentDetailRequested(id),
+                                );
+                          },
+                        ),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -523,7 +545,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
             body: Row(
               children: [
-                sidebar,
+                if (_sidebarOpen) sidebar,
                 Expanded(child: mainContent),
               ],
             ),
