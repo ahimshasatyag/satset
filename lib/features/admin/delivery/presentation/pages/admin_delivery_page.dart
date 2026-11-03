@@ -9,6 +9,10 @@ import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.d
 import 'package:satset/features/admin/admin_courier/presentation/pages/admin_courier_page.dart';
 import 'package:satset/features/admin/admin_customer/presentation/pages/admin_customer_page.dart';
 import 'package:satset/features/admin/dashboard/presentation/pages/admin_dashboard_page.dart';
+import 'package:satset/features/admin/jenis_layanan/presentation/pages/admin_service_type_page.dart';
+import 'package:satset/features/admin/payment/presentation/pages/admin_payment_page.dart';
+import 'package:satset/features/admin/report/presentation/pages/admin_report_page.dart';
+import 'package:satset/features/admin/settings/presentation/pages/admin_settings_page.dart';
 import 'package:satset/features/admin/navbar/presentation/widgets/admin_sidebar.dart';
 import 'package:satset/features/admin/navbar/presentation/widgets/admin_top_header.dart';
 import 'package:satset/features/auth/domain/entities/user.dart';
@@ -219,6 +223,46 @@ class _AdminDeliveryViewState extends State<AdminDeliveryView> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => AdminCustomerPage(
+            user: widget.currentUser,
+            token: widget.token,
+            onLogout: widget.onLogout,
+          ),
+        ),
+      );
+    } else if (route == '/admin/payments') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminPaymentPage(
+            user: widget.currentUser,
+            token: widget.token,
+            onLogout: widget.onLogout,
+          ),
+        ),
+      );
+    } else if (route == '/admin/services') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminServiceTypePage(
+            user: widget.currentUser,
+            token: widget.token,
+            onLogout: widget.onLogout,
+          ),
+        ),
+      );
+    } else if (route == '/admin/reports') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminReportPage(
+            user: widget.currentUser,
+            token: widget.token,
+            onLogout: widget.onLogout,
+          ),
+        ),
+      );
+    } else if (route == '/admin/settings') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminSettingsPage(
             user: widget.currentUser,
             token: widget.token,
             onLogout: widget.onLogout,

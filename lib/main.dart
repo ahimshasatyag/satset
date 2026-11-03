@@ -21,6 +21,10 @@ import 'package:satset/features/admin/admin_courier/presentation/pages/admin_cou
 import 'package:satset/features/admin/admin_customer/presentation/pages/admin_customer_page.dart';
 import 'package:satset/features/admin/dashboard/presentation/pages/admin_dashboard_page.dart';
 import 'package:satset/features/admin/delivery/presentation/pages/admin_delivery_page.dart';
+import 'package:satset/features/admin/jenis_layanan/presentation/pages/admin_service_type_page.dart';
+import 'package:satset/features/admin/payment/presentation/pages/admin_payment_page.dart';
+import 'package:satset/features/admin/report/presentation/pages/admin_report_page.dart';
+import 'package:satset/features/admin/settings/presentation/pages/admin_settings_page.dart';
 import 'package:satset/features/main_navigation/presentation/pages/main_navigation_page.dart';
 import 'package:satset/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:satset/features/splash/presentation/pages/splash_page.dart';
@@ -223,6 +227,34 @@ class SatSetAppState extends State<SatSetApp> {
                 onLogout: _handleAdminLogout,
               );
               break;
+            case '/admin/payments':
+              homeWidget = AdminPaymentPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              );
+              break;
+            case '/admin/services':
+              homeWidget = AdminServiceTypePage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              );
+              break;
+            case '/admin/reports':
+              homeWidget = AdminReportPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              );
+              break;
+            case '/admin/settings':
+              homeWidget = AdminSettingsPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              );
+              break;
             case '/courier/tasks':
               homeWidget = CourierMainNavigationPage(
                 user: _currentUser,
@@ -297,6 +329,26 @@ class SatSetAppState extends State<SatSetApp> {
                 onLogout: _handleAdminLogout,
               ),
               '/admin/customers': (context) => AdminCustomerPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              ),
+              '/admin/payments': (context) => AdminPaymentPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              ),
+              '/admin/services': (context) => AdminServiceTypePage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              ),
+              '/admin/reports': (context) => AdminReportPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              ),
+              '/admin/settings': (context) => AdminSettingsPage(
                 user: _currentUser,
                 token: _userToken,
                 onLogout: _handleAdminLogout,

@@ -212,7 +212,6 @@ class _CourierDataTableState extends State<CourierDataTable> {
                   onFiltersChanged: widget.onFiltersChanged,
                   onSortChanged: widget.onSortChanged,
                   onResetFilters: widget.onResetFilters,
-                  onAddCourierPressed: widget.onAddCourierPressed,
                 ),
               ],
             ),

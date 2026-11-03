@@ -15,7 +15,6 @@ class CourierFilterBar extends StatefulWidget {
   }) onFiltersChanged;
   final ValueChanged<String> onSortChanged;
   final VoidCallback onResetFilters;
-  final VoidCallback? onAddCourierPressed;
 
   const CourierFilterBar({
     super.key,
@@ -28,7 +27,6 @@ class CourierFilterBar extends StatefulWidget {
     required this.onFiltersChanged,
     required this.onSortChanged,
     required this.onResetFilters,
-    this.onAddCourierPressed,
   });
 
   @override

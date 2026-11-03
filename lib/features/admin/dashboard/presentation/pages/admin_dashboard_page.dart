@@ -11,6 +11,10 @@ import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.d
 import 'package:satset/features/admin/admin_courier/presentation/pages/admin_courier_page.dart';
 import 'package:satset/features/admin/admin_customer/presentation/pages/admin_customer_page.dart';
 import 'package:satset/features/admin/delivery/presentation/pages/admin_delivery_page.dart';
+import 'package:satset/features/admin/jenis_layanan/presentation/pages/admin_service_type_page.dart';
+import 'package:satset/features/admin/payment/presentation/pages/admin_payment_page.dart';
+import 'package:satset/features/admin/report/presentation/pages/admin_report_page.dart';
+import 'package:satset/features/admin/settings/presentation/pages/admin_settings_page.dart';
 import 'package:satset/shared/theme/app_colors.dart';
 import 'package:satset/shared/theme/app_text_styles.dart';
 
@@ -236,8 +240,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           return _buildUnauthorizedScreen(context, isDark, state.errorMessage);
         }
 
-        // 2. Tampilan Loading awal dengan Skeleton
-        if (state.status == AdminDashboardStatus.loading) {
+        // 2. Tampilan Loading awal dengan Skeleton (saat loading maupun state awal initial)
+        if (state.status == AdminDashboardStatus.loading ||
+            state.status == AdminDashboardStatus.initial) {
           final loadingSidebar = AdminSidebar(
             activeRoute: '/admin/dashboard',
             onNavigate: (_) {},
@@ -380,6 +385,42 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => AdminCustomerPage(
+                    user: widget.currentUser,
+                    onLogout: widget.onLogout,
+                  ),
+                ),
+              );
+            } else if (route == '/admin/payments') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => AdminPaymentPage(
+                    user: widget.currentUser,
+                    onLogout: widget.onLogout,
+                  ),
+                ),
+              );
+            } else if (route == '/admin/services') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => AdminServiceTypePage(
+                    user: widget.currentUser,
+                    onLogout: widget.onLogout,
+                  ),
+                ),
+              );
+            } else if (route == '/admin/reports') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => AdminReportPage(
+                    user: widget.currentUser,
+                    onLogout: widget.onLogout,
+                  ),
+                ),
+              );
+            } else if (route == '/admin/settings') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => AdminSettingsPage(
                     user: widget.currentUser,
                     onLogout: widget.onLogout,
                   ),
