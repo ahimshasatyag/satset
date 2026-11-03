@@ -8,6 +8,8 @@ import 'package:satset/features/auth/domain/entities/user.dart';
 import 'package:satset/features/admin/auth/data/datasources/admin_auth_local_datasource.dart';
 import 'package:satset/features/admin/auth/data/utils/admin_cookie_manager.dart';
 import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.dart';
+import 'package:satset/features/admin/admin_courier/presentation/pages/admin_courier_page.dart';
+import 'package:satset/features/admin/admin_customer/presentation/pages/admin_customer_page.dart';
 import 'package:satset/features/admin/delivery/presentation/pages/admin_delivery_page.dart';
 import 'package:satset/shared/theme/app_colors.dart';
 import 'package:satset/shared/theme/app_text_styles.dart';
@@ -360,6 +362,24 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => AdminDeliveryPage(
+                    user: widget.currentUser,
+                    onLogout: widget.onLogout,
+                  ),
+                ),
+              );
+            } else if (route == '/admin/couriers') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => AdminCourierPage(
+                    user: widget.currentUser,
+                    onLogout: widget.onLogout,
+                  ),
+                ),
+              );
+            } else if (route == '/admin/customers') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => AdminCustomerPage(
                     user: widget.currentUser,
                     onLogout: widget.onLogout,
                   ),

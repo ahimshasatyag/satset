@@ -6,6 +6,8 @@ import 'package:satset/app/config/supabase_config.dart';
 import 'package:satset/features/admin/auth/data/datasources/admin_auth_local_datasource.dart';
 import 'package:satset/features/admin/auth/data/utils/admin_cookie_manager.dart';
 import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.dart';
+import 'package:satset/features/admin/admin_courier/presentation/pages/admin_courier_page.dart';
+import 'package:satset/features/admin/admin_customer/presentation/pages/admin_customer_page.dart';
 import 'package:satset/features/admin/dashboard/presentation/pages/admin_dashboard_page.dart';
 import 'package:satset/features/admin/navbar/presentation/widgets/admin_sidebar.dart';
 import 'package:satset/features/admin/navbar/presentation/widgets/admin_top_header.dart';
@@ -197,6 +199,26 @@ class _AdminDeliveryViewState extends State<AdminDeliveryView> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => AdminDashboardPage(
+            user: widget.currentUser,
+            token: widget.token,
+            onLogout: widget.onLogout,
+          ),
+        ),
+      );
+    } else if (route == '/admin/couriers') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminCourierPage(
+            user: widget.currentUser,
+            token: widget.token,
+            onLogout: widget.onLogout,
+          ),
+        ),
+      );
+    } else if (route == '/admin/customers') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminCustomerPage(
             user: widget.currentUser,
             token: widget.token,
             onLogout: widget.onLogout,
