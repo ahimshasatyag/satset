@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:satset/app/config/supabase_config.dart';
@@ -7,15 +8,19 @@ import 'package:satset/features/auth/domain/entities/user.dart';
 import 'package:satset/features/admin/auth/data/datasources/admin_auth_local_datasource.dart';
 import 'package:satset/features/admin/auth/data/utils/admin_cookie_manager.dart';
 import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.dart';
+import 'package:satset/features/admin/delivery/presentation/pages/admin_delivery_page.dart';
 import 'package:satset/shared/theme/app_colors.dart';
 import 'package:satset/shared/theme/app_text_styles.dart';
+
 import '../../data/datasources/admin_dashboard_remote_datasource.dart';
 import '../../data/repositories/admin_dashboard_repository_impl.dart';
 import '../bloc/admin_dashboard_bloc.dart';
 import '../bloc/admin_dashboard_event.dart';
 import '../bloc/admin_dashboard_state.dart';
+
 import 'package:satset/features/admin/navbar/presentation/widgets/admin_sidebar.dart';
 import 'package:satset/features/admin/navbar/presentation/widgets/admin_top_header.dart';
+
 import '../widgets/courier_summary_card.dart';
 import '../widgets/payment_summary_card.dart';
 import '../widgets/recent_activities_view.dart';
@@ -24,23 +29,23 @@ import '../widgets/shipment_detail_dialog.dart';
 import '../widgets/shipment_status_chart.dart';
 import '../widgets/shipment_trend_chart.dart';
 import '../widgets/statistics_cards.dart';
+import '../widgets/dashboard_skeleton.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   final User? user;
   final String? token;
   final VoidCallback? onLogout;
 
-  const AdminDashboardPage({
-    super.key,
-    this.user,
-    this.token,
-    this.onLogout,
-  });
+  const AdminDashboardPage({super.key, this.user, this.token, this.onLogout});
 
   @override
   Widget build(BuildContext context) {
-    final remoteDataSource = AdminDashboardRemoteDataSourceImpl(client: SupabaseConfig.client);
-    final repository = AdminDashboardRepositoryImpl(remoteDataSource: remoteDataSource);
+    final remoteDataSource = AdminDashboardRemoteDataSourceImpl(
+      client: SupabaseConfig.client,
+    );
+    final repository = AdminDashboardRepositoryImpl(
+      remoteDataSource: remoteDataSource,
+    );
 
     return BlocProvider(
       create: (context) => AdminDashboardBloc(
@@ -119,9 +124,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         ),
       );
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AdminLoginPage(),
-        ),
+        MaterialPageRoute(builder: (_) => const AdminLoginPage()),
         (route) => false,
       );
     }
@@ -151,7 +154,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.error,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Keluar'),
@@ -180,9 +185,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     // 5. Bersihkan stack navigasi dan arahkan ke halaman login admin
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AdminLoginPage(),
-        ),
+        MaterialPageRoute(builder: (_) => const AdminLoginPage()),
         (route) => false,
       );
     }
@@ -196,7 +199,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           detail: state.selectedShipmentDetail!,
           onClose: () {
             Navigator.of(context).pop();
-            context.read<AdminDashboardBloc>().add(const AdminDashboardShipmentDetailDismissed());
+            context.read<AdminDashboardBloc>().add(
+              const AdminDashboardShipmentDetailDismissed(),
+            );
           },
         ),
       );
@@ -229,57 +234,66 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           return _buildUnauthorizedScreen(context, isDark, state.errorMessage);
         }
 
-        // 2. Tampilan Loading awal
+        // 2. Tampilan Loading awal dengan Skeleton
         if (state.status == AdminDashboardStatus.loading) {
-          return Scaffold(
-            backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+          final loadingSidebar = AdminSidebar(
+            activeRoute: '/admin/dashboard',
+            onNavigate: (_) {},
+            onLogout: () => _handleLogout(context),
+          );
+          final loadingContent = Column(
+            children: [
+              AdminTopHeader(
+                currentUser: widget.currentUser,
+                isRefreshing: true,
+                onRefresh: () {},
+                showDrawerButton: true,
+                isSidebarOpen: isDesktop ? _sidebarOpen : false,
+                onOpenDrawer: () {
+                  if (isDesktop) {
+                    setState(() {
+                      _isSidebarOpen = !_sidebarOpen;
+                    });
+                  } else {
+                    _scaffoldKey.currentState?.openDrawer();
+                  }
+                },
+                onLogout: () => _handleLogout(context),
+              ),
+              const Expanded(child: AdminDashboardSkeleton()),
+            ],
+          );
+
+          if (isDesktop) {
+            return Scaffold(
+              backgroundColor: isDark
+                  ? AppColors.backgroundDark
+                  : AppColors.backgroundLight,
+              body: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
-                      'assets/images/LogoTextSatset.png',
-                      height: 48,
-                      errorBuilder: (_, _, _) => const Icon(Icons.local_shipping, color: AppColors.primary, size: 40),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Memuat Dashboard Admin SatSet...',
-                    style: AppTextStyles.titleSmall.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Sinkronisasi data operasional dari Supabase Database',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    ),
-                  ),
+                  if (_sidebarOpen) loadingSidebar,
+                  Expanded(child: loadingContent),
                 ],
               ),
-            ),
-          );
+            );
+          } else {
+            return Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: isDark
+                  ? AppColors.backgroundDark
+                  : AppColors.backgroundLight,
+              drawer: Drawer(child: loadingSidebar),
+              body: loadingContent,
+            );
+          }
         }
 
         // 3. Tampilan Gagal / Error
         if (state.status == AdminDashboardStatus.error) {
           return Scaffold(
-            backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+            backgroundColor: isDark
+                ? AppColors.backgroundDark
+                : AppColors.backgroundLight,
             body: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 480),
@@ -288,33 +302,48 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 decoration: BoxDecoration(
                   color: isDark ? AppColors.surfaceDark : AppColors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline_rounded, size: 56, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 56,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Gagal Memuat Dashboard',
-                      style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold),
+                      style: AppTextStyles.titleLarge.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      state.errorMessage ?? 'Terjadi kesalahan saat menghubungkan ke basis data.',
+                      state.errorMessage ??
+                          'Terjadi kesalahan saat menghubungkan ke basis data.',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.bodyMedium.copyWith(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                       ),
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
                       onPressed: () {
-                        context.read<AdminDashboardBloc>().add(const AdminDashboardStarted());
+                        context.read<AdminDashboardBloc>().add(
+                          const AdminDashboardStarted(),
+                        );
                       },
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Coba Lagi'),
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
                     ),
                   ],
                 ),
@@ -326,6 +355,18 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         // 4. Layout Utama: Sidebar + Konten Dashboard
         final sidebar = AdminSidebar(
           activeRoute: '/admin/dashboard',
+          onNavigate: (route) {
+            if (route == '/admin/shipments') {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => AdminDeliveryPage(
+                    user: widget.currentUser,
+                    onLogout: widget.onLogout,
+                  ),
+                ),
+              );
+            }
+          },
           onLogout: () => _handleLogout(context),
         );
 
@@ -336,7 +377,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               currentUser: widget.currentUser,
               isRefreshing: state.isRefreshing,
               onRefresh: () {
-                context.read<AdminDashboardBloc>().add(const AdminDashboardRefreshed());
+                context.read<AdminDashboardBloc>().add(
+                  const AdminDashboardRefreshed(),
+                );
               },
               showDrawerButton: true,
               isSidebarOpen: isDesktop ? _sidebarOpen : false,
@@ -365,7 +408,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 ),
                 child: RefreshIndicator(
                   onRefresh: () async {
-                    context.read<AdminDashboardBloc>().add(const AdminDashboardRefreshed());
+                    context.read<AdminDashboardBloc>().add(
+                      const AdminDashboardRefreshed(),
+                    );
                   },
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
@@ -396,8 +441,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                       activePeriod: state.activeTrendPeriod,
                                       onPeriodChanged: (period) {
                                         context.read<AdminDashboardBloc>().add(
-                                              AdminDashboardTrendPeriodChanged(period),
-                                            );
+                                          AdminDashboardTrendPeriodChanged(
+                                            period,
+                                          ),
+                                        );
                                       },
                                     ),
                                   ),
@@ -405,8 +452,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                   Expanded(
                                     flex: 2,
                                     child: ShipmentStatusChart(
-                                      distributions: state.stats.statusDistributions,
-                                      totalShipments: state.stats.totalShipments,
+                                      distributions:
+                                          state.stats.statusDistributions,
+                                      totalShipments:
+                                          state.stats.totalShipments,
                                     ),
                                   ),
                                 ],
@@ -421,13 +470,16 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                     activePeriod: state.activeTrendPeriod,
                                     onPeriodChanged: (period) {
                                       context.read<AdminDashboardBloc>().add(
-                                            AdminDashboardTrendPeriodChanged(period),
-                                          );
+                                        AdminDashboardTrendPeriodChanged(
+                                          period,
+                                        ),
+                                      );
                                     },
                                   ),
                                   const SizedBox(height: 20),
                                   ShipmentStatusChart(
-                                    distributions: state.stats.statusDistributions,
+                                    distributions:
+                                        state.stats.statusDistributions,
                                     totalShipments: state.stats.totalShipments,
                                   ),
                                 ],
@@ -446,7 +498,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                 children: [
                                   Expanded(
                                     child: PaymentSummaryCard(
-                                      paymentSummary: state.stats.paymentSummary,
+                                      paymentSummary:
+                                          state.stats.paymentSummary,
                                     ),
                                   ),
                                   const SizedBox(width: 20),
@@ -464,9 +517,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                     paymentSummary: state.stats.paymentSummary,
                                   ),
                                   const SizedBox(height: 20),
-                                  CourierSummaryCard(
-                                    couriers: state.couriers,
-                                  ),
+                                  CourierSummaryCard(couriers: state.couriers),
                                 ],
                               );
                             }
@@ -487,36 +538,36 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           serviceOptions: state.serviceOptions,
                           onSearchChanged: (query) {
                             context.read<AdminDashboardBloc>().add(
-                                  AdminDashboardSearchQueryChanged(query),
-                                );
+                              AdminDashboardSearchQueryChanged(query),
+                            );
                           },
                           onStatusChanged: (status) {
                             context.read<AdminDashboardBloc>().add(
-                                  AdminDashboardStatusFilterChanged(status),
-                                );
+                              AdminDashboardStatusFilterChanged(status),
+                            );
                           },
                           onServiceChanged: (service) {
                             context.read<AdminDashboardBloc>().add(
-                                  AdminDashboardServiceFilterChanged(service),
-                                );
+                              AdminDashboardServiceFilterChanged(service),
+                            );
                           },
                           onDateRangeChanged: (start, end) {
                             context.read<AdminDashboardBloc>().add(
-                                  AdminDashboardDateRangeFilterChanged(
-                                    startDate: start,
-                                    endDate: end,
-                                  ),
-                                );
+                              AdminDashboardDateRangeFilterChanged(
+                                startDate: start,
+                                endDate: end,
+                              ),
+                            );
                           },
                           onPageChanged: (page) {
                             context.read<AdminDashboardBloc>().add(
-                                  AdminDashboardPageChanged(page),
-                                );
+                              AdminDashboardPageChanged(page),
+                            );
                           },
                           onSelectShipment: (id) {
                             context.read<AdminDashboardBloc>().add(
-                                  AdminDashboardShipmentDetailRequested(id),
-                                );
+                              AdminDashboardShipmentDetailRequested(id),
+                            );
                           },
                         ),
                         const SizedBox(height: 24),
@@ -526,8 +577,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           activities: state.activities,
                           onSelectShipment: (id) {
                             context.read<AdminDashboardBloc>().add(
-                                  AdminDashboardShipmentDetailRequested(id),
-                                );
+                              AdminDashboardShipmentDetailRequested(id),
+                            );
                           },
                         ),
                         const SizedBox(height: 40),
@@ -542,7 +593,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
         if (isDesktop) {
           return Scaffold(
-            backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+            backgroundColor: isDark
+                ? AppColors.backgroundDark
+                : AppColors.backgroundLight,
             body: Row(
               children: [
                 if (_sidebarOpen) sidebar,
@@ -553,7 +606,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         } else {
           return Scaffold(
             key: _scaffoldKey,
-            backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+            backgroundColor: isDark
+                ? AppColors.backgroundDark
+                : AppColors.backgroundLight,
             drawer: Drawer(child: sidebar),
             body: mainContent,
           );
@@ -567,10 +622,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primary700,
-          ],
+          colors: [AppColors.primary, AppColors.primary700],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -624,9 +676,15 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-  Widget _buildUnauthorizedScreen(BuildContext context, bool isDark, String? message) {
+  Widget _buildUnauthorizedScreen(
+    BuildContext context,
+    bool isDark,
+    String? message,
+  ) {
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -646,21 +704,28 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   color: AppColors.error.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.gpp_bad_rounded, size: 54, color: AppColors.error),
+                child: const Icon(
+                  Icons.gpp_bad_rounded,
+                  size: 54,
+                  color: AppColors.error,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
                 'Akses Khusus Administrator',
-                style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.bold),
+                style: AppTextStyles.titleLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                message ??
-                    'Halaman ini diproteksi ketat dan hanya dapat diakses oleh akun Administrator (id_users_role = 1). Akun Pelanggan maupun Kurir tidak memiliki izin mengakses modul ini.',
+                message ?? 'Halaman ini diproteksi ketat dan hanya dapat diakses oleh akun Administrator (id_users_role = 1). Akun Pelanggan maupun Kurir tidak memiliki izin mengakses modul ini.',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodyMedium.copyWith(
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
                 ),
               ),
               const SizedBox(height: 24),
@@ -668,13 +733,17 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   OutlinedButton(
-                    onPressed: () => Navigator.of(context).pushReplacementNamed('/dashboard'),
+                    onPressed: () =>
+                        Navigator.of(context)
+                            .pushReplacementNamed('/dashboard'),
                     child: const Text('Ke Pelanggan'),
                   ),
                   const SizedBox(width: 12),
                   FilledButton(
                     onPressed: () => _handleLogout(context),
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                    ),
                     child: const Text('Keluar & Ganti Akun'),
                   ),
                 ],

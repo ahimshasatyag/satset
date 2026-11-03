@@ -18,6 +18,7 @@ import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_
 import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.dart';
 import 'package:satset/features/admin/auth/data/datasources/admin_auth_local_datasource.dart';
 import 'package:satset/features/admin/dashboard/presentation/pages/admin_dashboard_page.dart';
+import 'package:satset/features/admin/delivery/presentation/pages/admin_delivery_page.dart';
 import 'package:satset/features/main_navigation/presentation/pages/main_navigation_page.dart';
 import 'package:satset/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:satset/features/splash/presentation/pages/splash_page.dart';
@@ -199,6 +200,13 @@ class SatSetAppState extends State<SatSetApp> {
                 onLogout: _handleAdminLogout,
               );
               break;
+            case '/admin/shipments':
+              homeWidget = AdminDeliveryPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              );
+              break;
             case '/courier/tasks':
               homeWidget = CourierMainNavigationPage(
                 user: _currentUser,
@@ -258,6 +266,11 @@ class SatSetAppState extends State<SatSetApp> {
                 },
               ),
               '/admin/dashboard': (context) => AdminDashboardPage(
+                user: _currentUser,
+                token: _userToken,
+                onLogout: _handleAdminLogout,
+              ),
+              '/admin/shipments': (context) => AdminDeliveryPage(
                 user: _currentUser,
                 token: _userToken,
                 onLogout: _handleAdminLogout,

@@ -1,11 +1,16 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:satset/shared/theme/app_colors.dart';
 import 'package:satset/shared/theme/app_text_styles.dart';
+
 import '../../domain/entities/admin_shipment_table_item.dart';
+
 import 'package:satset/features/admin/utils/admin_currency_formatter.dart';
 import 'package:satset/features/admin/utils/admin_date_formatter.dart';
 import 'package:satset/features/admin/utils/admin_status_helper.dart';
+import 'package:satset/features/admin/delivery/presentation/widgets/admin_searchable_dropdown.dart';
+import 'dashboard_skeleton.dart';
 
 class RecentShipmentsTable extends StatefulWidget {
   final AdminShipmentsPaginatedResult shipmentsResult;
@@ -120,14 +125,18 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                           'Daftar Pengiriman Terbaru',
                           style: AppTextStyles.titleMedium.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Kelola dan pantau seluruh resi pengiriman SatSet Delivery',
                           style: AppTextStyles.bodySmall.copyWith(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
                         ),
                       ],
@@ -157,9 +166,14 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                         decoration: InputDecoration(
                           hintText: 'Cari no. resi / nama...',
                           hintStyle: AppTextStyles.bodySmall.copyWith(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                          ),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear, size: 18),
@@ -170,11 +184,16 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                                 )
                               : null,
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: BorderSide(
-                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              color: isDark
+                                  ? AppColors.borderDark
+                                  : AppColors.borderLight,
                             ),
                           ),
                         ),
@@ -182,69 +201,53 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                     ),
 
                     // Filter Status
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    AdminSearchableDropdown<String>(
+                      value: widget.selectedStatus,
+                      width: 215,
+                      searchHintText: 'Cari status...',
+                      options: [
+                        const AdminDropdownOption(
+                          value: 'ALL',
+                          label: 'Semua Status',
                         ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: widget.selectedStatus,
-                          hint: const Text('Status'),
-                          icon: const Icon(Icons.arrow_drop_down),
-                          items: [
-                            const DropdownMenuItem(
-                              value: 'ALL',
-                              child: Text('Semua Status'),
-                            ),
-                            ...widget.statusOptions.map((opt) {
-                              return DropdownMenuItem<String>(
-                                value: opt['id']?.toString() ?? '',
-                                child: Text(opt['nama_status']?.toString() ?? opt['kode']?.toString() ?? ''),
-                              );
-                            }),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) widget.onStatusChanged(val);
-                          },
-                        ),
-                      ),
+                        ...widget.statusOptions.map((opt) {
+                          return AdminDropdownOption<String>(
+                            value: opt['id']?.toString() ?? '',
+                            label:
+                                opt['nama_status']?.toString() ??
+                                opt['kode']?.toString() ??
+                                '',
+                          );
+                        }),
+                      ],
+                      onChanged: (val) {
+                        widget.onStatusChanged(val);
+                      },
                     ),
 
                     // Filter Layanan
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    AdminSearchableDropdown<String>(
+                      value: widget.selectedService,
+                      width: 195,
+                      searchHintText: 'Cari layanan...',
+                      options: [
+                        const AdminDropdownOption(
+                          value: 'ALL',
+                          label: 'Semua Layanan',
                         ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: widget.selectedService,
-                          hint: const Text('Layanan'),
-                          icon: const Icon(Icons.arrow_drop_down),
-                          items: [
-                            const DropdownMenuItem(
-                              value: 'ALL',
-                              child: Text('Semua Layanan'),
-                            ),
-                            ...widget.serviceOptions.map((opt) {
-                              return DropdownMenuItem<String>(
-                                value: opt['id']?.toString() ?? '',
-                                child: Text(opt['nama_layanan']?.toString() ?? opt['kode']?.toString() ?? ''),
-                              );
-                            }),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) widget.onServiceChanged(val);
-                          },
-                        ),
-                      ),
+                        ...widget.serviceOptions.map((opt) {
+                          return AdminDropdownOption<String>(
+                            value: opt['id']?.toString() ?? '',
+                            label:
+                                opt['nama_layanan']?.toString() ??
+                                opt['kode']?.toString() ??
+                                '',
+                          );
+                        }),
+                      ],
+                      onChanged: (val) {
+                        widget.onServiceChanged(val);
+                      },
                     ),
 
                     // Filter Tanggal
@@ -258,8 +261,13 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                         style: AppTextStyles.labelSmall,
                       ),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                       ),
                     ),
 
@@ -282,7 +290,9 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
           ),
 
           // Data Table
-          if (items.isEmpty && !widget.isLoading)
+          if (widget.isLoading)
+            const DashboardTableRowsSkeleton(rowCount: 5)
+          else if (items.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 48),
               child: Center(
@@ -291,13 +301,17 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                     Icon(
                       Icons.inbox_rounded,
                       size: 48,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'Tidak ada data pengiriman yang sesuai filter.',
                       style: AppTextStyles.bodyMedium.copyWith(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                       ),
                     ),
                   ],
@@ -334,24 +348,78 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                         ),
                         child: DataTable(
                           headingRowColor: WidgetStateProperty.all(
-                            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+                            isDark
+                                ? AppColors.backgroundDark
+                                : AppColors.backgroundLight,
                           ),
                           horizontalMargin: 20,
                           columnSpacing: 24,
                           columns: const [
-                            DataColumn(label: Text('Nomor Resi', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Pengirim', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Penerima', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Layanan', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Kurir SatSet', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Status Terkini', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Total Biaya', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Tanggal', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Aksi', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(
+                              label: Text(
+                                'Nomor Resi',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Pengirim',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Penerima',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Layanan',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Kurir SatSet',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Status Terkini',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Total Biaya',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Tanggal',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Aksi',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
                           ],
                           rows: items.map((item) {
-                            final statusColor = AdminStatusHelper.getStatusColor(item.statusKode, isDark: isDark);
-                            final statusBg = AdminStatusHelper.getStatusBgColor(item.statusKode, isDark: isDark);
+                            final statusColor =
+                                AdminStatusHelper.getStatusColor(
+                                  item.statusKode,
+                                  isDark: isDark,
+                                );
+                            final statusBg = AdminStatusHelper.getStatusBgColor(
+                              item.statusKode,
+                              isDark: isDark,
+                            );
 
                             return DataRow(
                               cells: [
@@ -360,11 +428,18 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.qr_code_2_rounded, size: 16, color: AppColors.primary),
+                                      const Icon(
+                                        Icons.qr_code_2_rounded,
+                                        size: 16,
+                                        color: AppColors.primary,
+                                      ),
                                       const SizedBox(width: 6),
                                       Text(
                                         item.nomorResi,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -372,36 +447,73 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                                 // Pengirim
                                 DataCell(
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(item.pengirimNama, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                      Text(item.pengirimKota, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
+                                      Text(
+                                        item.pengirimNama,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        item.pengirimKota,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? AppColors.textSecondaryDark
+                                              : AppColors.textSecondaryLight,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                                 // Penerima
                                 DataCell(
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(item.penerimaNama, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                      Text(item.penerimaKota, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)),
+                                      Text(
+                                        item.penerimaNama,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        item.penerimaKota,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? AppColors.textSecondaryDark
+                                              : AppColors.textSecondaryLight,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                                 // Layanan
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                                      color: AppColors.primary.withValues(
+                                        alpha: isDark ? 0.2 : 0.08,
+                                      ),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
                                       item.serviceNama,
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -411,21 +523,36 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                                     item.courierNama,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: item.courierNama == 'Belum Ditugaskan'
-                                          ? (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight)
-                                          : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                      fontStyle: item.courierNama == 'Belum Ditugaskan' ? FontStyle.italic : FontStyle.normal,
+                                      color:
+                                          item.courierNama == 'Belum Ditugaskan'
+                                          ? (isDark
+                                                ? AppColors.textSecondaryDark
+                                                : AppColors.textSecondaryLight)
+                                          : (isDark
+                                                ? AppColors.textPrimaryDark
+                                                : AppColors.textPrimaryLight),
+                                      fontStyle:
+                                          item.courierNama == 'Belum Ditugaskan'
+                                          ? FontStyle.italic
+                                          : FontStyle.normal,
                                     ),
                                   ),
                                 ),
                                 // Status
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: statusBg,
                                       borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                      border: Border.all(
+                                        color: statusColor.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                      ),
                                     ),
                                     child: Text(
                                       item.statusNama,
@@ -440,27 +567,49 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                                 // Total Biaya
                                 DataCell(
                                   Text(
-                                    AdminCurrencyFormatter.formatRupiah(item.totalBiaya),
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    AdminCurrencyFormatter.formatRupiah(
+                                      item.totalBiaya,
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                                 // Tanggal
                                 DataCell(
                                   Text(
-                                    AdminDateFormatter.formatDateTime(item.createdAt),
-                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                    AdminDateFormatter.formatDateTime(
+                                      item.createdAt,
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? AppColors.textSecondaryDark
+                                          : AppColors.textSecondaryLight,
+                                    ),
                                   ),
                                 ),
                                 // Aksi
                                 DataCell(
                                   FilledButton.tonal(
-                                    onPressed: () => widget.onSelectShipment(item.id),
+                                    onPressed: () =>
+                                        widget.onSelectShipment(item.id),
                                     style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
                                       minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
-                                    child: const Text('Detail', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    child: const Text(
+                                      'Detail',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -489,7 +638,9 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                 Text(
                   'Halaman ${widget.shipmentsResult.currentPage} dari ${widget.shipmentsResult.totalPages} (Total ${widget.shipmentsResult.totalCount} pengiriman)',
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
                   ),
                 ),
                 Row(
@@ -497,27 +648,40 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded),
                       onPressed: widget.shipmentsResult.currentPage > 1
-                          ? () => widget.onPageChanged(widget.shipmentsResult.currentPage - 1)
+                          ? () => widget.onPageChanged(
+                              widget.shipmentsResult.currentPage - 1,
+                            )
                           : null,
                       tooltip: 'Halaman Sebelumnya',
                     ),
                     const SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '${widget.shipmentsResult.currentPage}',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.chevron_right_rounded),
-                      onPressed: widget.shipmentsResult.currentPage < widget.shipmentsResult.totalPages
-                          ? () => widget.onPageChanged(widget.shipmentsResult.currentPage + 1)
+                      onPressed:
+                          widget.shipmentsResult.currentPage <
+                              widget.shipmentsResult.totalPages
+                          ? () => widget.onPageChanged(
+                              widget.shipmentsResult.currentPage + 1,
+                            )
                           : null,
                       tooltip: 'Halaman Selanjutnya',
                     ),
@@ -531,4 +695,3 @@ class _RecentShipmentsTableState extends State<RecentShipmentsTable> {
     );
   }
 }
-
