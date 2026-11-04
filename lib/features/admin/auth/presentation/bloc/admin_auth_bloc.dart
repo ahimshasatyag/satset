@@ -2,23 +2,28 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/repositories/admin_auth_repository.dart';
 import '../../domain/usecases/admin_login_usecase.dart';
 import '../../domain/usecases/admin_logout_usecase.dart';
+import '../../domain/usecases/admin_register_usecase.dart';
 import '../../domain/usecases/get_current_admin_usecase.dart';
 import 'admin_auth_event.dart';
 import 'admin_auth_state.dart';
 
 class AdminAuthBloc extends Bloc<AdminAuthEvent, AdminAuthState> {
   final AdminLoginUseCase loginUseCase;
+  final AdminRegisterUseCase registerUseCase;
   final GetCurrentAdminUseCase getCurrentAdminUseCase;
   final AdminLogoutUseCase logoutUseCase;
   final AdminAuthRepository repository;
 
   AdminAuthBloc({
     required this.loginUseCase,
+    AdminRegisterUseCase? registerUseCase,
     required this.getCurrentAdminUseCase,
     required this.logoutUseCase,
     required this.repository,
-  }) : super(const AdminAuthInitial()) {
+  })  : registerUseCase = registerUseCase ?? AdminRegisterUseCase(repository),
+        super(const AdminAuthInitial()) {
     on<AdminAuthLoginSubmitted>(_onLoginSubmitted);
+    on<AdminAuthRegisterSubmitted>(_onRegisterSubmitted);
     on<AdminAuthCheckRequested>(_onCheckRequested);
     on<AdminAuthLogoutRequested>(_onLogoutRequested);
     on<AdminAuthResetState>(_onResetState);
@@ -44,6 +49,37 @@ class AdminAuthBloc extends Bloc<AdminAuthEvent, AdminAuthState> {
       emit(AdminAuthSuccess(
         adminUser: adminUser,
         message: 'Otorisasi Berhasil. Membuka Portal Administrator...',
+      ));
+    } catch (e) {
+      final cleanMsg = e.toString().replaceAll('Exception: ', '').trim();
+      emit(AdminAuthFailure(errorMessage: cleanMsg));
+    }
+  }
+
+  Future<void> _onRegisterSubmitted(
+    AdminAuthRegisterSubmitted event,
+    Emitter<AdminAuthState> emit,
+  ) async {
+    emit(const AdminAuthLoading(
+      message: 'Mendaftarkan akun administrator baru ke sistem SatSet...',
+    ));
+
+    try {
+      final adminUser = await registerUseCase.execute(
+        namaLengkap: event.namaLengkap,
+        email: event.email,
+        password: event.password,
+        noHp: event.noHp,
+        employeeCode: event.employeeCode,
+        alamatLengkap: event.alamatLengkap,
+        fotoUrl: event.fotoUrl,
+      );
+
+      emit(AdminAuthSuccess(
+        adminUser: adminUser,
+        password: event.password,
+        message:
+            'Pendaftaran Administrator Berhasil! Membuka Portal Administrator...',
       ));
     } catch (e) {
       final cleanMsg = e.toString().replaceAll('Exception: ', '').trim();

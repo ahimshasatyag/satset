@@ -43,6 +43,21 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    // Menangani dan mencegah WebGL context loss / memory out of bounds dari CanvasKit saat tab switching
+    window.addEventListener('unhandledrejection', function (event) {
+      const reasonStr = String(event.reason || '');
+      if (
+        reasonStr.includes('memory access out of bounds') ||
+        reasonStr.includes('contextlost') ||
+        reasonStr.includes('MakeWebGLContext') ||
+        reasonStr.includes('canvaskit')
+      ) {
+        console.warn('CanvasKit WebGL context loss dicegah agar tidak membekukan aplikasi:', event.reason);
+        event.preventDefault();
+      }
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 

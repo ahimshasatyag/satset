@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:satset/shared/theme/theme.dart';
@@ -26,7 +27,7 @@ enum StatusAnimationType {
 /// Alias agar kompatibel ke belakang
 typedef BottomSheetDialogType = StatusAnimationType;
 
-/// Widget mandiri untuk merender animasi Lottie dengan ukuran fleksibel & fallback ikon
+/// Widget mandiri untuk merender animasi status yang stabil & aman dari WebGL context loss
 class StatusAnimationWidget extends StatelessWidget {
   final StatusAnimationType type;
   final double size;
@@ -50,18 +51,18 @@ class StatusAnimationWidget extends StatelessWidget {
     }
   }
 
-  IconData get _fallbackIcon {
+  IconData get _icon {
     switch (type) {
       case StatusAnimationType.success:
-        return Icons.check_circle_outline;
+        return Icons.check_circle_rounded;
       case StatusAnimationType.error:
-        return Icons.error_outline;
+        return Icons.cancel_rounded;
       case StatusAnimationType.warning:
-        return Icons.warning_amber_rounded;
+        return Icons.warning_rounded;
     }
   }
 
-  Color get _fallbackColor {
+  Color get _color {
     switch (type) {
       case StatusAnimationType.success:
         return AppColors.success;
@@ -74,6 +75,41 @@ class StatusAnimationWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Pada platform Web (CanvasKit), parser Lottie JSON sering menyebabkan
+    // memory access out of bounds dan WebGL context loss saat tab switching.
+    // Gunakan animasi native Flutter yang halus, ringan, dan 100% stabil.
+    if (kIsWeb) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.elasticOut,
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value.clamp(0.0, 1.2),
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  color: _color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    _icon,
+                    size: size * 0.58,
+                    color: _color,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
     return SizedBox(
       width: size,
       height: size,
@@ -88,13 +124,13 @@ class StatusAnimationWidget extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _fallbackColor.withValues(alpha: 0.12),
+                color: _color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                _fallbackIcon,
+                _icon,
                 size: size * 0.55,
-                color: _fallbackColor,
+                color: _color,
               ),
             ),
           );

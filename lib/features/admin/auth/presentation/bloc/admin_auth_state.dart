@@ -24,14 +24,16 @@ class AdminAuthLoading extends AdminAuthState {
 class AdminAuthSuccess extends AdminAuthState {
   final AdminUser adminUser;
   final String message;
+  final String? password;
 
   const AdminAuthSuccess({
     required this.adminUser,
     this.message = 'Selamat datang kembali di Admin Portal SatSet!',
+    this.password,
   });
 
   @override
-  List<Object?> get props => [adminUser, message];
+  List<Object?> get props => [adminUser, message, password];
 }
 
 class AdminAuthFailure extends AdminAuthState {

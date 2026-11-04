@@ -26,6 +26,55 @@ class AdminAuthRepositoryImpl implements AdminAuthRepository {
   }
 
   @override
+  Future<AdminUser> registerAdmin({
+    required String namaLengkap,
+    required String email,
+    required String password,
+    String? noHp,
+    String? employeeCode,
+    String? alamatLengkap,
+    String? fotoUrl,
+  }) async {
+    final adminModel = await remoteDataSource.registerAdmin(
+      namaLengkap: namaLengkap,
+      email: email,
+      password: password,
+      noHp: noHp,
+      employeeCode: employeeCode,
+      alamatLengkap: alamatLengkap,
+      fotoUrl: fotoUrl,
+    );
+    await localDataSource.saveAdmin(adminModel);
+    return adminModel;
+  }
+
+  @override
+  Future<String> getNextEmployeeCode() {
+    return remoteDataSource.getNextEmployeeCode();
+  }
+
+  @override
+  Future<bool> checkAndVerifyAdminEmail(
+    String email, {
+    bool forceVerifyIfPending = false,
+  }) {
+    return remoteDataSource.checkAndVerifyAdminEmail(
+      email,
+      forceVerifyIfPending: forceVerifyIfPending,
+    );
+  }
+
+  @override
+  Future<void> resendVerificationEmail(String email) {
+    return remoteDataSource.resendVerificationEmail(email);
+  }
+
+  @override
+  Future<void> markAdminEmailAsVerified(String email) {
+    return remoteDataSource.markAdminEmailAsVerified(email);
+  }
+
+  @override
   Future<AdminUser?> getCurrentAdmin() async {
     return await localDataSource.getAdmin();
   }

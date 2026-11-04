@@ -16,6 +16,7 @@ import 'package:satset/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:satset/features/auth/presentation/pages/login_page.dart';
 import 'package:satset/features/customer/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.dart';
+import 'package:satset/features/admin/auth/presentation/pages/admin_register_page.dart';
 import 'package:satset/features/admin/auth/data/datasources/admin_auth_local_datasource.dart';
 import 'package:satset/features/admin/admin_courier/presentation/pages/admin_courier_page.dart';
 import 'package:satset/features/admin/admin_customer/presentation/pages/admin_customer_page.dart';
@@ -194,6 +195,27 @@ class SatSetAppState extends State<SatSetApp> {
                       _currentUser = user;
                       _currentRoute = '/admin/dashboard';
                       _appKey = UniqueKey();
+                    });
+                  }
+                },
+              );
+              break;
+            case '/admin/register':
+              homeWidget = AdminRegisterPage(
+                onRegisterSuccess: (user) {
+                  if (mounted) {
+                    setState(() {
+                      _userToken = user.token;
+                      _currentUser = user;
+                      _currentRoute = '/admin/dashboard';
+                      _appKey = UniqueKey();
+                    });
+                  }
+                },
+                onNavigateToLogin: () {
+                  if (mounted) {
+                    setState(() {
+                      _currentRoute = '/admin/login';
                     });
                   }
                 },

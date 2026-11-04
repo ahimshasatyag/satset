@@ -22,6 +22,37 @@ class AdminAuthLoginSubmitted extends AdminAuthEvent {
   List<Object?> get props => [email, password, rememberMe];
 }
 
+class AdminAuthRegisterSubmitted extends AdminAuthEvent {
+  final String namaLengkap;
+  final String email;
+  final String password;
+  final String? noHp;
+  final String? employeeCode;
+  final String? alamatLengkap;
+  final String? fotoUrl;
+
+  const AdminAuthRegisterSubmitted({
+    required this.namaLengkap,
+    required this.email,
+    required this.password,
+    this.noHp,
+    this.employeeCode,
+    this.alamatLengkap,
+    this.fotoUrl,
+  });
+
+  @override
+  List<Object?> get props => [
+        namaLengkap,
+        email,
+        password,
+        noHp,
+        employeeCode,
+        alamatLengkap,
+        fotoUrl,
+      ];
+}
+
 class AdminAuthCheckRequested extends AdminAuthEvent {
   const AdminAuthCheckRequested();
 }

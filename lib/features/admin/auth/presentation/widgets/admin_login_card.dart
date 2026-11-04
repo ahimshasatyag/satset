@@ -9,11 +9,13 @@ import '../bloc/admin_auth_state.dart';
 class AdminLoginCard extends StatefulWidget {
   final String? initialEmail;
   final bool initialRememberMe;
+  final VoidCallback? onRegisterPressed;
 
   const AdminLoginCard({
     super.key,
     this.initialEmail,
     this.initialRememberMe = false,
+    this.onRegisterPressed,
   });
 
   @override
@@ -266,7 +268,7 @@ class _AdminLoginCardState extends State<AdminLoginCard> {
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    elevation: 2,
+                    elevation: 0,
                   ),
                   child: isLoading
                       ? Row(
@@ -302,6 +304,41 @@ class _AdminLoginCardState extends State<AdminLoginCard> {
                           ],
                         ),
                 ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Navigasi ke Pendaftaran Administrator Baru
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Belum memiliki akun Administrator? ',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: widget.onRegisterPressed,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      child: Text(
+                        'Daftar Sekarang',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

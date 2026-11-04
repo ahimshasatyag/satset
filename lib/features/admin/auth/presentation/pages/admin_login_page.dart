@@ -18,6 +18,7 @@ import '../bloc/admin_auth_event.dart';
 import '../bloc/admin_auth_state.dart';
 import '../widgets/admin_login_card.dart';
 import '../widgets/admin_login_header.dart';
+import 'admin_register_page.dart';
 
 class AdminLoginPage extends StatelessWidget {
   final void Function(User user)? onLoginSuccess;
@@ -123,6 +124,16 @@ class _AdminLoginViewState extends State<AdminLoginView> {
         (route) => false,
       );
     } catch (_) {}
+  }
+
+  void _navigateToRegister(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminRegisterPage(
+          onRegisterSuccess: widget.onLoginSuccess,
+        ),
+      ),
+    );
   }
 
   @override
@@ -338,6 +349,7 @@ class _AdminLoginViewState extends State<AdminLoginView> {
                   AdminLoginCard(
                     initialEmail: savedEmail,
                     initialRememberMe: rememberMe,
+                    onRegisterPressed: () => _navigateToRegister(context),
                   ),
                 ],
               ),
@@ -421,6 +433,7 @@ class _AdminLoginViewState extends State<AdminLoginView> {
           AdminLoginCard(
             initialEmail: savedEmail,
             initialRememberMe: rememberMe,
+            onRegisterPressed: () => _navigateToRegister(context),
           ),
         ],
       ),
