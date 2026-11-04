@@ -1,0 +1,25 @@
+workflows:
+  ios-release:
+    name: iOS Build (Satset)
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      - name: Build iOS App (Unsigned IPA for Testing)
+        script: |
+          # Build aplikasi iOS tanpa signing (siap di-sideload ke iPhone)
+          flutter build ios --release --no-codesign
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r Satset.ipa Payload
+    artifacts:
+      - build/ios/iphoneos/Satset.ipa
+      - build/ios/ipa/*.ipa
+
