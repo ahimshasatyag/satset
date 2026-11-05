@@ -66,15 +66,17 @@ class SettingsTabNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -91,7 +93,7 @@ class SettingsTabNavigation extends StatelessWidget {
                       tab: tab,
                       isSelected: isSelected,
                       colorScheme: colorScheme,
-                      theme: theme,
+                      isDark: isDark,
                       onTap: () => onTabSelected(tab.index),
                     ),
                   ),
@@ -113,7 +115,7 @@ class SettingsTabNavigation extends StatelessWidget {
                       tab: tab,
                       isSelected: isSelected,
                       colorScheme: colorScheme,
-                      theme: theme,
+                      isDark: isDark,
                       onTap: () => onTabSelected(tab.index),
                     ),
                   ),
@@ -131,14 +133,14 @@ class _TabButton extends StatelessWidget {
   final SettingsTabItem tab;
   final bool isSelected;
   final ColorScheme colorScheme;
-  final ThemeData theme;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _TabButton({
     required this.tab,
     required this.isSelected,
     required this.colorScheme,
-    required this.theme,
+    required this.isDark,
     required this.onTap,
   });
 
@@ -152,11 +154,13 @@ class _TabButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.08)
-              : theme.scaffoldBackgroundColor,
+              ? colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.08)
+              : (isDark ? AppColors.backgroundDark : AppColors.backgroundLight),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? colorScheme.primary : theme.dividerColor,
+            color: isSelected
+                ? colorScheme.primary
+                : (isDark ? AppColors.borderDark : AppColors.borderLight),
             width: isSelected ? 1.6 : 1.0,
           ),
         ),
@@ -165,7 +169,11 @@ class _TabButton extends StatelessWidget {
             Icon(
               tab.icon,
               size: 20,
-              color: isSelected ? colorScheme.primary : theme.iconTheme.color,
+              color: isSelected
+                  ? colorScheme.primary
+                  : (isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -178,6 +186,11 @@ class _TabButton extends StatelessWidget {
                     style: AppTextStyles.labelMedium.copyWith(
                       fontWeight:
                           isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : (isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -185,7 +198,12 @@ class _TabButton extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     tab.subtitle,
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 10.5),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 10.5,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

@@ -18,8 +18,8 @@ class ReportTypeTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     final tabs = [
       (
@@ -51,9 +51,11 @@ class ReportTypeTabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -71,12 +73,19 @@ class ReportTypeTabs extends StatelessWidget {
                     'Jenis Laporan & Ekspor Dokumen',
                     style: AppTextStyles.titleMedium.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Pilih kategori laporan operasional untuk memperbarui metrik, grafik, dan tabel secara dinamis.',
-                    style: AppTextStyles.bodySmall,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
                 ],
               ),
@@ -139,13 +148,18 @@ class ReportTypeTabs extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? colorScheme.primary.withValues(alpha: 0.08)
-                              : theme.scaffoldBackgroundColor,
+                              ? colorScheme.primary
+                                  .withValues(alpha: isDark ? 0.2 : 0.08)
+                              : (isDark
+                                  ? AppColors.backgroundDark
+                                  : AppColors.backgroundLight),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
                                 ? colorScheme.primary
-                                : theme.dividerColor,
+                                : (isDark
+                                    ? AppColors.borderDark
+                                    : AppColors.borderLight),
                             width: isSelected ? 1.6 : 1.0,
                           ),
                         ),
@@ -156,7 +170,9 @@ class ReportTypeTabs extends StatelessWidget {
                               size: 22,
                               color: isSelected
                                   ? colorScheme.primary
-                                  : theme.iconTheme.color,
+                                  : (isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -169,6 +185,11 @@ class ReportTypeTabs extends StatelessWidget {
                                       fontWeight: isSelected
                                           ? FontWeight.w800
                                           : FontWeight.w600,
+                                      color: isSelected
+                                          ? colorScheme.primary
+                                          : (isDark
+                                              ? AppColors.textPrimaryDark
+                                              : AppColors.textPrimaryLight),
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -178,6 +199,9 @@ class ReportTypeTabs extends StatelessWidget {
                                     tab.subtitle,
                                     style: AppTextStyles.bodySmall.copyWith(
                                       fontSize: 11,
+                                      color: isDark
+                                          ? AppColors.textSecondaryDark
+                                          : AppColors.textSecondaryLight,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

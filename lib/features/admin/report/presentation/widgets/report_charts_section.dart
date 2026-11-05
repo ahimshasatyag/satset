@@ -58,6 +58,7 @@ class ReportChartsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -107,9 +108,11 @@ class ReportChartsSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: theme.cardColor,
+            color: isDark ? AppColors.surfaceDark : AppColors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: theme.dividerColor),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -122,6 +125,9 @@ class ReportChartsSection extends StatelessWidget {
                       _trendChartTitle(),
                       style: AppTextStyles.titleSmall.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                   ),
@@ -151,7 +157,11 @@ class ReportChartsSection extends StatelessWidget {
                   child: Center(
                     child: Text(
                       'Belum ada data grafik untuk filter yang dipilih.',
-                      style: AppTextStyles.bodySmall,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                     ),
                   ),
                 )
@@ -181,13 +191,16 @@ class _DistributionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -196,6 +209,9 @@ class _DistributionCard extends StatelessWidget {
             title,
             style: AppTextStyles.titleSmall.copyWith(
               fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
           const SizedBox(height: 14),
@@ -205,7 +221,11 @@ class _DistributionCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   'Tidak ada data distribusi pada filter saat ini.',
-                  style: AppTextStyles.bodySmall,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
                 ),
               ),
             )
@@ -225,6 +245,9 @@ class _DistributionCard extends StatelessWidget {
                             pt.label,
                             style: AppTextStyles.bodySmall.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -235,13 +258,20 @@ class _DistributionCard extends StatelessWidget {
                           '${pt.count} (${pt.percentage.toStringAsFixed(1)}%)',
                           style: AppTextStyles.labelSmall.copyWith(
                             fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
                         ),
                         if (pt.amount > 0) ...[
                           const SizedBox(width: 8),
                           Text(
                             '• ${AdminCurrencyFormatter.formatRupiah(pt.amount)}',
-                            style: AppTextStyles.labelSmall,
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: isDark
+                                  ? AppColors.textMutedDark
+                                  : AppColors.textMutedLight,
+                            ),
                           ),
                         ],
                       ],
@@ -252,9 +282,9 @@ class _DistributionCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: ratio,
                         minHeight: 8,
-                        backgroundColor: theme.dividerColor.withValues(
-                          alpha: 0.35,
-                        ),
+                        backgroundColor: isDark
+                            ? AppColors.backgroundDark
+                            : AppColors.surfaceVariantLight,
                         valueColor: AlwaysStoppedAnimation<Color>(
                           colorScheme.primary,
                         ),
@@ -279,6 +309,7 @@ class _ComparativeBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final maxVal = points.fold<int>(
       1,
       (prev, el) => math.max(prev, math.max(el.primaryCount, el.secondaryCount)),
@@ -307,12 +338,20 @@ class _ComparativeBarChart extends StatelessWidget {
                         style: AppTextStyles.labelSmall.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                         ),
                       ),
                       if (pt.totalAmount > 0)
                         Text(
                           AdminCurrencyFormatter.formatRupiah(pt.totalAmount),
-                          style: AppTextStyles.bodySmall.copyWith(fontSize: 9.5),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            fontSize: 9.5,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
+                          ),
                         ),
                       const SizedBox(height: 6),
                       Row(
@@ -347,7 +386,12 @@ class _ComparativeBarChart extends StatelessWidget {
                         child: Text(
                           pt.label,
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.labelSmall.copyWith(fontSize: 10),
+                          style: AppTextStyles.labelSmall.copyWith(
+                            fontSize: 10,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -375,7 +419,9 @@ class _LegendIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -390,7 +436,11 @@ class _LegendIndicator extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: AppTextStyles.labelSmall,
+          style: AppTextStyles.labelSmall.copyWith(
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
+          ),
         ),
       ],
     );

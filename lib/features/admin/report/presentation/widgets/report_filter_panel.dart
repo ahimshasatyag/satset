@@ -86,6 +86,7 @@ class ReportFilterPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     final statusOptions = <AdminDropdownOption<String>>[
       const AdminDropdownOption(value: 'ALL', label: 'Semua Status Pengiriman'),
@@ -134,9 +135,11 @@ class ReportFilterPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,11 +156,20 @@ class ReportFilterPanel extends StatelessWidget {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  const Icon(Icons.date_range_rounded, size: 18),
+                  Icon(
+                    Icons.date_range_rounded,
+                    size: 18,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
                   Text(
                     'Rentang Tanggal:',
                     style: AppTextStyles.labelMedium.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                   OutlinedButton.icon(
@@ -169,7 +181,14 @@ class ReportFilterPanel extends StatelessWidget {
                           : 'Tanggal Mulai',
                     ),
                   ),
-                  const Text('—'),
+                  Text(
+                    '—',
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
+                  ),
                   OutlinedButton.icon(
                     onPressed: () => _pickEndDate(context),
                     icon: const Icon(Icons.event_outlined, size: 15),
@@ -243,6 +262,7 @@ class ReportFilterPanel extends StatelessWidget {
                       dateValidationError!,
                       style: AppTextStyles.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
+                        color: colorScheme.error,
                       ),
                     ),
                   ),
@@ -251,9 +271,12 @@ class ReportFilterPanel extends StatelessWidget {
             ),
           ],
 
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(
+              height: 1,
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
           ),
 
           // Baris 2: Dropdown Filter Multi-Dimensi
@@ -340,23 +363,33 @@ class _PresetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? AppColors.primary900 : AppColors.primary50)
+              : (isDark ? AppColors.backgroundDark : AppColors.white),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected
                 ? theme.colorScheme.primary
-                : theme.dividerColor,
+                : (isDark ? AppColors.borderDark : AppColors.borderLight),
           ),
         ),
         child: Text(
           label,
           style: AppTextStyles.labelSmall.copyWith(
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected
+                ? theme.colorScheme.primary
+                : (isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight),
           ),
         ),
       ),

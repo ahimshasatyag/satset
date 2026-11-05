@@ -235,104 +235,137 @@ class _AdminLoginViewState extends State<AdminLoginView> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sisi Kiri: Showcase & Ilustrasi Portal Admin
-          Expanded(
-            flex: 5,
-            child: Container(
-              padding: const EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primary800,
-                    AppColors.primary,
-                    AppColors.primary700,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Sisi Kiri: Showcase & Ilustrasi Portal Admin
+            Expanded(
+              flex: 5,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary800,
+                      AppColors.primary,
+                      AppColors.primary700,
+                    ],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Aksen dekoratif watermark halus
+                    Positioned(
+                      right: -30,
+                      bottom: -20,
+                      child: Icon(
+                        Icons.local_shipping_outlined,
+                        size: 200,
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Badge Keamanan
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.25),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.lock_outline_rounded,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'PORTAL ADMINISTRATOR',
+                                      style: AppTextStyles.labelSmall.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.6,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              Text(
+                                'SatSet Delivery\nOperations Hub',
+                                style: AppTextStyles.headlineMedium.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Pusat monitoring terintegrasi untuk pengawasan paket real-time, performa kurir, penugasan armada, dan analitik pendapatan.',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  height: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // Fitur Poin Unggulan
+                              _buildFeatureItem(
+                                icon: Icons.track_changes_rounded,
+                                title: 'Pelacakan Status Realtime',
+                                desc:
+                                    'Sinkronisasi instan status resi dari Supabase Database.',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildFeatureItem(
+                                icon: Icons.two_wheeler_rounded,
+                                title: 'Monitoring Kurir Lapangan',
+                                desc:
+                                    'Pantau kurir aktif dan penugasan pengiriman harian.',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildFeatureItem(
+                                icon: Icons.insights_rounded,
+                                title: 'Analitik & Rekapitulasi Keuangan',
+                                desc:
+                                    'Grafik tren volume kiriman dan distribusi metode bayar.',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                          Text(
+                            '© 2026 SatSet.id • All Rights Reserved',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Badge Keamanan
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 14),
-                        const SizedBox(width: 8),
-                        Text(
-                          'PORTAL ADMINISTRATOR',
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.6,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  Text(
-                    'SatSet Delivery\nOperations Hub',
-                    style: AppTextStyles.headlineMedium.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Pusat monitoring terintegrasi untuk pengawasan paket real-time, performa kurir, penugasan armada, dan analitik pendapatan.',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Fitur Poin Unggulan
-                  _buildFeatureItem(
-                    icon: Icons.track_changes_rounded,
-                    title: 'Pelacakan Status Realtime',
-                    desc: 'Sinkronisasi instan status resi dari Supabase Database.',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFeatureItem(
-                    icon: Icons.two_wheeler_rounded,
-                    title: 'Monitoring Kurir Lapangan',
-                    desc: 'Pantau kurir aktif dan penugasan pengiriman harian.',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFeatureItem(
-                    icon: Icons.insights_rounded,
-                    title: 'Analitik & Rekapitulasi Keuangan',
-                    desc: 'Grafik tren volume kiriman dan distribusi metode bayar.',
-                  ),
-
-                  const SizedBox(height: 32),
-                  Text(
-                    '© 2026 SatSet.id • All Rights Reserved',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ),
 
           // Sisi Kanan: Form Login
           Expanded(
@@ -357,8 +390,9 @@ class _AdminLoginViewState extends State<AdminLoginView> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFeatureItem({
     required IconData icon,

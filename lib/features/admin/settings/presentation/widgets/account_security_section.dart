@@ -47,24 +47,43 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Konfirmasi Ubah Kata Sandi'),
-        content: const Text(
-          'Apakah Anda yakin ingin memperbarui kata sandi akun administrator ini melalui Supabase Auth? '
-          'Setelah berhasil, gunakan kata sandi baru untuk sesi login berikutnya.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Batal'),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Konfirmasi Ubah Kata Sandi',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Ubah Kata Sandi'),
+          content: Text(
+            'Apakah Anda yakin ingin memperbarui kata sandi akun administrator ini melalui Supabase Auth? '
+            'Setelah berhasil, gunakan kata sandi baru untuk sesi login berikutnya.',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Ubah Kata Sandi'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed == true) {
@@ -81,14 +100,21 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textStyle = AppTextStyles.bodyMedium.copyWith(
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final iconColor =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -97,12 +123,19 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
             'Keamanan Akun & Pengelolaan Sesi Login',
             style: AppTextStyles.titleMedium.copyWith(
               fontWeight: FontWeight.w800,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Kelola kata sandi akun secara aman melalui Supabase Auth serta pantau status sesi login administrator.',
-            style: AppTextStyles.bodySmall,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -110,9 +143,13 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
+              color: isDark
+                  ? AppColors.backgroundDark
+                  : AppColors.backgroundLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,12 +159,19 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.lock_clock_outlined, size: 20),
+                        Icon(
+                          Icons.lock_clock_outlined,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Sesi Login Administrator Aktif',
                           style: AppTextStyles.labelMedium.copyWith(
                             fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                           ),
                         ),
                       ],
@@ -138,14 +182,18 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: theme.dividerColor),
+                        border: Border.all(
+                          color: AppColors.success.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
                         'AKTIF & TERAUTENTIKASI',
                         style: AppTextStyles.labelSmall.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
+                          color: AppColors.success,
                         ),
                       ),
                     ),
@@ -159,19 +207,24 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
                     _SessionField(
                       label: 'Email Terdaftar',
                       value: widget.profile.email,
+                      isDark: isDark,
                     ),
                     _SessionField(
                       label: 'Tingkat Otoritas',
                       value:
                           'Administrator (Role ID: ${widget.profile.idUsersRole})',
+                      isDark: isDark,
                     ),
-                    const _SessionField(
+                    _SessionField(
                       label: 'Mekanisme Autentikasi',
                       value: 'Supabase JWT Auth & HTTP Secure Cookies',
+                      isDark: isDark,
                     ),
-                    const _SessionField(
+                    _SessionField(
                       label: 'Proteksi Sandi',
-                      value: 'Bcrypt Hash Encoding (Tidak Pernah Disimpan Plain Text)',
+                      value:
+                          'Bcrypt Hash Encoding (Tidak Pernah Disimpan Plain Text)',
+                      isDark: isDark,
                     ),
                   ],
                 ),
@@ -185,12 +238,19 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
             'Ubah Kata Sandi Akun (Supabase Auth Security)',
             style: AppTextStyles.titleSmall.copyWith(
               fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Kata sandi baru minimal harus terdiri dari 6 karakter kombinasi yang aman.',
-            style: AppTextStyles.bodySmall,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -205,17 +265,22 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
                   child: TextFormField(
                     controller: _currentPasswordController,
                     obscureText: _obscureCurrent,
-                    style: AppTextStyles.bodyMedium,
+                    style: textStyle,
                     decoration: InputDecoration(
                       labelText: 'Kata Sandi Saat Ini *',
                       hintText: '••••••••',
-                      prefixIcon: const Icon(Icons.key_outlined, size: 20),
+                      prefixIcon: Icon(
+                        Icons.key_outlined,
+                        size: 20,
+                        color: iconColor,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureCurrent
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                           size: 18,
+                          color: iconColor,
                         ),
                         onPressed: () =>
                             setState(() => _obscureCurrent = !_obscureCurrent),
@@ -234,17 +299,22 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
                   child: TextFormField(
                     controller: _newPasswordController,
                     obscureText: _obscureNew,
-                    style: AppTextStyles.bodyMedium,
+                    style: textStyle,
                     decoration: InputDecoration(
                       labelText: 'Kata Sandi Baru *',
                       hintText: 'Minimal 6 karakter...',
-                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                      prefixIcon: Icon(
+                        Icons.lock_outline,
+                        size: 20,
+                        color: iconColor,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureNew
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                           size: 18,
+                          color: iconColor,
                         ),
                         onPressed: () =>
                             setState(() => _obscureNew = !_obscureNew),
@@ -266,17 +336,22 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
                   child: TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirm,
-                    style: AppTextStyles.bodyMedium,
+                    style: textStyle,
                     decoration: InputDecoration(
                       labelText: 'Konfirmasi Kata Sandi Baru *',
                       hintText: 'Ulangi kata sandi baru...',
-                      prefixIcon: const Icon(Icons.lock_reset_rounded, size: 20),
+                      prefixIcon: Icon(
+                        Icons.lock_reset_rounded,
+                        size: 20,
+                        color: iconColor,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureConfirm
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                           size: 18,
+                          color: iconColor,
                         ),
                         onPressed: () => setState(
                           () => _obscureConfirm = !_obscureConfirm,
@@ -319,7 +394,10 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
           ),
 
           const SizedBox(height: 28),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           const SizedBox(height: 20),
 
           // Bagian Keluar / Logout Sesi
@@ -335,12 +413,20 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
                       'Keluar dari Sesi Administrator',
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Hapus token autentikasi lokal, bersihkan cookies, dan akhiri sesi login saat ini.',
-                      style: AppTextStyles.bodySmall.copyWith(fontSize: 11.5),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 11.5,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                     ),
                   ],
                 ),
@@ -361,10 +447,12 @@ class _AccountSecuritySectionState extends State<AccountSecuritySection> {
 class _SessionField extends StatelessWidget {
   final String label;
   final String value;
+  final bool isDark;
 
   const _SessionField({
     required this.label,
     required this.value,
+    required this.isDark,
   });
 
   @override
@@ -374,13 +462,20 @@ class _SessionField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: AppTextStyles.labelSmall.copyWith(fontSize: 11),
+          style: AppTextStyles.labelSmall.copyWith(
+            fontSize: 11,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: AppTextStyles.bodySmall.copyWith(
             fontWeight: FontWeight.w700,
+            color:
+                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),
         ),
       ],

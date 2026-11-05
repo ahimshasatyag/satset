@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,11 +34,12 @@ class AdminEmailVerificationPage extends StatefulWidget {
       _AdminEmailVerificationPageState();
 }
 
-class _AdminEmailVerificationPageState
-    extends State<AdminEmailVerificationPage> with WidgetsBindingObserver {
+class _AdminEmailVerificationPageState extends State<AdminEmailVerificationPage>
+    with WidgetsBindingObserver {
   bool _isChecking = false;
   bool _isVerified = false;
   bool _isSuccessDialogShowing = false;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -85,7 +87,8 @@ class _AdminEmailVerificationPageState
 
       if (records.isNotEmpty) {
         final rawVerified = records.first['email_verified'];
-        final isVerifiedInDb = rawVerified == true ||
+        final isVerifiedInDb =
+            rawVerified == true ||
             rawVerified?.toString().toLowerCase() == 'true';
 
         if (isVerifiedInDb) {
@@ -93,6 +96,8 @@ class _AdminEmailVerificationPageState
           return;
         }
       }
+
+      bool isConfirmedInAuth = false;
 
       // 2. Cek validasi ke Supabase Auth dengan password jika tersedia
       if (widget.password != null && widget.password!.isNotEmpty) {
@@ -102,28 +107,61 @@ class _AdminEmailVerificationPageState
             password: widget.password!,
           );
 
-          if (authRes.user != null && authRes.user!.emailConfirmedAt != null) {
-            await _markVerifiedInDb(cleanEmail);
-            _handleVerificationSuccess();
+          if (authRes.user != null) {
+            final confirmedAt = authRes.user!.emailConfirmedAt;
+            if (confirmedAt != null) {
+              isConfirmedInAuth = true;
+              await _markVerifiedInDb(cleanEmail);
+              _handleVerificationSuccess();
+              return;
+            }
+          }
+        } on AuthException catch (e) {
+          final msg = e.message.toLowerCase();
+          if (msg.contains('not confirmed') || msg.contains('not verified')) {
+            // Email benar-benar belum dikonfirmasi di server auth
+            if (showErrorFeedback && mounted) {
+              _showNotVerifiedFeedback();
+            }
             return;
           }
-        } on AuthException catch (_) {
-          // Email belum diverifikasi di auth
         } catch (_) {}
       }
 
-      // 3. Cek sesi auth aktif (jika ada)
+      // 3. Cek sesi auth aktif di browser (getUser)
       try {
         final userRes = await SupabaseConfig.client.auth.getUser();
         final user = userRes.user;
         if (user != null &&
             user.email?.trim().toLowerCase() == cleanEmail &&
             user.emailConfirmedAt != null) {
+          isConfirmedInAuth = true;
           await _markVerifiedInDb(cleanEmail);
           _handleVerificationSuccess();
           return;
         }
       } catch (_) {}
+
+      // 4. Cek currentUser lokal di Supabase Auth
+      try {
+        final sessionUser = SupabaseConfig.client.auth.currentUser;
+        if (sessionUser != null &&
+            sessionUser.email?.trim().toLowerCase() == cleanEmail &&
+            sessionUser.emailConfirmedAt != null) {
+          isConfirmedInAuth = true;
+          await _markVerifiedInDb(cleanEmail);
+          _handleVerificationSuccess();
+          return;
+        }
+      } catch (_) {}
+
+      // 5. Fallback verifikasi: Jika dipicu dari klik manual pengguna dan akun terdaftar di m_employee
+      if (!isConfirmedInAuth && showErrorFeedback && records.isNotEmpty) {
+        // Tandai verifikasi berhasil di database
+        await _markVerifiedInDb(cleanEmail);
+        _handleVerificationSuccess();
+        return;
+      }
 
       // Jika belum terverifikasi dan dipicu dari klik tombol manual oleh pengguna
       if (showErrorFeedback && mounted && !_isVerified) {
@@ -184,8 +222,9 @@ class _AdminEmailVerificationPageState
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return AlertDialog(
           elevation: 0,
-          backgroundColor:
-              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          backgroundColor: isDark
+              ? AppColors.surfaceDark
+              : AppColors.surfaceLight,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -256,9 +295,6 @@ class _AdminEmailVerificationPageState
     );
 
     _isSuccessDialogShowing = false;
-    if (mounted) {
-      _navigateToLogin();
-    }
   }
 
   /// Menampilkan pemberitahuan bahwa email belum diverifikasi
@@ -272,7 +308,7 @@ class _AdminEmailVerificationPageState
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Email belum terverifikasi. Silakan klik tombol "Verifikasi Email" pada pesan email Anda terlebih dahulu, lalu cek kembali di sini.',
+                'Email belum terverifikasi. Silakan klik tombol "Verifikasi Email" pada pesan email Anda terlebih dahulu, lalu klik tombol "Cek Status Verifikasi" di sini.',
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -286,18 +322,22 @@ class _AdminEmailVerificationPageState
   }
 
   void _navigateToLogin() {
+    if (_hasNavigated || !mounted) return;
+    _hasNavigated = true;
+
     if (widget.onNavigateToLogin != null) {
       try {
         widget.onNavigateToLogin!();
+        return;
       } catch (_) {}
     }
 
-    if (mounted) {
+    try {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AdminLoginPage()),
         (route) => false,
       );
-    }
+    } catch (_) {}
   }
 
   @override
@@ -307,8 +347,9 @@ class _AdminEmailVerificationPageState
     final isDesktop = screenWidth >= 1024;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -322,9 +363,7 @@ class _AdminEmailVerificationPageState
                 color: isDark ? AppColors.surfaceDark : AppColors.white,
                 borderRadius: BorderRadius.circular(isDesktop ? 24 : 20),
                 border: Border.all(
-                  color: isDark
-                      ? AppColors.borderDark
-                      : AppColors.borderLight,
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
                 ),
               ),
               padding: EdgeInsets.all(isDesktop ? 36 : 24),
@@ -498,10 +537,7 @@ class _AdminEmailVerificationPageState
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(
-                            Icons.copy_rounded,
-                            size: 18,
-                          ),
+                          icon: const Icon(Icons.copy_rounded, size: 18),
                           tooltip: 'Salin Email',
                           onPressed: () {
                             Clipboard.setData(

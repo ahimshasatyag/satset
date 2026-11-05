@@ -75,23 +75,42 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Simpan Perubahan Profil Admin?'),
-        content: const Text(
-          'Pastikan informasi nama, alamat email, dan nomor telepon sudah benar. Perubahan akan disimpan ke tabel m_employee.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Batal'),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Simpan Perubahan Profil Admin?',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Ya, Simpan Perubahan'),
+          content: Text(
+            'Pastikan informasi nama, alamat email, dan nomor telepon sudah benar. Perubahan akan disimpan ke tabel m_employee.',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Ya, Simpan Perubahan'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed == true) {
@@ -107,14 +126,22 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final textStyle = AppTextStyles.bodyMedium.copyWith(
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final iconColor =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Form(
         key: _formKey,
@@ -133,12 +160,19 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                         'Profil Administrator (m_employee)',
                         style: AppTextStyles.titleMedium.copyWith(
                           fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Kelola identitas resmi akun administrator SatSet Delivery dengan hak akses id_users_role = 1.',
-                        style: AppTextStyles.bodySmall,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                        ),
                       ),
                     ],
                   ),
@@ -149,13 +183,22 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.backgroundDark
+                        : AppColors.backgroundLight,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: theme.dividerColor),
+                    border: Border.all(
+                      color:
+                          isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
                   ),
                   child: Text(
                     'Role: ${widget.profile.role.toUpperCase()} (ID: ${widget.profile.idUsersRole})',
                     style: AppTextStyles.labelSmall.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                 ),
@@ -167,9 +210,13 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor,
+                color: isDark
+                    ? AppColors.backgroundDark
+                    : AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor),
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
               ),
               child: Wrap(
                 spacing: 24,
@@ -178,24 +225,29 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                   _BadgeField(
                     label: 'ID Pegawai',
                     value: '#${widget.profile.id}',
+                    isDark: isDark,
                   ),
                   _BadgeField(
                     label: 'Kode Employee',
                     value: widget.profile.employeeCode,
+                    isDark: isDark,
                   ),
                   _BadgeField(
                     label: 'Tipe Pegawai',
                     value: widget.profile.employeeType,
+                    isDark: isDark,
                   ),
                   _BadgeField(
                     label: 'Status Akun',
                     value: widget.profile.isActive ? 'Aktif' : 'Nonaktif',
+                    isDark: isDark,
                   ),
                   _BadgeField(
                     label: 'Terdaftar Sejak',
                     value: AdminDateFormatter.formatDateTime(
                       widget.profile.createdAt,
                     ),
+                    isDark: isDark,
                   ),
                 ],
               ),
@@ -216,13 +268,14 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                           children: [
                             TextFormField(
                               controller: _nameController,
-                              style: AppTextStyles.bodyMedium,
-                              decoration: const InputDecoration(
+                              style: textStyle,
+                              decoration: InputDecoration(
                                 labelText: 'Nama Lengkap Administrator *',
                                 hintText: 'Masukkan nama lengkap resmi...',
                                 prefixIcon: Icon(
                                   Icons.badge_outlined,
                                   size: 20,
+                                  color: iconColor,
                                 ),
                               ),
                               validator: (val) {
@@ -235,14 +288,15 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _emailController,
-                              style: AppTextStyles.bodyMedium,
+                              style: textStyle,
                               keyboardType: TextInputType.emailAddress,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Alamat Email Administrator *',
                                 hintText: 'nama@satset.id...',
                                 prefixIcon: Icon(
                                   Icons.email_outlined,
                                   size: 20,
+                                  color: iconColor,
                                 ),
                               ),
                               validator: (val) {
@@ -265,14 +319,15 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                           children: [
                             TextFormField(
                               controller: _phoneController,
-                              style: AppTextStyles.bodyMedium,
+                              style: textStyle,
                               keyboardType: TextInputType.phone,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Nomor Telepon / WhatsApp *',
                                 hintText: '08123456789...',
                                 prefixIcon: Icon(
                                   Icons.phone_outlined,
                                   size: 20,
+                                  color: iconColor,
                                 ),
                               ),
                               validator: (val) {
@@ -285,15 +340,16 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _addressController,
-                              style: AppTextStyles.bodyMedium,
+                              style: textStyle,
                               maxLines: 2,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Alamat Operasional (Opsional)',
                                 hintText:
                                     'Alamat kantor atau domisili kerja...',
                                 prefixIcon: Icon(
                                   Icons.location_on_outlined,
                                   size: 20,
+                                  color: iconColor,
                                 ),
                               ),
                             ),
@@ -309,11 +365,15 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                   children: [
                     TextFormField(
                       controller: _nameController,
-                      style: AppTextStyles.bodyMedium,
-                      decoration: const InputDecoration(
+                      style: textStyle,
+                      decoration: InputDecoration(
                         labelText: 'Nama Lengkap Administrator *',
                         hintText: 'Masukkan nama lengkap resmi...',
-                        prefixIcon: Icon(Icons.badge_outlined, size: 20),
+                        prefixIcon: Icon(
+                          Icons.badge_outlined,
+                          size: 20,
+                          color: iconColor,
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -325,12 +385,16 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
-                      style: AppTextStyles.bodyMedium,
+                      style: textStyle,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Alamat Email Administrator *',
                         hintText: 'nama@satset.id...',
-                        prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          size: 20,
+                          color: iconColor,
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -345,12 +409,16 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _phoneController,
-                      style: AppTextStyles.bodyMedium,
+                      style: textStyle,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Nomor Telepon / WhatsApp *',
                         hintText: '08123456789...',
-                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                        prefixIcon: Icon(
+                          Icons.phone_outlined,
+                          size: 20,
+                          color: iconColor,
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -362,12 +430,16 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _addressController,
-                      style: AppTextStyles.bodyMedium,
+                      style: textStyle,
                       maxLines: 2,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Alamat Operasional (Opsional)',
                         hintText: 'Alamat kantor atau domisili kerja...',
-                        prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+                        prefixIcon: Icon(
+                          Icons.location_on_outlined,
+                          size: 20,
+                          color: iconColor,
+                        ),
                       ),
                     ),
                   ],
@@ -406,10 +478,12 @@ class _AdminProfileSectionState extends State<AdminProfileSection> {
 class _BadgeField extends StatelessWidget {
   final String label;
   final String value;
+  final bool isDark;
 
   const _BadgeField({
     required this.label,
     required this.value,
+    required this.isDark,
   });
 
   @override
@@ -419,13 +493,20 @@ class _BadgeField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: AppTextStyles.labelSmall.copyWith(fontSize: 11),
+          style: AppTextStyles.labelSmall.copyWith(
+            fontSize: 11,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: AppTextStyles.bodySmall.copyWith(
             fontWeight: FontWeight.w700,
+            color:
+                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),
         ),
       ],

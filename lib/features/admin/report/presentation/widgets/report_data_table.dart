@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:satset/features/admin/utils/admin_currency_formatter.dart';
 import 'package:satset/features/admin/utils/admin_date_formatter.dart';
@@ -27,6 +28,7 @@ class ReportDataTable extends StatefulWidget {
 
 class _ReportDataTableState extends State<ReportDataTable> {
   late final TextEditingController _searchController;
+  final ScrollController _horizontalScrollController = ScrollController();
 
   @override
   void initState() {
@@ -48,7 +50,36 @@ class _ReportDataTableState extends State<ReportDataTable> {
   @override
   void dispose() {
     _searchController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollTableLeft() {
+    if (_horizontalScrollController.hasClients) {
+      final target = (_horizontalScrollController.offset - 280).clamp(
+        0.0,
+        _horizontalScrollController.position.maxScrollExtent,
+      );
+      _horizontalScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _scrollTableRight() {
+    if (_horizontalScrollController.hasClients) {
+      final target = (_horizontalScrollController.offset + 280).clamp(
+        0.0,
+        _horizontalScrollController.position.maxScrollExtent,
+      );
+      _horizontalScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   String _searchHint() {
@@ -93,14 +124,17 @@ class _ReportDataTableState extends State<ReportDataTable> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final data = widget.reportData;
     final filter = data.appliedFilter;
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -121,12 +155,19 @@ class _ReportDataTableState extends State<ReportDataTable> {
                       'Tabel Rincian ${AdminReportType.labelOf(data.reportType)}',
                       style: AppTextStyles.titleMedium.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Menampilkan ${data.totalFilteredCount} baris data aktual dari database Supabase',
-                      style: AppTextStyles.bodySmall,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                     ),
                   ],
                 ),
@@ -136,17 +177,38 @@ class _ReportDataTableState extends State<ReportDataTable> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: widget.onSearchChanged,
-                    style: AppTextStyles.bodySmall,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
                     decoration: InputDecoration(
                       hintText: _searchHint(),
-                      prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                      hintStyle: AppTextStyles.bodySmall.copyWith(
+                        color: isDark
+                            ? AppColors.textMutedDark
+                            : AppColors.textMutedLight,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        size: 18,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
                               onPressed: () {
                                 _searchController.clear();
                                 widget.onSearchChanged('');
                               },
-                              icon: const Icon(Icons.close_rounded, size: 16),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                              ),
                             )
                           : null,
                       contentPadding: const EdgeInsets.symmetric(
@@ -155,6 +217,11 @@ class _ReportDataTableState extends State<ReportDataTable> {
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
                       ),
                     ),
                   ),
@@ -162,7 +229,10 @@ class _ReportDataTableState extends State<ReportDataTable> {
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
 
           // Isi Tabel atau Empty State
           if (data.totalFilteredCount == 0)
@@ -170,37 +240,98 @@ class _ReportDataTableState extends State<ReportDataTable> {
               padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
               child: Column(
                 children: [
-                  const Icon(Icons.inbox_outlined, size: 48),
+                  Icon(
+                    Icons.inbox_outlined,
+                    size: 48,
+                    color: isDark
+                        ? AppColors.textMutedDark
+                        : AppColors.textMutedLight,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     'Tidak Ada Data Laporan Ditemukan',
                     style: AppTextStyles.titleSmall.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Tidak terdapat rekaman pada database yang cocok dengan kombinasi filter saat ini.',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmall,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
                 ],
               ),
             )
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: MediaQuery.of(context).size.width - 340,
-                ),
-                child: _buildTableByReportType(context, data, filter),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                      PointerDeviceKind.stylus,
+                    },
+                  ),
+                  child: Theme(
+                    data: theme.copyWith(
+                      scrollbarTheme: ScrollbarThemeData(
+                        thumbColor: WidgetStateProperty.resolveWith((states) {
+                          if (isDark) {
+                            return Colors.white;
+                          }
+                          return AppColors.primary.withValues(alpha: 0.6);
+                        }),
+                        trackColor: WidgetStateProperty.all(
+                          isDark
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : AppColors.surfaceVariantLight,
+                        ),
+                        trackBorderColor: WidgetStateProperty.all(
+                          Colors.transparent,
+                        ),
+                      ),
+                    ),
+                    child: Scrollbar(
+                      controller: _horizontalScrollController,
+                      thumbVisibility: true,
+                      trackVisibility: true,
+                      interactive: true,
+                      thickness: 9,
+                      radius: const Radius.circular(8),
+                      child: SingleChildScrollView(
+                        controller: _horizontalScrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const ClampingScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minWidth: constraints.maxWidth,
+                          ),
+                          child: _buildTableByReportType(context, data, filter),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
 
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
 
-          // Baris Ringkasan Total Sesuai Filter + Paginasi
+          // Baris Ringkasan Total Sesuai Filter + Navigasi Scroll & Paginasi
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             child: Wrap(
@@ -209,18 +340,46 @@ class _ReportDataTableState extends State<ReportDataTable> {
               spacing: 12,
               runSpacing: 12,
               children: [
-                Text(
-                  _totalFooterLabel(),
-                  style: AppTextStyles.labelMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _totalFooterLabel(),
+                      style: AppTextStyles.labelMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Tombol Navigasi Scroll Horizontal
+                    IconButton(
+                      tooltip: 'Geser Tabel ke Kiri',
+                      iconSize: 18,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _scrollTableLeft,
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    IconButton(
+                      tooltip: 'Geser Tabel ke Kanan',
+                      iconSize: 18,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _scrollTableRight,
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                    ),
+                  ],
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Halaman ${data.currentPage} dari ${data.totalPages}',
-                      style: AppTextStyles.bodySmall,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     IconButton(
@@ -271,6 +430,7 @@ class _ReportDataTableState extends State<ReportDataTable> {
     AdminReportFilter filter, {
     bool numeric = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSorted = filter.sortColumn == columnKey;
     return DataColumn(
       numeric: numeric,
@@ -282,6 +442,9 @@ class _ReportDataTableState extends State<ReportDataTable> {
             label,
             style: AppTextStyles.labelMedium.copyWith(
               fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
           const SizedBox(width: 4),
@@ -292,8 +455,26 @@ class _ReportDataTableState extends State<ReportDataTable> {
                     : Icons.arrow_downward_rounded)
                 : Icons.unfold_more_rounded,
             size: 14,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
           ),
         ],
+      ),
+    );
+  }
+
+  DataColumn _staticColumn(String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DataColumn(
+      label: Text(
+        label,
+        style: AppTextStyles.labelMedium.copyWith(
+          fontWeight: FontWeight.w700,
+          color: isDark
+              ? AppColors.textPrimaryDark
+              : AppColors.textPrimaryLight,
+        ),
       ),
     );
   }
@@ -303,42 +484,46 @@ class _ReportDataTableState extends State<ReportDataTable> {
     List<AdminShipmentReportRow> rows,
     AdminReportFilter filter,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryStyle = AppTextStyles.bodySmall.copyWith(
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final boldPrimaryStyle = AppTextStyles.labelMedium.copyWith(
+      fontWeight: FontWeight.w700,
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final mediumPrimaryStyle = AppTextStyles.bodySmall.copyWith(
+      fontWeight: FontWeight.w600,
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final secondarySubStyle = AppTextStyles.bodySmall.copyWith(
+      fontSize: 11,
+      color:
+          isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+    );
+
     return DataTable(
       headingRowHeight: 48,
       dataRowMinHeight: 56,
       dataRowMaxHeight: 68,
+      horizontalMargin: 20,
+      columnSpacing: 24,
+      headingRowColor: WidgetStateProperty.resolveWith(
+        (states) => isDark
+            ? AppColors.surfaceVariantDark
+            : AppColors.surfaceVariantLight,
+      ),
       columns: [
         _sortableColumn('No. Resi', 'nomor_resi', filter),
         _sortableColumn('Tanggal', 'created_at', filter),
         _sortableColumn('Pelanggan & Rute', 'customer', filter),
         _sortableColumn('Layanan', 'layanan', filter),
         _sortableColumn('Status Pengiriman', 'status', filter),
-        DataColumn(
-          label: Text(
-            'Kurir Bertugas',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Kurir Bertugas'),
         _sortableColumn('Berat (gr)', 'berat', filter, numeric: true),
         _sortableColumn('Total Biaya', 'total_biaya', filter, numeric: true),
-        DataColumn(
-          label: Text(
-            'Pembayaran',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Aksi',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Pembayaran'),
+        _staticColumn('Aksi'),
       ],
       rows: rows.map((r) {
         return DataRow(
@@ -346,15 +531,13 @@ class _ReportDataTableState extends State<ReportDataTable> {
             DataCell(
               Text(
                 r.nomorResi,
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
             DataCell(
               Text(
                 AdminDateFormatter.formatDateTime(r.createdAt),
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
@@ -364,13 +547,11 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 children: [
                   Text(
                     r.customerNama,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: mediumPrimaryStyle,
                   ),
                   Text(
                     '${r.pengirimKota} -> ${r.penerimaKota}',
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                    style: secondarySubStyle,
                   ),
                 ],
               ),
@@ -386,27 +567,25 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 r.courierNama != null
                     ? '${r.courierNama} (${r.courierCode ?? '-'})'
                     : 'Belum Ditugaskan',
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
               Text(
                 r.totalBeratGram.toStringAsFixed(0),
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
               Text(
                 AdminCurrencyFormatter.formatRupiah(r.totalBiaya),
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
             DataCell(
               Text(
                 '${r.metodePembayaran} • ${r.statusPembayaran}',
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
@@ -430,20 +609,34 @@ class _ReportDataTableState extends State<ReportDataTable> {
     List<AdminCourierReportRow> rows,
     AdminReportFilter filter,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryStyle = AppTextStyles.bodySmall.copyWith(
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final boldPrimaryStyle = AppTextStyles.labelMedium.copyWith(
+      fontWeight: FontWeight.w700,
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final secondarySubStyle = AppTextStyles.bodySmall.copyWith(
+      fontSize: 11,
+      color:
+          isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+    );
+
     return DataTable(
       headingRowHeight: 48,
       dataRowMinHeight: 56,
       dataRowMaxHeight: 68,
+      horizontalMargin: 20,
+      columnSpacing: 24,
+      headingRowColor: WidgetStateProperty.resolveWith(
+        (states) => isDark
+            ? AppColors.surfaceVariantDark
+            : AppColors.surfaceVariantLight,
+      ),
       columns: [
         _sortableColumn('Kurir & Kode Employee', 'nama', filter),
-        DataColumn(
-          label: Text(
-            'Kontak & Status',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Kontak & Status'),
         _sortableColumn(
           'Tugas Diterima',
           'total_assigned',
@@ -464,22 +657,8 @@ class _ReportDataTableState extends State<ReportDataTable> {
           filter,
           numeric: true,
         ),
-        DataColumn(
-          label: Text(
-            'Bukti & GPS',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Aksi',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Bukti & GPS'),
+        _staticColumn('Aksi'),
       ],
       rows: rows.map((r) {
         return DataRow(
@@ -491,13 +670,11 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 children: [
                   Text(
                     r.namaLengkap,
-                    style: AppTextStyles.labelMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: boldPrimaryStyle,
                   ),
                   Text(
                     r.employeeCode,
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                    style: secondarySubStyle,
                   ),
                 ],
               ),
@@ -507,10 +684,10 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(r.noHp, style: AppTextStyles.bodySmall),
+                  Text(r.noHp, style: primaryStyle),
                   Text(
                     r.isActive ? 'Akun Aktif' : 'Akun Nonaktif',
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                    style: secondarySubStyle,
                   ),
                 ],
               ),
@@ -518,19 +695,17 @@ class _ReportDataTableState extends State<ReportDataTable> {
             DataCell(
               Text(
                 '${r.totalAssigned}',
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
-            DataCell(Text('${r.deliveredCount}', style: AppTextStyles.bodySmall)),
+            DataCell(Text('${r.deliveredCount}', style: primaryStyle)),
             DataCell(
-              Text('${r.inProgressCount}', style: AppTextStyles.bodySmall),
+              Text('${r.inProgressCount}', style: primaryStyle),
             ),
             DataCell(
               Text(
                 '${r.failedOrReturnedCount}',
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
@@ -539,7 +714,7 @@ class _ReportDataTableState extends State<ReportDataTable> {
             DataCell(
               Text(
                 '${r.proofUploadedCount} Bukti • ${r.gpsLocationsCount} GPS',
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
@@ -561,20 +736,34 @@ class _ReportDataTableState extends State<ReportDataTable> {
     List<AdminCustomerReportRow> rows,
     AdminReportFilter filter,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryStyle = AppTextStyles.bodySmall.copyWith(
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final boldPrimaryStyle = AppTextStyles.labelMedium.copyWith(
+      fontWeight: FontWeight.w700,
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final secondarySubStyle = AppTextStyles.bodySmall.copyWith(
+      fontSize: 11,
+      color:
+          isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+    );
+
     return DataTable(
       headingRowHeight: 48,
       dataRowMinHeight: 56,
       dataRowMaxHeight: 68,
+      horizontalMargin: 20,
+      columnSpacing: 24,
+      headingRowColor: WidgetStateProperty.resolveWith(
+        (states) => isDark
+            ? AppColors.surfaceVariantDark
+            : AppColors.surfaceVariantLight,
+      ),
       columns: [
         _sortableColumn('Nama Pelanggan', 'nama', filter),
-        DataColumn(
-          label: Text(
-            'Kontak & Verifikasi',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Kontak & Verifikasi'),
         _sortableColumn(
           'Total Pengiriman',
           'total_shipments',
@@ -582,22 +771,8 @@ class _ReportDataTableState extends State<ReportDataTable> {
           numeric: true,
         ),
         _sortableColumn('Selesai', 'delivered', filter, numeric: true),
-        DataColumn(
-          label: Text(
-            'Berjalan / Batal',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Metode Dominan',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Berjalan / Batal'),
+        _staticColumn('Metode Dominan'),
         _sortableColumn(
           'Total Nilai Transaksi',
           'total_spend',
@@ -605,14 +780,7 @@ class _ReportDataTableState extends State<ReportDataTable> {
           numeric: true,
         ),
         _sortableColumn('Transaksi Terakhir', 'last_shipment', filter),
-        DataColumn(
-          label: Text(
-            'Aksi',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Aksi'),
       ],
       rows: rows.map((r) {
         return DataRow(
@@ -620,9 +788,7 @@ class _ReportDataTableState extends State<ReportDataTable> {
             DataCell(
               Text(
                 r.namaLengkap,
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
             DataCell(
@@ -630,10 +796,10 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(r.email, style: AppTextStyles.bodySmall),
+                  Text(r.email, style: primaryStyle),
                   Text(
                     '${r.noHp} • ${r.emailVerified ? 'Terverifikasi' : 'Belum Verifikasi'}',
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                    style: secondarySubStyle,
                   ),
                 ],
               ),
@@ -641,27 +807,23 @@ class _ReportDataTableState extends State<ReportDataTable> {
             DataCell(
               Text(
                 '${r.totalShipments}',
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
             DataCell(
-              Text('${r.deliveredShipments}', style: AppTextStyles.bodySmall),
+              Text('${r.deliveredShipments}', style: primaryStyle),
             ),
             DataCell(
               Text(
                 '${r.activeShipments} aktif / ${r.failedOrCancelledShipments} gagal',
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(_StatusTag(text: r.preferredPaymentMethod)),
             DataCell(
               Text(
                 AdminCurrencyFormatter.formatRupiah(r.totalShippingSpend),
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
             DataCell(
@@ -669,7 +831,7 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 r.lastShipmentAt != null
                     ? AdminDateFormatter.formatShortDate(r.lastShipmentAt)
                     : '-',
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
@@ -693,22 +855,40 @@ class _ReportDataTableState extends State<ReportDataTable> {
     List<AdminPaymentReportRow> rows,
     AdminReportFilter filter,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryStyle = AppTextStyles.bodySmall.copyWith(
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final boldPrimaryStyle = AppTextStyles.labelMedium.copyWith(
+      fontWeight: FontWeight.w700,
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final mediumPrimaryStyle = AppTextStyles.bodySmall.copyWith(
+      fontWeight: FontWeight.w600,
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final secondarySubStyle = AppTextStyles.bodySmall.copyWith(
+      fontSize: 11,
+      color:
+          isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+    );
+
     return DataTable(
       headingRowHeight: 48,
       dataRowMinHeight: 56,
       dataRowMaxHeight: 68,
+      horizontalMargin: 20,
+      columnSpacing: 24,
+      headingRowColor: WidgetStateProperty.resolveWith(
+        (states) => isDark
+            ? AppColors.surfaceVariantDark
+            : AppColors.surfaceVariantLight,
+      ),
       columns: [
         _sortableColumn('No. Pembayaran', 'nomor_pembayaran', filter),
         _sortableColumn('No. Resi', 'nomor_resi', filter),
         _sortableColumn('Tanggal Transaksi', 'created_at', filter),
-        DataColumn(
-          label: Text(
-            'Pelanggan & Layanan',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Pelanggan & Layanan'),
         _sortableColumn('Metode', 'metode', filter),
         _sortableColumn('Status Pembayaran', 'status', filter),
         _sortableColumn(
@@ -717,22 +897,8 @@ class _ReportDataTableState extends State<ReportDataTable> {
           filter,
           numeric: true,
         ),
-        DataColumn(
-          label: Text(
-            'Waktu Lunas',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Aksi',
-            style: AppTextStyles.labelMedium.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        _staticColumn('Waktu Lunas'),
+        _staticColumn('Aksi'),
       ],
       rows: rows.map((r) {
         return DataRow(
@@ -740,16 +906,14 @@ class _ReportDataTableState extends State<ReportDataTable> {
             DataCell(
               Text(
                 r.nomorPembayaran,
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
-            DataCell(Text(r.nomorResi, style: AppTextStyles.bodySmall)),
+            DataCell(Text(r.nomorResi, style: primaryStyle)),
             DataCell(
               Text(
                 AdminDateFormatter.formatDateTime(r.createdAt),
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
@@ -759,13 +923,11 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 children: [
                   Text(
                     r.customerNama,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: mediumPrimaryStyle,
                   ),
                   Text(
                     '${r.serviceKode} • ${r.shipmentStatusNama}',
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                    style: secondarySubStyle,
                   ),
                 ],
               ),
@@ -775,9 +937,7 @@ class _ReportDataTableState extends State<ReportDataTable> {
             DataCell(
               Text(
                 AdminCurrencyFormatter.formatRupiah(r.jumlahBayar),
-                style: AppTextStyles.labelMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: boldPrimaryStyle,
               ),
             ),
             DataCell(
@@ -785,7 +945,7 @@ class _ReportDataTableState extends State<ReportDataTable> {
                 r.paidAt != null
                     ? AdminDateFormatter.formatDateTime(r.paidAt)
                     : '-',
-                style: AppTextStyles.bodySmall,
+                style: primaryStyle,
               ),
             ),
             DataCell(
@@ -810,17 +970,22 @@ class _StatusTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
+        color: isDark ? AppColors.backgroundDark : AppColors.surfaceVariantLight,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Text(
         text,
-        style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.w700),
+        style: AppTextStyles.labelSmall.copyWith(
+          fontWeight: FontWeight.w700,
+          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        ),
       ),
     );
   }

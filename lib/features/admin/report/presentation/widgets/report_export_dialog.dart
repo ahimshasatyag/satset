@@ -30,10 +30,11 @@ class ReportExportDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: theme.cardColor,
+      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760, maxHeight: 640),
         child: Padding(
@@ -47,7 +48,13 @@ class ReportExportDialog extends StatelessWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.file_download_outlined, size: 22),
+                        Icon(
+                          Icons.file_download_outlined,
+                          size: 22,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -57,11 +64,18 @@ class ReportExportDialog extends StatelessWidget {
                                 _formatTitle(exportOutput.format),
                                 style: AppTextStyles.titleMedium.copyWith(
                                   fontWeight: FontWeight.w800,
+                                  color: isDark
+                                      ? AppColors.textPrimaryDark
+                                      : AppColors.textPrimaryLight,
                                 ),
                               ),
                               Text(
                                 'Nama Berkas: ${exportOutput.fileName}',
-                                style: AppTextStyles.bodySmall,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
+                                ),
                               ),
                             ],
                           ),
@@ -71,7 +85,12 @@ class ReportExportDialog extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: onClose,
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
                 ],
               ),
@@ -108,14 +127,21 @@ class ReportExportDialog extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.scaffoldBackgroundColor,
+                  color: isDark
+                      ? AppColors.backgroundDark
+                      : AppColors.backgroundLight,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: theme.dividerColor),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  ),
                 ),
                 child: Text(
                   exportOutput.summaryHeaderText,
                   style: AppTextStyles.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                   ),
                 ),
               ),
@@ -125,9 +151,13 @@ class ReportExportDialog extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: theme.scaffoldBackgroundColor,
+                    color: isDark
+                        ? AppColors.backgroundDark
+                        : AppColors.backgroundLight,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: theme.dividerColor),
+                    border: Border.all(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
                   ),
                   child: SingleChildScrollView(
                     child: SelectableText(
@@ -135,6 +165,9 @@ class ReportExportDialog extends StatelessWidget {
                       style: AppTextStyles.bodySmall.copyWith(
                         fontFamily: 'monospace',
                         fontSize: 11,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                   ),

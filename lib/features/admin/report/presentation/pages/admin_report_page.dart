@@ -138,23 +138,43 @@ class _AdminReportViewState extends State<AdminReportView> {
   Future<void> _handleLogout(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Konfirmasi Keluar'),
-        content: const Text(
-          'Apakah Anda yakin ingin mengakhiri sesi Administrator saat ini?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Batal'),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Konfirmasi Keluar',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Keluar'),
+          content: Text(
+            'Apakah Anda yakin ingin mengakhiri sesi Administrator saat ini?',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Keluar'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirm != true) return;
@@ -264,7 +284,7 @@ class _AdminReportViewState extends State<AdminReportView> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 1024;
 
@@ -274,6 +294,7 @@ class _AdminReportViewState extends State<AdminReportView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.actionSuccessMessage!),
+              backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -283,6 +304,7 @@ class _AdminReportViewState extends State<AdminReportView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.actionErrorMessage!),
+              backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -341,7 +363,7 @@ class _AdminReportViewState extends State<AdminReportView> {
       },
       builder: (context, state) {
         if (state.status == AdminReportStatus.unauthorized) {
-          return _buildUnauthorizedScreen(context, state.errorMessage);
+          return _buildUnauthorizedScreen(context, isDark, state.errorMessage);
         }
 
         final sidebar = AdminSidebar(
@@ -376,7 +398,7 @@ class _AdminReportViewState extends State<AdminReportView> {
             state.status == AdminReportStatus.initial) {
           bodyContent = const AdminReportSkeleton();
         } else if (state.status == AdminReportStatus.error) {
-          bodyContent = _buildErrorScreen(context, state.errorMessage);
+          bodyContent = _buildErrorScreen(context, isDark, state.errorMessage);
         } else {
           bodyContent = Stack(
             children: [
@@ -399,12 +421,19 @@ class _AdminReportViewState extends State<AdminReportView> {
                               'Pusat Laporan & Analitik Operasional SatSet Delivery',
                               style: AppTextStyles.headlineSmall.copyWith(
                                 fontWeight: FontWeight.w800,
+                                color: isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimaryLight,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Laporan pengiriman, performa kurir, aktivitas pelanggan, dan transaksi pembayaran secara real-time dari Supabase.',
-                              style: AppTextStyles.bodyMedium,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                              ),
                             ),
                           ],
                         ),
@@ -530,7 +559,8 @@ class _AdminReportViewState extends State<AdminReportView> {
 
         if (isDesktop) {
           return Scaffold(
-            backgroundColor: theme.scaffoldBackgroundColor,
+            backgroundColor:
+                isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
             body: Row(
               children: [
                 if (_sidebarOpen) sidebar,
@@ -541,7 +571,8 @@ class _AdminReportViewState extends State<AdminReportView> {
         } else {
           return Scaffold(
             key: _scaffoldKey,
-            backgroundColor: theme.scaffoldBackgroundColor,
+            backgroundColor:
+                isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
             drawer: Drawer(child: sidebar),
             body: mainColumn,
           );
@@ -550,28 +581,37 @@ class _AdminReportViewState extends State<AdminReportView> {
     );
   }
 
-  Widget _buildUnauthorizedScreen(BuildContext context, String? message) {
-    final theme = Theme.of(context);
+  Widget _buildUnauthorizedScreen(
+    BuildContext context,
+    bool isDark,
+    String? message,
+  ) {
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 460),
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: theme.cardColor,
+            color: isDark ? AppColors.surfaceDark : AppColors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.dividerColor),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.gpp_bad_outlined, size: 54),
+              const Icon(Icons.gpp_bad_outlined, size: 54, color: AppColors.error),
               const SizedBox(height: 16),
               Text(
                 'Akses Ditolak (403)',
                 style: AppTextStyles.titleLarge.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
                 ),
               ),
               const SizedBox(height: 8),
@@ -579,7 +619,11 @@ class _AdminReportViewState extends State<AdminReportView> {
                 message ??
                     'Halaman ini hanya diizinkan untuk Administrator resmi (m_employee.id_users_role = 1).',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
               ),
               const SizedBox(height: 20),
               FilledButton(
@@ -593,27 +637,35 @@ class _AdminReportViewState extends State<AdminReportView> {
     );
   }
 
-  Widget _buildErrorScreen(BuildContext context, String? message) {
-    final theme = Theme.of(context);
+  Widget _buildErrorScreen(
+    BuildContext context,
+    bool isDark,
+    String? message,
+  ) {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 460),
         padding: const EdgeInsets.all(28),
         margin: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: theme.cardColor,
+          color: isDark ? AppColors.surfaceDark : AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.dividerColor),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 52),
+            const Icon(Icons.error_outline_rounded, size: 52, color: AppColors.error),
             const SizedBox(height: 14),
             Text(
               'Gagal Memuat Data Laporan',
               style: AppTextStyles.titleLarge.copyWith(
                 fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
               ),
             ),
             const SizedBox(height: 8),
@@ -621,7 +673,11 @@ class _AdminReportViewState extends State<AdminReportView> {
               message ??
                   'Terjadi kendala saat mengambil data laporan dari database Supabase.',
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(

@@ -17,10 +17,11 @@ class ReportDetailDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: theme.cardColor,
+      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 820, maxHeight: 680),
         child: Column(
@@ -31,7 +32,13 @@ class ReportDetailDialog extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
               child: Row(
                 children: [
-                  const Icon(Icons.description_outlined, size: 24),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 24,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -41,24 +48,39 @@ class ReportDetailDialog extends StatelessWidget {
                           detail.title,
                           style: AppTextStyles.titleMedium.copyWith(
                             fontWeight: FontWeight.w800,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           detail.subtitle,
-                          style: AppTextStyles.bodySmall,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
                     onPressed: onClose,
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1),
+            Divider(
+              height: 1,
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
 
             // Body
             Expanded(
@@ -532,13 +554,16 @@ class _SectionBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariantLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -547,6 +572,9 @@ class _SectionBox extends StatelessWidget {
             title,
             style: AppTextStyles.titleSmall.copyWith(
               fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
           const SizedBox(height: 12),
@@ -568,6 +596,7 @@ class _InfoField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       width: 220,
       child: Column(
@@ -575,13 +604,20 @@ class _InfoField extends StatelessWidget {
         children: [
           Text(
             label,
-            style: AppTextStyles.labelSmall,
+            style: AppTextStyles.labelSmall.copyWith(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             value,
             style: AppTextStyles.bodySmall.copyWith(
               fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
         ],

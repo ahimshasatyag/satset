@@ -15,14 +15,16 @@ class SystemInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,12 +41,19 @@ class SystemInfoSection extends StatelessWidget {
                       'Informasi Sistem & Infrastruktur Backend',
                       style: AppTextStyles.titleMedium.copyWith(
                         fontWeight: FontWeight.w800,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Ringkasan platform aplikasi, mesin basis data Supabase, protokol keamanan, dan status latensi sistem.',
-                      style: AppTextStyles.bodySmall,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                     ),
                   ],
                 ),
@@ -62,9 +71,13 @@ class SystemInfoSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
+              color: isDark
+                  ? AppColors.backgroundDark
+                  : AppColors.backgroundLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             child: Row(
               children: [
@@ -73,6 +86,9 @@ class SystemInfoSection extends StatelessWidget {
                       ? Icons.check_circle_rounded
                       : Icons.error_outline_rounded,
                   size: 24,
+                  color: systemInfo.isDatabaseConnected
+                      ? AppColors.success
+                      : AppColors.error,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -85,6 +101,9 @@ class SystemInfoSection extends StatelessWidget {
                             : 'Koneksi Basis Data Mengalami Gangguan',
                         style: AppTextStyles.bodyMedium.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -92,6 +111,9 @@ class SystemInfoSection extends StatelessWidget {
                         'Latensi Respons: ${systemInfo.databaseLatencyMs} ms • Terakhir Diperiksa: ${AdminDateFormatter.formatDateTime(systemInfo.lastCheckedAt)}',
                         style: AppTextStyles.bodySmall.copyWith(
                           fontSize: 11.5,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
                         ),
                       ),
                     ],
@@ -103,14 +125,23 @@ class SystemInfoSection extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.surfaceDark
+                        : AppColors.primary50,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: theme.dividerColor),
+                    border: Border.all(
+                      color:
+                          isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
                   ),
                   child: Text(
                     systemInfo.environment.toUpperCase(),
                     style: AppTextStyles.labelSmall.copyWith(
                       fontWeight: FontWeight.w800,
                       fontSize: 10,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.primary,
                     ),
                   ),
                 ),
@@ -127,6 +158,7 @@ class SystemInfoSection extends StatelessWidget {
               _SpecCard(
                 title: 'Aplikasi Web & Framework',
                 icon: Icons.web_rounded,
+                isDark: isDark,
                 specs: [
                   ('Nama Aplikasi', systemInfo.appName),
                   ('Versi Produksi', systemInfo.appVersion),
@@ -137,6 +169,7 @@ class SystemInfoSection extends StatelessWidget {
               _SpecCard(
                 title: 'Basis Data & Realtime Engine',
                 icon: Icons.storage_rounded,
+                isDark: isDark,
                 specs: [
                   ('Platform Backend', systemInfo.backendPlatform),
                   ('Database Engine', systemInfo.databaseEngine),
@@ -147,6 +180,7 @@ class SystemInfoSection extends StatelessWidget {
               _SpecCard(
                 title: 'Kebijakan Keamanan & Autentikasi',
                 icon: Icons.admin_panel_settings_outlined,
+                isDark: isDark,
                 specs: [
                   ('Standar Hak Akses', systemInfo.securityProtocol),
                   ('Kredensial Frontend', 'Strictly Anon Key Only (No Service-Role)'),
@@ -162,17 +196,29 @@ class SystemInfoSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.dividerColor),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.shield_outlined, size: 18),
+                Icon(
+                  Icons.shield_outlined,
+                  size: 18,
+                  color: AppColors.secondary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Seluruh kunci rahasia (service-role key, secret token) diisolasi pada tingkat backend dan tidak pernah diekspos ke klien frontend website.',
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 11,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
                 ),
               ],
@@ -187,38 +233,49 @@ class SystemInfoSection extends StatelessWidget {
 class _SpecCard extends StatelessWidget {
   final String title;
   final IconData icon;
+  final bool isDark;
   final List<(String label, String value)> specs;
 
   const _SpecCard({
     required this.title,
     required this.icon,
+    required this.isDark,
     required this.specs,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Container(
       width: 320,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
+        color: isDark
+            ? AppColors.backgroundDark
+            : AppColors.backgroundLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20),
+              Icon(
+                icon,
+                size: 20,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
                   style: AppTextStyles.labelMedium.copyWith(
                     fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -235,13 +292,21 @@ class _SpecCard extends StatelessWidget {
                 children: [
                   Text(
                     item.$1,
-                    style: AppTextStyles.labelSmall.copyWith(fontSize: 10.5),
+                    style: AppTextStyles.labelSmall.copyWith(
+                      fontSize: 10.5,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
                   const SizedBox(height: 1),
                   Text(
                     item.$2,
                     style: AppTextStyles.bodySmall.copyWith(
                       fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                 ],

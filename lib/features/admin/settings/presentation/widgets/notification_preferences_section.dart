@@ -65,14 +65,16 @@ class _NotificationPreferencesSectionState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -81,12 +83,19 @@ class _NotificationPreferencesSectionState
             'Preferensi Notifikasi & Pemantauan Log (t_notifications)',
             style: AppTextStyles.titleMedium.copyWith(
               fontWeight: FontWeight.w800,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Atur jenis peristiwa operasional yang akan memicu notifikasi peringatan pada dashboard administrator.',
-            style: AppTextStyles.bodySmall,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -94,9 +103,13 @@ class _NotificationPreferencesSectionState
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
+              color: isDark
+                  ? AppColors.backgroundDark
+                  : AppColors.backgroundLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             child: Wrap(
               spacing: 24,
@@ -107,13 +120,20 @@ class _NotificationPreferencesSectionState
                   children: [
                     Text(
                       'Total Riwayat Notifikasi',
-                      style: AppTextStyles.labelSmall,
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${widget.preferences.totalExistingNotifications} Pesan',
                       style: AppTextStyles.titleMedium.copyWith(
                         fontWeight: FontWeight.w800,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                   ],
@@ -123,21 +143,34 @@ class _NotificationPreferencesSectionState
                   children: [
                     Text(
                       'Notifikasi Belum Dibaca',
-                      style: AppTextStyles.labelSmall,
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${widget.preferences.unreadNotificationsCount} Pesan',
                       style: AppTextStyles.titleMedium.copyWith(
                         fontWeight: FontWeight.w800,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                   ],
                 ),
-                Expanded(
+                SizedBox(
+                  width: 300,
                   child: Text(
                     widget.preferences.backendNote,
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 11,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
                 ),
               ],
@@ -151,46 +184,67 @@ class _NotificationPreferencesSectionState
             subtitle:
                 'Dapatkan pemberitahuan seketika saat pelanggan berhasil membuat pesanan pengiriman (t_shipments status PENDING).',
             value: _notifyOrders,
+            isDark: isDark,
             onChanged: (val) => setState(() => _notifyOrders = val),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           _PreferenceSwitchTile(
             title: 'Perubahan Kronologi Status Pengiriman',
             subtitle:
                 'Pemberitahuan perubahan status paket saat paket dijemput, tiba di sortir, atau dalam perjalanan.',
             value: _notifyStatus,
+            isDark: isDark,
             onChanged: (val) => setState(() => _notifyStatus = val),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           _PreferenceSwitchTile(
             title: 'Penugasan Kurir (t_shipment_assignments)',
             subtitle:
                 'Pemberitahuan saat kurir menerima penugasan baru atau saat terjadi pelepasan tugas (unassigned).',
             value: _notifyAssignments,
+            isDark: isDark,
             onChanged: (val) => setState(() => _notifyAssignments = val),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           _PreferenceSwitchTile(
             title: 'Transaksi Pembayaran Masuk & Lunas',
             subtitle:
                 'Pemberitahuan mutasi transaksi pembayaran (transfer gateway lunas atau penerimaan setoran COD).',
             value: _notifyPayments,
+            isDark: isDark,
             onChanged: (val) => setState(() => _notifyPayments = val),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           _PreferenceSwitchTile(
             title: 'Peringatan Pengiriman Gagal (FAILED_DELIVERY)',
             subtitle:
                 'Peringatan prioritas tinggi ketika kurir melaporkan kegagalan pengantaran paket kepada penerima.',
             value: _notifyFailed,
+            isDark: isDark,
             onChanged: (val) => setState(() => _notifyFailed = val),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           _PreferenceSwitchTile(
             title: 'Bunyi Alarm / Notifikasi Suara',
             subtitle:
                 'Putar efek audio pemberitahuan saat terjadi event realtime pada aplikasi web admin.',
             value: _soundAlert,
+            isDark: isDark,
             onChanged: (val) => setState(() => _soundAlert = val),
           ),
           const SizedBox(height: 24),
@@ -225,12 +279,14 @@ class _PreferenceSwitchTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool value;
+  final bool isDark;
   final ValueChanged<bool> onChanged;
 
   const _PreferenceSwitchTile({
     required this.title,
     required this.subtitle,
     required this.value,
+    required this.isDark,
     required this.onChanged,
   });
 
@@ -248,12 +304,20 @@ class _PreferenceSwitchTile extends StatelessWidget {
                   title,
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: AppTextStyles.bodySmall.copyWith(fontSize: 11.5),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11.5,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
                 ),
               ],
             ),

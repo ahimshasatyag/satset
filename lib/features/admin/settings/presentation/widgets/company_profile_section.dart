@@ -93,23 +93,42 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Simpan Informasi Perusahaan?'),
-        content: const Text(
-          'Informasi profil perusahaan, kontak operasional, dan identitas resmi SatSet Delivery akan diperbarui.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Batal'),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Simpan Informasi Perusahaan?',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Ya, Simpan Informasi'),
+          content: Text(
+            'Informasi profil perusahaan, kontak operasional, dan identitas resmi SatSet Delivery akan diperbarui.',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Ya, Simpan Informasi'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed == true) {
@@ -129,14 +148,21 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textStyle = AppTextStyles.bodyMedium.copyWith(
+      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+    );
+    final iconColor =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Form(
         key: _formKey,
@@ -147,12 +173,19 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
               'Informasi & Profil Perusahaan (SatSet Delivery)',
               style: AppTextStyles.titleMedium.copyWith(
                 fontWeight: FontWeight.w800,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               'Kelola nama resmi perusahaan, alamat kantor operasional, kontak layanan pelanggan, dan identitas korporat.',
-              style: AppTextStyles.bodySmall,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -160,14 +193,22 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor,
+                color: isDark
+                    ? AppColors.backgroundDark
+                    : AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: theme.dividerColor),
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 20),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 20,
+                    color: AppColors.secondary,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -177,6 +218,9 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                           'Catatan Kebutuhan Pengembangan Database (Backend Notice)',
                           style: AppTextStyles.labelMedium.copyWith(
                             fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -184,6 +228,9 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                           widget.companyProfile.backendNote,
                           style: AppTextStyles.bodySmall.copyWith(
                             fontSize: 11.5,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
                         ),
                       ],
@@ -203,11 +250,15 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                   width: 320,
                   child: TextFormField(
                     controller: _nameController,
-                    style: AppTextStyles.bodyMedium,
-                    decoration: const InputDecoration(
+                    style: textStyle,
+                    decoration: InputDecoration(
                       labelText: 'Nama Perusahaan / Badan Usaha *',
                       hintText: 'PT SatSet Delivery Indonesia...',
-                      prefixIcon: Icon(Icons.business_outlined, size: 20),
+                      prefixIcon: Icon(
+                        Icons.business_outlined,
+                        size: 20,
+                        color: iconColor,
+                      ),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -221,11 +272,15 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                   width: 320,
                   child: TextFormField(
                     controller: _legalController,
-                    style: AppTextStyles.bodyMedium,
-                    decoration: const InputDecoration(
+                    style: textStyle,
+                    decoration: InputDecoration(
                       labelText: 'Nomor Izin / Akta Legalitas *',
                       hintText: 'AHU-0012948.AH.01.01...',
-                      prefixIcon: Icon(Icons.gavel_outlined, size: 20),
+                      prefixIcon: Icon(
+                        Icons.gavel_outlined,
+                        size: 20,
+                        color: iconColor,
+                      ),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -239,12 +294,16 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                   width: 320,
                   child: TextFormField(
                     controller: _emailController,
-                    style: AppTextStyles.bodyMedium,
+                    style: textStyle,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Email Resmi Customer Service *',
                       hintText: 'support@satset.id...',
-                      prefixIcon: Icon(Icons.email_outlined, size: 20),
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        size: 20,
+                        color: iconColor,
+                      ),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -261,12 +320,16 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                   width: 320,
                   child: TextFormField(
                     controller: _phoneController,
-                    style: AppTextStyles.bodyMedium,
+                    style: textStyle,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Nomor Telepon CS / Call Center *',
                       hintText: '+62 21 5550 8899...',
-                      prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                      prefixIcon: Icon(
+                        Icons.phone_outlined,
+                        size: 20,
+                        color: iconColor,
+                      ),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -280,11 +343,15 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                   width: 320,
                   child: TextFormField(
                     controller: _websiteController,
-                    style: AppTextStyles.bodyMedium,
-                    decoration: const InputDecoration(
+                    style: textStyle,
+                    decoration: InputDecoration(
                       labelText: 'Website Resmi SatSet',
                       hintText: 'https://satset.id...',
-                      prefixIcon: Icon(Icons.language_rounded, size: 20),
+                      prefixIcon: Icon(
+                        Icons.language_rounded,
+                        size: 20,
+                        color: iconColor,
+                      ),
                     ),
                   ),
                 ),
@@ -292,11 +359,15 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
                   width: 320,
                   child: TextFormField(
                     controller: _hoursController,
-                    style: AppTextStyles.bodyMedium,
-                    decoration: const InputDecoration(
+                    style: textStyle,
+                    decoration: InputDecoration(
                       labelText: 'Jam Operasional Pengiriman',
                       hintText: 'Senin - Minggu: 24 Jam...',
-                      prefixIcon: Icon(Icons.access_time_rounded, size: 20),
+                      prefixIcon: Icon(
+                        Icons.access_time_rounded,
+                        size: 20,
+                        color: iconColor,
+                      ),
                     ),
                   ),
                 ),
@@ -306,24 +377,32 @@ class _CompanyProfileSectionState extends State<CompanyProfileSection> {
 
             TextFormField(
               controller: _mottoController,
-              style: AppTextStyles.bodyMedium,
-              decoration: const InputDecoration(
+              style: textStyle,
+              decoration: InputDecoration(
                 labelText: 'Motto / Slogan Resmi Brand',
                 hintText: 'Sat-Set Sampai, Hati Pun Santai...',
-                prefixIcon: Icon(Icons.campaign_outlined, size: 20),
+                prefixIcon: Icon(
+                  Icons.campaign_outlined,
+                  size: 20,
+                  color: iconColor,
+                ),
               ),
             ),
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _addressController,
-              style: AppTextStyles.bodyMedium,
+              style: textStyle,
               maxLines: 2,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Alamat Kantor Pusat & Pusat Logistik *',
                 hintText:
                     'Alamat lengkap gedung kantor operasional SatSet Delivery...',
-                prefixIcon: Icon(Icons.location_city_outlined, size: 20),
+                prefixIcon: Icon(
+                  Icons.location_city_outlined,
+                  size: 20,
+                  color: iconColor,
+                ),
               ),
               validator: (val) {
                 if (val == null || val.trim().isEmpty) {

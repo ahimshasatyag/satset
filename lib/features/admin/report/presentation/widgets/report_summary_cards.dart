@@ -217,6 +217,7 @@ class ReportSummaryCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final metrics = _buildMetrics();
 
     return LayoutBuilder(
@@ -237,9 +238,11 @@ class ReportSummaryCards extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.cardColor,
+                  color: isDark ? AppColors.surfaceDark : AppColors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: theme.dividerColor),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,11 +251,23 @@ class ReportSummaryCards extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: theme.scaffoldBackgroundColor,
+                        color: isDark
+                            ? AppColors.backgroundDark
+                            : AppColors.backgroundLight,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: theme.dividerColor),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
                       ),
-                      child: Icon(m.icon, size: 22),
+                      child: Icon(
+                        m.icon,
+                        size: 22,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -267,6 +282,9 @@ class ReportSummaryCards extends StatelessWidget {
                                   m.title,
                                   style: AppTextStyles.labelMedium.copyWith(
                                     fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? AppColors.textSecondaryDark
+                                        : AppColors.textSecondaryLight,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -279,14 +297,24 @@ class ReportSummaryCards extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppColors.backgroundDark
+                                      : AppColors.backgroundLight,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: theme.dividerColor),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? AppColors.borderDark
+                                        : AppColors.borderLight,
+                                  ),
                                 ),
                                 child: Text(
                                   m.badge,
                                   style: AppTextStyles.labelSmall.copyWith(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? AppColors.textPrimaryDark
+                                        : AppColors.textPrimaryLight,
                                   ),
                                 ),
                               ),
@@ -297,6 +325,9 @@ class ReportSummaryCards extends StatelessWidget {
                             m.value,
                             style: AppTextStyles.titleLarge.copyWith(
                               fontWeight: FontWeight.w800,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -306,6 +337,9 @@ class ReportSummaryCards extends StatelessWidget {
                             m.subtitle,
                             style: AppTextStyles.bodySmall.copyWith(
                               fontSize: 11,
+                              color: isDark
+                                  ? AppColors.textMutedDark
+                                  : AppColors.textMutedLight,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
