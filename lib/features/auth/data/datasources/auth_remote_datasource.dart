@@ -300,25 +300,50 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
     _ensureSupabaseAvailable();
     try {
-      // 1. Cek apakah email sudah terdaftar
-      final existingUser = await _executeWithSessionRecovery(() async {
-        return await _client
-            .from(DatabaseConstants.tableUsers)
-            .select(UserTableColumns.id)
-            .eq(UserTableColumns.email, cleanEmail)
-            .maybeSingle();
+      // 1. Cek apakah nomor telepon sudah terdaftar di akun lain
+      final existingPhone = await _executeWithSessionRecovery(() async {
+        try {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select('${UserTableColumns.id}, ${UserTableColumns.email}')
+              .eq(UserTableColumns.noHp, cleanPhone)
+              .maybeSingle();
+        } catch (_) {
+          return null;
+        }
       });
 
-      if (existingUser != null) {
-        throw Exception(
-          'Email sudah terdaftar. Silakan gunakan email lain atau masuk.',
-        );
+      if (existingPhone != null) {
+        final existingPhoneEmail =
+            existingPhone[UserTableColumns.email]?.toString().toLowerCase();
+        if (existingPhoneEmail != null && existingPhoneEmail != cleanEmail) {
+          throw Exception(
+            'Nomor telepon "$cleanPhone" sudah digunakan oleh akun lain. Silakan gunakan nomor telepon berbeda.',
+          );
+        }
       }
 
-      // 2. Hash kata sandi untuk keamanan penyimpanan di basis data
+      // 2. Cek apakah email sudah terdaftar
+      final existingUser = await _executeWithSessionRecovery(() async {
+        try {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select('${UserTableColumns.id}, ${UserTableColumns.emailVerified}')
+              .eq(UserTableColumns.email, cleanEmail)
+              .maybeSingle();
+        } catch (_) {
+          return await _client
+              .from(DatabaseConstants.tableUsers)
+              .select(UserTableColumns.id)
+              .eq(UserTableColumns.email, cleanEmail)
+              .maybeSingle();
+        }
+      });
+
+      // 3. Hash kata sandi untuk keamanan penyimpanan di basis data
       final hashedPassword = PasswordHasher.hash(password);
 
-      // 3. Simpan data ke tabel m_users di Supabase
+      // 4. Siapkan data pendaftaran pengguna
       final newUserData = <String, dynamic>{
         UserTableColumns.namaLengkap: cleanName,
         UserTableColumns.email: cleanEmail,
@@ -343,48 +368,142 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         UserTableColumns.updatedAt: DateTime.now().toUtc().toIso8601String(),
       };
 
-      Map<String, dynamic> inserted = {};
-      bool insertSuccess = false;
-      int maxRetries = 3;
+      Map<String, dynamic> resultUserData = {};
 
-      while (!insertSuccess && maxRetries > 0) {
-        maxRetries--;
-        try {
-          inserted = await _executeWithSessionRecovery(() async {
-            return await _client
-                .from(DatabaseConstants.tableUsers)
-                .insert(newUserData)
-                .select()
-                .single();
-          });
-          insertSuccess = true;
-        } catch (e) {
-          if (e is PostgrestException) {
-            final match = RegExp(r"Could not find the '([^']+)' column")
-                .firstMatch(e.message);
-            if (match != null) {
-              final missingCol = match.group(1);
-              if (missingCol != null && newUserData.containsKey(missingCol)) {
-                newUserData.remove(missingCol);
-                continue;
+      if (existingUser != null) {
+        final isVerified =
+            existingUser[UserTableColumns.emailVerified] == true;
+        if (isVerified) {
+          throw Exception(
+            'Email sudah terdaftar dan terverifikasi. Silakan masuk atau gunakan email lain.',
+          );
+        }
+
+        // Jika akun pernah didaftarkan tetapi belum diverifikasi, perbarui data & lanjutkan ke verifikasi
+        final existingId = existingUser[UserTableColumns.id];
+        final updateUserData = Map<String, dynamic>.from(newUserData)
+          ..remove(UserTableColumns.createdAt);
+
+        bool updateSuccess = false;
+        int maxRetries = 6;
+
+        while (!updateSuccess && maxRetries > 0) {
+          maxRetries--;
+          try {
+            resultUserData = await _executeWithSessionRecovery(() async {
+              return await _client
+                  .from(DatabaseConstants.tableUsers)
+                  .update(updateUserData)
+                  .eq(UserTableColumns.id, existingId)
+                  .select()
+                  .single();
+            });
+            updateSuccess = true;
+          } catch (e) {
+            if (e is PostgrestException) {
+              final match = RegExp(r"Could not find the '([^']+)' column")
+                  .firstMatch(e.message);
+              if (match != null) {
+                final missingCol = match.group(1);
+                if (missingCol != null &&
+                    updateUserData.containsKey(missingCol)) {
+                  updateUserData.remove(missingCol);
+                  continue;
+                }
+              }
+
+              // Toleransi jika ada constraint foreign key atau panjang kolom pada wilayah
+              if (e.code == '23503' ||
+                  e.message.contains('fk_users') ||
+                  e.message.contains('id_kelurahan') ||
+                  e.message.contains('id_kecamatan') ||
+                  e.message.contains('id_kabkot') ||
+                  e.message.contains('id_provinsi') ||
+                  e.message.contains(
+                    'value too long for type character varying',
+                  )) {
+                if (updateUserData.containsKey(UserTableColumns.idKelurahan)) {
+                  updateUserData.remove(UserTableColumns.idKelurahan);
+                  continue;
+                } else if (updateUserData.containsKey(
+                  UserTableColumns.idKecamatan,
+                )) {
+                  updateUserData.remove(UserTableColumns.idKecamatan);
+                  continue;
+                } else if (updateUserData.containsKey(
+                  UserTableColumns.idKabkot,
+                )) {
+                  updateUserData.remove(UserTableColumns.idKabkot);
+                  continue;
+                } else if (updateUserData.containsKey(
+                  UserTableColumns.idProvinsi,
+                )) {
+                  updateUserData.remove(UserTableColumns.idProvinsi);
+                  continue;
+                }
               }
             }
-
-            // Fallback toleransi jika kolom id_kelurahan pada schema database belum diubah menjadi varchar(13) atau varchar(20)
-            // atau terdapat kendala foreign key constraint fk_users_kelurahan
-            if (e.message.contains('fk_users_kelurahan') ||
-                e.message.contains('id_kelurahan') ||
-                (e.message.contains(
-                      'value too long for type character varying',
-                    ) &&
-                    e.message.contains('12'))) {
-              if (newUserData.containsKey(UserTableColumns.idKelurahan)) {
-                newUserData.remove(UserTableColumns.idKelurahan);
-                continue;
-              }
-            }
+            rethrow;
           }
-          rethrow;
+        }
+      } else {
+        bool insertSuccess = false;
+        int maxRetries = 6;
+
+        while (!insertSuccess && maxRetries > 0) {
+          maxRetries--;
+          try {
+            resultUserData = await _executeWithSessionRecovery(() async {
+              return await _client
+                  .from(DatabaseConstants.tableUsers)
+                  .insert(newUserData)
+                  .select()
+                  .single();
+            });
+            insertSuccess = true;
+          } catch (e) {
+            if (e is PostgrestException) {
+              final match = RegExp(r"Could not find the '([^']+)' column")
+                  .firstMatch(e.message);
+              if (match != null) {
+                final missingCol = match.group(1);
+                if (missingCol != null && newUserData.containsKey(missingCol)) {
+                  newUserData.remove(missingCol);
+                  continue;
+                }
+              }
+
+              // Fallback toleransi jika kolom wilayah pada schema database ada kendala FK atau varchar length
+              if (e.code == '23503' ||
+                  e.message.contains('fk_users') ||
+                  e.message.contains('id_kelurahan') ||
+                  e.message.contains('id_kecamatan') ||
+                  e.message.contains('id_kabkot') ||
+                  e.message.contains('id_provinsi') ||
+                  e.message.contains(
+                    'value too long for type character varying',
+                  )) {
+                if (newUserData.containsKey(UserTableColumns.idKelurahan)) {
+                  newUserData.remove(UserTableColumns.idKelurahan);
+                  continue;
+                } else if (newUserData.containsKey(
+                  UserTableColumns.idKecamatan,
+                )) {
+                  newUserData.remove(UserTableColumns.idKecamatan);
+                  continue;
+                } else if (newUserData.containsKey(UserTableColumns.idKabkot)) {
+                  newUserData.remove(UserTableColumns.idKabkot);
+                  continue;
+                } else if (newUserData.containsKey(
+                  UserTableColumns.idProvinsi,
+                )) {
+                  newUserData.remove(UserTableColumns.idProvinsi);
+                  continue;
+                }
+              }
+            }
+            rethrow;
+          }
         }
       }
 
@@ -406,9 +525,27 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       } catch (_) {}
 
-      return UserModel.fromDatabase(inserted);
+      return UserModel.fromDatabase(resultUserData);
     } catch (e) {
       if (e is PostgrestException) {
+        final msg = e.message.toLowerCase();
+        if (e.code == '23505' ||
+            msg.contains('duplicate key value') ||
+            msg.contains('unique constraint')) {
+          if (msg.contains('no_hp') || msg.contains('phone')) {
+            throw Exception(
+              'Nomor telepon "$cleanPhone" sudah terdaftar pada akun lain. Silakan gunakan nomor telepon berbeda.',
+            );
+          }
+          if (msg.contains('email')) {
+            throw Exception(
+              'Email "$cleanEmail" sudah terdaftar. Silakan gunakan email lain atau masuk.',
+            );
+          }
+          throw Exception(
+            'Data pendaftaran (email atau nomor telepon) sudah pernah digunakan.',
+          );
+        }
         throw Exception('Gagal menyimpan pendaftaran: ${e.message}');
       }
       rethrow;
@@ -604,6 +741,21 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       return UserModel.fromDatabase(inserted);
     } catch (e) {
       if (e is PostgrestException) {
+        final msg = e.message.toLowerCase();
+        if (e.code == '23505' ||
+            msg.contains('duplicate key value') ||
+            msg.contains('unique constraint')) {
+          if (msg.contains('no_hp') || msg.contains('phone')) {
+            throw Exception(
+              'Nomor telepon "$cleanPhone" sudah terdaftar pada akun lain. Silakan gunakan nomor telepon berbeda.',
+            );
+          }
+          if (msg.contains('email')) {
+            throw Exception(
+              'Email "$cleanEmail" sudah terdaftar. Silakan gunakan email lain atau masuk.',
+            );
+          }
+        }
         throw Exception('Gagal menyimpan pendaftaran kurir: ${e.message}');
       }
       rethrow;

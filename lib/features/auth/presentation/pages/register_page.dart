@@ -490,7 +490,7 @@ class _RegisterPageState extends State<RegisterPage> {
             SafeArea(
               child: BlocConsumer<AuthBloc, AuthState>(
                 listener: (context, state) {
-                  if (state is AuthSuccess) {
+                  if (state is AuthRegisterSuccess || state is AuthSuccess) {
                     final registeredEmail = _emailController.text.trim();
                     final registeredName = _nameController.text.trim();
 
@@ -502,7 +502,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           email: registeredEmail,
                           name: registeredName.isNotEmpty
                               ? registeredName
-                              : state.user.name,
+                              : (state is AuthRegisterSuccess
+                                  ? state.user.name
+                                  : (state as AuthSuccess).user.name),
                         ),
                       ),
                     );
