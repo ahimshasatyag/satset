@@ -493,6 +493,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   if (state is AuthRegisterSuccess || state is AuthSuccess) {
                     final registeredEmail = _emailController.text.trim();
                     final registeredName = _nameController.text.trim();
+                    final registeredPassword = _passwordController.text;
 
                     // Arahkan ke halaman loading menunggu verifikasi email
                     Navigator.pushReplacement(
@@ -505,6 +506,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               : (state is AuthRegisterSuccess
                                   ? state.user.name
                                   : (state as AuthSuccess).user.name),
+                          password: registeredPassword,
+                          registeredAt: DateTime.now(),
                         ),
                       ),
                     );

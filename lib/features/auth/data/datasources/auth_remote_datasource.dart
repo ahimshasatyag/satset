@@ -508,11 +508,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       // Daftarkan juga akun ke Supabase Auth agar email terdaftar untuk menerima email konfirmasi via Supabase
+      // Catatan: Tidak memaksakan emailRedirectTo dengan skema custom io.supabase.satset:// agar saat tautan
+      // dibuka di browser desktop/komputer tidak menghasilkan error ERR_UNKNOWN_URL_SCHEME / situs tidak dapat dijangkau.
       try {
         await _client.auth.signUp(
           email: cleanEmail,
           password: password,
-          emailRedirectTo: 'io.supabase.satset://login-callback',
           data: {
             'nama_lengkap': cleanName,
             'no_hp': cleanPhone,

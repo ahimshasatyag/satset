@@ -52,10 +52,12 @@ class _EmailVerificationWaitingPageState
   bool _isChecking = false;
   bool _isVerified = false;
   DateTime? _verifiedAt;
+  String? _currentPassword;
 
   @override
   void initState() {
     super.initState();
+    _currentPassword = widget.password;
     WidgetsBinding.instance.addObserver(this);
     if (widget.isAlreadyVerified) {
       _isVerified = true;
@@ -123,23 +125,15 @@ class _EmailVerificationWaitingPageState
     });
   }
 
-  /// Memastikan bahwa waktu verifikasi benar-benar baru terjadi (setelah atau saat pendaftaran)
-  /// untuk mencegah akun lama dengan emailConfirmedAt kemarin dianggap sudah terverifikasi otomatis.
-  bool _isFreshVerification(DateTime? verifiedAt) {
-    if (widget.registeredAt == null || verifiedAt == null) return true;
-    return !verifiedAt.isBefore(
-      widget.registeredAt!.subtract(const Duration(seconds: 30)),
-    );
-  }
-
   /// Inisialisasi pendengar perubahan verifikasi email (Realtime + Polling + Auth Listener)
   void _initVerificationWatcher() {
     final cleanEmail = widget.email.trim().toLowerCase();
 
-    // Polling periodik dimulai setelah jeda (6 detik) untuk memberi waktu user membuka aplikasi email
-    Future.delayed(const Duration(seconds: 6), () {
+    // Polling periodik dimulai lebih cepat (setelah 2 detik, lalu tiap 4 detik)
+    Future.delayed(const Duration(seconds: 2), () {
       if (!mounted || _isVerified) return;
-      _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkVerificationStatus();
+      _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
         if (!_isVerified && mounted) {
           _checkVerificationStatus();
         }
@@ -157,11 +151,6 @@ class _EmailVerificationWaitingPageState
           if (user.emailConfirmedAt != null) {
             final verifiedIso = user.emailConfirmedAt!;
             final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
-
-            // Cegah verifikasi otomatis jika timestamp konfirmasi adalah sesi lama
-            if (!_isFreshVerification(verifiedAt)) {
-              return;
-            }
 
             await _updateUserTableVerified(cleanEmail, verifiedIso);
             _handleVerifiedSuccess(verifiedAt);
@@ -200,10 +189,6 @@ class _EmailVerificationWaitingPageState
                 DateTime? verifiedAt;
                 if (rawAt != null) {
                   verifiedAt = DateTime.tryParse(rawAt.toString());
-                }
-
-                if (!_isFreshVerification(verifiedAt)) {
-                  return;
                 }
 
                 _handleVerifiedSuccess(verifiedAt);
@@ -253,29 +238,23 @@ class _EmailVerificationWaitingPageState
       final cleanEmail = widget.email.trim().toLowerCase();
 
       // 1. Jika kata sandi tersedia dari pendaftaran, periksa ke Supabase Auth
-      // Jika email SUDAH diverifikasi di email pengguna, signInWithPassword akan BERHASIL
+      // Jika email SUDAH diverifikasi di browser oleh pengguna, signInWithPassword akan BERHASIL
       // Jika email BELUM diverifikasi, Supabase Auth akan melempar: 'Email not confirmed'
-      if (widget.password != null && widget.password!.isNotEmpty) {
+      if (_currentPassword != null && _currentPassword!.isNotEmpty) {
         try {
           final authResponse = await SupabaseConfig.client.auth
               .signInWithPassword(
                 email: cleanEmail,
-                password: widget.password!,
+                password: _currentPassword!,
               );
           final authUser = authResponse.user;
           if (authUser != null && authUser.emailConfirmedAt != null) {
             final verifiedIso = authUser.emailConfirmedAt!;
             final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
 
-            if (_isFreshVerification(verifiedAt)) {
-              await _updateUserTableVerified(cleanEmail, verifiedIso);
-              _handleVerifiedSuccess(verifiedAt);
-              return true;
-            } else {
-              debugPrint(
-                'Konfirmasi Supabase ($verifiedAt) lebih lama dari pendaftaran (${widget.registeredAt}). Mengabaikan.',
-              );
-            }
+            await _updateUserTableVerified(cleanEmail, verifiedIso);
+            _handleVerifiedSuccess(verifiedAt);
+            return true;
           }
         } on AuthException catch (e) {
           // Normal jika email belum dikonfirmasi: 'Email not confirmed'
@@ -295,11 +274,9 @@ class _EmailVerificationWaitingPageState
           final verifiedIso = authUser.emailConfirmedAt!;
           final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
 
-          if (_isFreshVerification(verifiedAt)) {
-            await _updateUserTableVerified(cleanEmail, verifiedIso);
-            _handleVerifiedSuccess(verifiedAt);
-            return true;
-          }
+          await _updateUserTableVerified(cleanEmail, verifiedIso);
+          _handleVerifiedSuccess(verifiedAt);
+          return true;
         }
       } catch (_) {}
 
@@ -311,11 +288,9 @@ class _EmailVerificationWaitingPageState
         final verifiedIso = currentAuthUser.emailConfirmedAt!;
         final verifiedAt = DateTime.tryParse(verifiedIso) ?? DateTime.now();
 
-        if (_isFreshVerification(verifiedAt)) {
-          await _updateUserTableVerified(cleanEmail, verifiedIso);
-          _handleVerifiedSuccess(verifiedAt);
-          return true;
-        }
+        await _updateUserTableVerified(cleanEmail, verifiedIso);
+        _handleVerifiedSuccess(verifiedAt);
+        return true;
       }
 
       // 4. Periksa langsung apakah kolom email_verified pada tabel public.m_users sudah bernilai true
@@ -344,10 +319,8 @@ class _EmailVerificationWaitingPageState
             verifiedAt = DateTime.tryParse(rawAt.toString());
           }
 
-          if (_isFreshVerification(verifiedAt)) {
-            _handleVerifiedSuccess(verifiedAt);
-            return true;
-          }
+          _handleVerifiedSuccess(verifiedAt);
+          return true;
         }
       }
 
@@ -377,7 +350,88 @@ class _EmailVerificationWaitingPageState
 
   /// Pengecekan manual status verifikasi ketika pengguna menekan tombol cek status
   Future<void> _handleManualCheck() async {
+    if (_currentPassword == null || _currentPassword!.isEmpty) {
+      final inputPassword = await _showPasswordPromptDialog();
+      if (inputPassword != null && inputPassword.isNotEmpty) {
+        _currentPassword = inputPassword;
+      }
+    }
     await _checkVerificationStatus(showFeedbackOnFailure: true);
+  }
+
+  /// Dialog input kata sandi opsional jika halaman dibuka tanpa state password
+  Future<String?> _showPasswordPromptDialog() async {
+    final controller = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return AlertDialog(
+              backgroundColor:
+                  isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              title: Text(
+                'Sinkronisasi Verifikasi Email',
+                style: AppTextStyles.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Masukkan kata sandi Anda untuk menyinkronkan status konfirmasi dari email browser:',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  CustomTextField(
+                    controller: controller,
+                    hintText: 'Kata sandi akun',
+                    isPassword: true,
+                    prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    final text = controller.text.trim();
+                    Navigator.pop(ctx, text.isNotEmpty ? text : null);
+                  },
+                  child: const Text(
+                    'Cek Status',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   /// Dipanggil saat email berhasil terverifikasi pada tabel m_users
@@ -441,7 +495,6 @@ class _EmailVerificationWaitingPageState
       await SupabaseConfig.client.auth.resend(
         type: OtpType.signup,
         email: cleanEmail,
-        emailRedirectTo: 'io.supabase.satset://login-callback',
       );
 
       if (mounted) {
@@ -750,7 +803,7 @@ class _EmailVerificationWaitingPageState
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Buka email Anda lalu klik tautan konfirmasi untuk mengaktifkan akun.',
+                  'Buka email Anda lalu klik tautan konfirmasi di browser. Setelah konfirmasi berhasil di browser, kembali ke aplikasi atau tekan "Cek Status Verifikasi".',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 11,
