@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:satset/shared/theme/theme.dart';
+
 import '../../domain/entities/user_account.dart';
 
 class AccountProfileHeader extends StatelessWidget {
@@ -56,12 +57,14 @@ class AccountProfileHeader extends StatelessWidget {
                     color: isDark
                         ? AppColors.backgroundDark
                         : AppColors.surfaceLight,
-                    child: account.avatarUrl != null &&
+                    child:
+                        account.avatarUrl != null &&
                             account.avatarUrl!.isNotEmpty
                         ? Image.network(
                             account.avatarUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _buildAvatarFallback(),
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildAvatarFallback(),
                           )
                         : _buildAvatarFallback(),
                   ),
@@ -158,11 +161,13 @@ class AccountProfileHeader extends StatelessWidget {
             spacing: 8,
             runSpacing: 6,
             children: [
-              // Badge Verifikasi Email
+              // Badge Verifikasi Email: TRUE = Verifikasi (Hijau), FALSE = Belum Verifikasi (Merah)
               if (account.isEmailVerified)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
@@ -180,7 +185,7 @@ class AccountProfileHeader extends StatelessWidget {
                       ),
                       SizedBox(width: 4),
                       Text(
-                        'Email Terverifikasi',
+                        'Verifikasi',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -195,30 +200,32 @@ class AccountProfileHeader extends StatelessWidget {
                   onTap: onResendVerification,
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.12),
+                      color: AppColors.error.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: AppColors.warning.withValues(alpha: 0.3),
+                        color: AppColors.error.withValues(alpha: 0.3),
                       ),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.warning_amber_rounded,
+                          Icons.cancel_rounded,
                           size: 13,
-                          color: AppColors.warning,
+                          color: AppColors.error,
                         ),
                         SizedBox(width: 4),
                         Text(
-                          'Belum Verifikasi • Kirim Ulang',
+                          'Belum Verifikasi',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.warning,
+                            color: AppColors.error,
                           ),
                         ),
                       ],
@@ -226,42 +233,36 @@ class AccountProfileHeader extends StatelessWidget {
                   ),
                 ),
 
-              // Badge Membership Tier / Status Kurir
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: (account.isCourierAccount
-                          ? AppColors.primary
-                          : AppColors.secondary)
-                      .withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      account.isCourierAccount
-                          ? Icons.two_wheeler_rounded
-                          : Icons.workspace_premium_rounded,
-                      size: 13,
-                      color: account.isCourierAccount
-                          ? AppColors.primary
-                          : AppColors.secondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      account.membershipTier,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: account.isCourierAccount
-                            ? AppColors.primary
-                            : AppColors.secondary,
+              // Badge Status Kurir (hanya jika kurir)
+              if (account.isCourierAccount &&
+                  account.membershipTier.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.two_wheeler_rounded,
+                        size: 13,
+                        color: AppColors.primary,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        account.membershipTier,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
               // Ringkasan Aktivitas Pengiriman / Tugas Kurir
               Container(
@@ -283,8 +284,12 @@ class AccountProfileHeader extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       account.isCourierAccount
-                          ? '${account.shipmentCount} Tugas Kurir'
-                          : '${account.shipmentCount} Pengiriman',
+                          ? (account.shipmentCount > 0
+                              ? '${account.shipmentCount} Tugas Kurir'
+                              : 'Belum Ada Tugas')
+                          : (account.shipmentCount > 0
+                              ? '${account.shipmentCount} Pengiriman'
+                              : 'Belum Ada Pengiriman'),
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -303,7 +308,12 @@ class AccountProfileHeader extends StatelessWidget {
 
   Widget _buildAvatarFallback() {
     final initials = account.name.trim().isNotEmpty
-        ? account.name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join()
+        ? account.name
+              .trim()
+              .split(' ')
+              .map((w) => w.isNotEmpty ? w[0] : '')
+              .take(2)
+              .join()
         : 'S';
     return Center(
       child: Text(

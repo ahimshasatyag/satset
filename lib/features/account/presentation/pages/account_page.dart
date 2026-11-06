@@ -48,6 +48,16 @@ class _AccountPageState extends State<AccountPage> {
   AccountRepository? _repository;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _getOrCreateBloc(context).add(const AccountProfileLoaded());
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _internalBloc?.close();
     super.dispose();
@@ -209,9 +219,10 @@ class _AccountPageState extends State<AccountPage> {
                       fullAddress: widget.user!.alamatLengkap,
                       latitude: widget.user!.latitude,
                       longitude: widget.user!.longitude,
+                      isEmailVerified: widget.user!.emailVerified == true,
                       membershipTier: widget.user!.isCourier
                           ? 'Mitra Kurir SatSet'
-                          : 'SatSet Priority Member',
+                          : '',
                       isCourier: widget.user!.isCourier,
                       satsetPayBalance: widget.user!.isCourier ? 0 : 450000,
                       savedAddressesCount:
@@ -248,6 +259,28 @@ class _AccountPageState extends State<AccountPage> {
                         account: account,
                         onEditProfile: () => _showEditProfile(context, account, bloc),
                         onResendVerification: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'Memeriksa status verifikasi di Supabase...',
+                                  ),
+                                ],
+                              ),
+                              duration: Duration(seconds: 1),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                           bloc.add(const AccountEmailVerificationResent());
                         },
                       ),
@@ -281,31 +314,16 @@ class _AccountPageState extends State<AccountPage> {
                               icon: Icons.local_shipping_rounded,
                               color: AppColors.tertiary,
                               title: 'Ringkasan Aktivitas Pengiriman',
-                              subtitle:
-                                  '${account.shipmentCount} Pengiriman Terdaftar pada Sistem SatSet',
+                              subtitle: account.shipmentCount > 0
+                                  ? '${account.shipmentCount} Pengiriman Terdaftar pada Sistem SatSet'
+                                  : 'Belum Ada Riwayat Pengiriman',
                               onTap: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Anda memiliki ${account.shipmentCount} riwayat pengiriman di SatSet Delivery.',
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                            ),
-                            const Divider(height: 1),
-                            AccountMenuItem(
-                              icon: Icons.account_balance_wallet_rounded,
-                              color: AppColors.secondary,
-                              title: 'Metode Pembayaran',
-                              subtitle:
-                                  'SatSet Pay (Rp ${account.satsetPayBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}), QRIS, & Virtual Account',
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Saldo SatSet Pay Anda saat ini Rp ${account.satsetPayBalance}. Siap digunakan untuk pengiriman instan.',
+                                      account.shipmentCount > 0
+                                          ? 'Anda memiliki ${account.shipmentCount} riwayat pengiriman di SatSet Delivery.'
+                                          : 'Belum ada riwayat pengiriman untuk akun ini.',
                                     ),
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -334,8 +352,8 @@ class _AccountPageState extends State<AccountPage> {
                             color: AppColors.primary,
                             title: 'Kredensial & Kata Sandi',
                             subtitle: account.isEmailVerified
-                                ? 'Ubah Kata Sandi • Email Terverifikasi Supabase Auth'
-                                : 'Ubah Kata Sandi • Verifikasi Email Akun',
+                                ? 'Ubah Kata Sandi • Email Verifikasi (Aktif)'
+                                : 'Ubah Kata Sandi • Belum Verifikasi',
                             onTap: () =>
                                 _navigateToForgotPassword(context, account),
                           ),

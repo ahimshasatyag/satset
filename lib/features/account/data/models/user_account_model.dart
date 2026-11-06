@@ -104,7 +104,7 @@ class UserAccountModel extends UserAccount {
     super.shipmentCount = 0,
     super.isNotificationsEnabled = true,
     super.addresses = const [],
-    super.membershipTier = 'SatSet Priority Member',
+    super.membershipTier = '',
     super.satsetPayBalance = 450000,
     super.savedAddressesCount = 3,
     super.insuranceClaimsCount = 0,
@@ -122,8 +122,10 @@ class UserAccountModel extends UserAccount {
       }
     }
 
-    final isCourier = json['isCourier'] as bool? ??
-        ((json['membershipTier'] as String?)?.toLowerCase().contains('kurir') ?? false);
+    final isCourier =
+        json['isCourier'] as bool? ??
+        ((json['membershipTier'] as String?)?.toLowerCase().contains('kurir') ??
+            false);
 
     return UserAccountModel(
       id: json['id'] as String? ?? 'usr-01',
@@ -137,13 +139,15 @@ class UserAccountModel extends UserAccount {
       isEmailVerified: json['isEmailVerified'] as bool? ?? false,
       shipmentCount: json['shipmentCount'] as int? ?? 0,
       membershipTier:
-          json['membershipTier'] as String? ?? (isCourier ? 'Mitra Kurir SatSet' : 'SatSet Priority Member'),
-      satsetPayBalance: json['satsetPayBalance'] as int? ?? (isCourier ? 0 : 450000),
-      savedAddressesCount: json['savedAddressesCount'] as int? ??
+          json['membershipTier'] as String? ??
+          (isCourier ? 'Mitra Kurir SatSet' : ''),
+      satsetPayBalance:
+          json['satsetPayBalance'] as int? ?? (isCourier ? 0 : 450000),
+      savedAddressesCount:
+          json['savedAddressesCount'] as int? ??
           (addressList.isNotEmpty ? addressList.length : 3),
       insuranceClaimsCount: json['insuranceClaimsCount'] as int? ?? 0,
-      isNotificationsEnabled:
-          json['isNotificationsEnabled'] as bool? ?? true,
+      isNotificationsEnabled: json['isNotificationsEnabled'] as bool? ?? true,
       addresses: addressList,
       isCourier: isCourier,
     );
@@ -157,14 +161,14 @@ class UserAccountModel extends UserAccount {
     String? membershipTier,
   }) {
     final id = userRow['id']?.toString() ?? '';
-    final name = (userRow['nama_lengkap'] ??
-            userRow['nama'] ??
-            userRow['name']) as String? ??
+    final name =
+        (userRow['nama_lengkap'] ?? userRow['nama'] ?? userRow['name'])
+            as String? ??
         '';
     final email = userRow['email'] as String? ?? '';
-    final phone = (userRow['no_hp'] ??
-            userRow['telepon'] ??
-            userRow['phone']) as String? ??
+    final phone =
+        (userRow['no_hp'] ?? userRow['telepon'] ?? userRow['phone'])
+            as String? ??
         '';
     final fullAddress = userRow['alamat_lengkap'] as String?;
     final lat = (userRow['latitude'] as num?)?.toDouble();
@@ -172,19 +176,31 @@ class UserAccountModel extends UserAccount {
 
     final roleId = int.tryParse(userRow['id_users_role']?.toString() ?? '');
     final roleStr = userRow['role']?.toString().toLowerCase();
-    final isCourier = roleId == 2 ||
+    final isCourier =
+        roleId == 2 ||
         roleStr == 'courier' ||
         roleStr == 'kurir' ||
         userRow.containsKey('employee_code') ||
         userRow.containsKey('employee_type');
     final empCode = userRow['employee_code']?.toString();
 
-    final tier = membershipTier ??
+    final tier =
+        membershipTier ??
         (isCourier
             ? (empCode != null && empCode.isNotEmpty
-                ? 'Mitra Kurir SatSet • Kode: $empCode'
-                : 'Mitra Kurir SatSet')
-            : 'SatSet Priority Member');
+                  ? 'Mitra Kurir SatSet • Kode: $empCode'
+                  : 'Mitra Kurir SatSet')
+            : '');
+
+    final rawVerified = userRow['email_verified'];
+    final verifiedFromRow =
+        rawVerified == true ||
+        rawVerified == 1 ||
+        rawVerified?.toString().trim().toLowerCase() == 'true' ||
+        rawVerified?.toString().trim().toLowerCase() == 't' ||
+        rawVerified?.toString().trim() == '1' ||
+        userRow['email_verified_at'] != null;
+    final verified = isEmailVerified || verifiedFromRow;
 
     return UserAccountModel(
       id: id,
@@ -194,13 +210,14 @@ class UserAccountModel extends UserAccount {
       fullAddress: fullAddress,
       latitude: lat,
       longitude: lng,
-      isEmailVerified: isEmailVerified,
+      isEmailVerified: verified,
       shipmentCount: shipmentCount,
       membershipTier: tier,
       satsetPayBalance: isCourier ? 0 : 450000,
       addresses: addresses,
-      savedAddressesCount:
-          addresses.isNotEmpty ? addresses.length : (fullAddress != null ? 1 : 0),
+      savedAddressesCount: addresses.isNotEmpty
+          ? addresses.length
+          : (fullAddress != null ? 1 : 0),
       isCourier: isCourier,
     );
   }
@@ -252,10 +269,7 @@ class UserAccountModel extends UserAccount {
   }
 
   Map<String, dynamic> toDatabase() {
-    final data = <String, dynamic>{
-      'nama_lengkap': name,
-      'no_hp': phone,
-    };
+    final data = <String, dynamic>{'nama_lengkap': name, 'no_hp': phone};
     if (fullAddress != null) {
       data['alamat_lengkap'] = fullAddress;
     }

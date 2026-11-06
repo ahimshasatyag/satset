@@ -140,15 +140,26 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
 
     try {
       await repository.resendEmailVerification(email);
-      emit(state.copyWith(
-        isActionLoading: false,
-        actionSuccessMessage:
-            'Tautan verifikasi email telah dikirim ke $email.',
-      ));
+      final updatedAccount = await getUserAccountUseCase();
+      if (updatedAccount.isEmailVerified) {
+        emit(state.copyWith(
+          isActionLoading: false,
+          account: updatedAccount,
+          actionSuccessMessage:
+              'Email Anda sudah terverifikasi di database!',
+        ));
+      } else {
+        emit(state.copyWith(
+          isActionLoading: false,
+          account: updatedAccount,
+          actionSuccessMessage:
+              'Tautan verifikasi email telah dikirim ke $email.',
+        ));
+      }
     } catch (e) {
       emit(state.copyWith(
         isActionLoading: false,
-        errorMessage: 'Gagal mengirim email verifikasi: ${e.toString()}',
+        errorMessage: 'Gagal memproses verifikasi email: ${e.toString()}',
       ));
     }
   }

@@ -135,7 +135,7 @@ class UserAccount extends Equatable {
     this.shipmentCount = 0,
     this.isNotificationsEnabled = true,
     this.addresses = const [],
-    this.membershipTier = 'SatSet Priority Member',
+    this.membershipTier = '',
     this.satsetPayBalance = 450000,
     this.savedAddressesCount = 3,
     this.insuranceClaimsCount = 0,

@@ -32,7 +32,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
     name: 'Satria Perkasa',
     email: 'satria@satset.id',
     phone: '+62 812-3456-7890',
-    membershipTier: 'SatSet Priority Member',
+    membershipTier: '',
     satsetPayBalance: 450000,
     savedAddressesCount: 3,
     insuranceClaimsCount: 0,
@@ -44,6 +44,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
     AuthLocalDataSource? authLocalDataSource,
     this.currentUser,
   }) : _customClient = client,
+       // ignore: prefer_initializing_formals
        _authLocalDataSource = authLocalDataSource;
 
   bool get _isSupabaseAvailable {
@@ -92,9 +93,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
           fullAddress: localUser.alamatLengkap,
           latitude: localUser.latitude,
           longitude: localUser.longitude,
-          membershipTier: isCourierHint
-              ? 'Mitra Kurir SatSet'
-              : 'SatSet Priority Member',
+          membershipTier: isCourierHint ? 'Mitra Kurir SatSet' : '',
           isCourier: isCourierHint,
           satsetPayBalance: isCourierHint ? 0 : 450000,
           savedAddressesCount: localUser.alamatLengkap != null ? 1 : 0,
@@ -107,11 +106,16 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
 
     try {
       final cleanEmail = (targetEmail ?? '').trim().toLowerCase();
-      final isEmailVerified =
-          authUser?.emailConfirmedAt != null || authUser?.confirmedAt != null;
 
       Map<String, dynamic>? employeeRow;
       Map<String, dynamic>? userRow;
+
+      bool isVerifiedVal(dynamic val) {
+        if (val == null) return false;
+        if (val is bool) return val;
+        final s = val.toString().trim().toLowerCase();
+        return s == 'true' || s == 't' || s == '1' || s == 'yes';
+      }
 
       // 2. Jika akun terindikasi sebagai kurir, prioritaskan query tabel m_employee
       if (isCourierHint) {
@@ -120,7 +124,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
             employeeRow = await _client
                 .from(DatabaseConstants.tableEmployee)
                 .select()
-                .eq(EmployeeTableColumns.email, cleanEmail)
+                .ilike(EmployeeTableColumns.email, cleanEmail)
                 .maybeSingle();
           }
           if (employeeRow == null && targetId != null && targetId.isNotEmpty) {
@@ -136,13 +140,22 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
       }
 
       // 3. Jika bukan kurir atau tidak ditemukan di m_employee, query tabel m_users
-      if (employeeRow == null && cleanEmail.isNotEmpty) {
+      if (employeeRow == null) {
         try {
-          userRow = await _client
-              .from(DatabaseConstants.tableUsers)
-              .select()
-              .eq(UserTableColumns.email, cleanEmail)
-              .maybeSingle();
+          if (cleanEmail.isNotEmpty) {
+            userRow = await _client
+                .from(DatabaseConstants.tableUsers)
+                .select()
+                .ilike(UserTableColumns.email, cleanEmail)
+                .maybeSingle();
+          }
+          if (userRow == null && targetId != null && targetId.isNotEmpty) {
+            userRow = await _client
+                .from(DatabaseConstants.tableUsers)
+                .select()
+                .eq(UserTableColumns.id, targetId)
+                .maybeSingle();
+          }
         } catch (_) {}
       }
 
@@ -153,7 +166,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
             employeeRow = await _client
                 .from(DatabaseConstants.tableEmployee)
                 .select()
-                .eq(EmployeeTableColumns.email, cleanEmail)
+                .ilike(EmployeeTableColumns.email, cleanEmail)
                 .maybeSingle();
           }
           if (employeeRow == null && targetId != null && targetId.isNotEmpty) {
@@ -166,6 +179,84 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
                 .maybeSingle();
           }
         } catch (_) {}
+      }
+
+      // 5. Cek status verifikasi email secara menyeluruh:
+      // a. Cek dari auth.currentUser Supabase Auth
+      // b. Cek kolom email_verified pada tabel m_users
+      // c. Cek kolom email_verified pada tabel m_employee
+      bool isEmailVerified =
+          authUser?.emailConfirmedAt != null ||
+          isVerifiedVal(localUser?.emailVerified);
+
+      // Periksa kolom email_verified pada userRow (m_users)
+      if (userRow != null) {
+        final uVerified =
+            userRow[UserTableColumns.emailVerified] ??
+            userRow['email_verified'];
+        if (isVerifiedVal(uVerified) || userRow['email_verified_at'] != null) {
+          isEmailVerified = true;
+        }
+      }
+
+      // Periksa kolom email_verified pada employeeRow (m_employee)
+      if (employeeRow != null) {
+        final eVerified = employeeRow['email_verified'];
+        if (isVerifiedVal(eVerified) ||
+            employeeRow['email_verified_at'] != null) {
+          isEmailVerified = true;
+        }
+      }
+
+      // Jika belum terverifikasi, periksa silang langsung ke kolom email_verified di m_users dan m_employee
+      if (!isEmailVerified &&
+          (cleanEmail.isNotEmpty ||
+              (targetId != null && targetId.isNotEmpty))) {
+        try {
+          Map<String, dynamic>? uCheck;
+          if (cleanEmail.isNotEmpty) {
+            uCheck = await _client
+                .from(DatabaseConstants.tableUsers)
+                .select('email_verified')
+                .ilike(UserTableColumns.email, cleanEmail)
+                .maybeSingle();
+          }
+          if (uCheck == null && targetId != null && targetId.isNotEmpty) {
+            uCheck = await _client
+                .from(DatabaseConstants.tableUsers)
+                .select('email_verified')
+                .eq(UserTableColumns.id, targetId)
+                .maybeSingle();
+          }
+          if (uCheck != null && isVerifiedVal(uCheck['email_verified'])) {
+            isEmailVerified = true;
+          }
+        } catch (_) {}
+
+        if (!isEmailVerified) {
+          try {
+            Map<String, dynamic>? eCheck;
+            if (cleanEmail.isNotEmpty) {
+              eCheck = await _client
+                  .from(DatabaseConstants.tableEmployee)
+                  .select('email_verified')
+                  .ilike(EmployeeTableColumns.email, cleanEmail)
+                  .maybeSingle();
+            }
+            if (eCheck == null && targetId != null && targetId.isNotEmpty) {
+              eCheck = await _client
+                  .from(DatabaseConstants.tableEmployee)
+                  .select('email_verified')
+                  .or(
+                    '${DatabaseConstants.colId}.eq.$targetId,user_id.eq.$targetId',
+                  )
+                  .maybeSingle();
+            }
+            if (eCheck != null && isVerifiedVal(eCheck['email_verified'])) {
+              isEmailVerified = true;
+            }
+          } catch (_) {}
+        }
       }
 
       // A. Jika profil ditemukan di m_employee (AKUN KURIR)
@@ -245,15 +336,12 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
         int shipmentCount = 0;
         try {
           final userId = userRow[UserTableColumns.id]?.toString();
-          final userPhone = userRow[UserTableColumns.noHp]?.toString();
 
           if (userId != null && userId.isNotEmpty) {
             final res = await _client
                 .from(DatabaseConstants.tableShipments)
                 .select(ShipmentTableColumns.id)
-                .or(
-                  '${ShipmentTableColumns.customerId}.eq.$userId,${ShipmentTableColumns.pengirimNoHp}.eq.$userPhone',
-                );
+                .eq(ShipmentTableColumns.customerId, userId);
             shipmentCount = (res as List).length;
           }
         } catch (_) {
@@ -283,9 +371,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
           latitude: localUser.latitude,
           longitude: localUser.longitude,
           isEmailVerified: isEmailVerified,
-          membershipTier: isCourierHint
-              ? 'Mitra Kurir SatSet'
-              : 'SatSet Priority Member',
+          membershipTier: isCourierHint ? 'Mitra Kurir SatSet' : '',
           shipmentCount: 0,
           satsetPayBalance: isCourierHint ? 0 : 450000,
           savedAddressesCount: localUser.alamatLengkap != null ? 1 : 0,
@@ -308,9 +394,8 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
           fullAddress: localUser.alamatLengkap,
           latitude: localUser.latitude,
           longitude: localUser.longitude,
-          membershipTier: isCourierHint
-              ? 'Mitra Kurir SatSet'
-              : 'SatSet Priority Member',
+          isEmailVerified: localUser.emailVerified == true,
+          membershipTier: isCourierHint ? 'Mitra Kurir SatSet' : '',
           shipmentCount: 0,
           satsetPayBalance: isCourierHint ? 0 : 450000,
           isCourier: isCourierHint,
@@ -480,6 +565,38 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
   Future<void> resendEmailVerification(String email) async {
     if (!_isSupabaseAvailable) return;
     final cleanEmail = email.trim().toLowerCase();
+
+    // 1. Cek dulu pada tabel m_users apakah email_verified = true
+    try {
+      final uCheck = await _client
+          .from(DatabaseConstants.tableUsers)
+          .select('email_verified')
+          .ilike(UserTableColumns.email, cleanEmail)
+          .maybeSingle();
+      if (uCheck != null) {
+        final v = uCheck['email_verified'];
+        if (v == true || v == 1 || v?.toString().toLowerCase() == 'true') {
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // 2. Cek dulu pada tabel m_employee apakah email_verified = true
+    try {
+      final eCheck = await _client
+          .from(DatabaseConstants.tableEmployee)
+          .select('email_verified')
+          .ilike(EmployeeTableColumns.email, cleanEmail)
+          .maybeSingle();
+      if (eCheck != null) {
+        final v = eCheck['email_verified'];
+        if (v == true || v == 1 || v?.toString().toLowerCase() == 'true') {
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // 3. Jika belum terverifikasi di m_users maupun m_employee, baru kirim email verifikasi
     await _client.auth.resend(type: OtpType.signup, email: cleanEmail);
   }
 
