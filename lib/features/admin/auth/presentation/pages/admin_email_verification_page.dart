@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:satset/app/config/supabase_config.dart';
 import 'package:satset/app/constants/database_constants.dart';
+import 'package:satset/features/admin/auth/data/datasources/admin_auth_local_datasource.dart';
+import 'package:satset/features/admin/auth/data/utils/admin_cookie_manager.dart';
 import 'package:satset/features/admin/auth/presentation/pages/admin_login_page.dart';
 import 'package:satset/shared/theme/app_colors.dart';
 import 'package:satset/shared/theme/app_text_styles.dart';
@@ -321,14 +323,30 @@ class _AdminEmailVerificationPageState extends State<AdminEmailVerificationPage>
     );
   }
 
-  void _navigateToLogin() {
+  Future<void> _navigateToLogin() async {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
+
+    // Bersihkan semua sesi lokal, Supabase Auth, dan cookie admin
+    // agar administrator harus login secara manual di AdminLoginPage dan tidak langsung terdeteksi sudah login
+    try {
+      final adminLocalDataSource = AdminAuthLocalDataSourceImpl();
+      await adminLocalDataSource.deleteAdmin();
+    } catch (_) {}
+
+    try {
+      await SupabaseConfig.client.auth.signOut();
+    } catch (_) {}
+
+    try {
+      AdminCookieManager.clearAuthTokenCookie();
+    } catch (_) {}
+
+    if (!mounted) return;
 
     if (widget.onNavigateToLogin != null) {
       try {
         widget.onNavigateToLogin!();
-        return;
       } catch (_) {}
     }
 

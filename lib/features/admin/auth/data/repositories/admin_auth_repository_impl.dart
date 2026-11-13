@@ -44,7 +44,8 @@ class AdminAuthRepositoryImpl implements AdminAuthRepository {
       alamatLengkap: alamatLengkap,
       fotoUrl: fotoUrl,
     );
-    await localDataSource.saveAdmin(adminModel);
+    // Jangan simpan sesi login lokal saat registrasi agar administrator
+    // harus melakukan verifikasi email dan login secara eksplisit di AdminLoginPage
     return adminModel;
   }
 
